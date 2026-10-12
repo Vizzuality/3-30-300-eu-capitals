@@ -1,0 +1,166 @@
+/* Generated from tokens.ts by `pnpm tokens`: do not edit by hand */
+
+:root {
+  --background: #f5f1e8;
+  --surface: #fffcf5;
+  --surface-2: #f6efe2;
+  --ink: #2e2a25;
+  --ink-2: #686055;
+  --line: #e5dccb;
+  --result-0: #d39e8a;
+  --result-1: #c07456;
+  --result-2: #a05130;
+  --result-3: #77361a;
+  --result-muted-0: #c4ada4;
+  --result-muted-1: #a9938a;
+  --result-muted-2: #8f7971;
+  --result-muted-3: #766159;
+  --tree: #66b98b;
+  --park: #dae3c2;
+  --water: #bbd7da;
+  --shallows: #e9f1ef;
+  --passes: #2e2a25;
+  --land: #f6f0e3;
+  --street: #fffcf4;
+  --street-casing: #e6dac3;
+  --building: #e8dfcf;
+  --shadow: #2e2a2529;
+  --tree-rim: #5b7440;
+  --water-lines: #6f8c93;
+  --europe-land-1: #f5efe2;
+  --europe-land-2: #ede5d5;
+  --europe-land-3: #f1eadc;
+  --europe-other: #ebe5da;
+  --europe-sea: #dde8e6;
+  --lift: 0 1px 2px #2e2a2514, 0 6px 18px #2e2a251a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #191714;
+    --surface: #22201c;
+    --surface-2: #2b2823;
+    --ink: #f3eee6;
+    --ink-2: #b7ad9f;
+    --line: #3b372f;
+    --result-0: #7c4d3b;
+    --result-1: #b06548;
+    --result-2: #da8564;
+    --result-3: #faad8f;
+    --result-muted-0: #6a564e;
+    --result-muted-1: #806b63;
+    --result-muted-2: #978178;
+    --result-muted-3: #ae978f;
+    --tree: #4fa879;
+    --park: #313925;
+    --water: #1e343a;
+    --shallows: #24332f;
+    --passes: #f3eee6;
+    --land: #2c2924;
+    --street: #3b3730;
+    --street-casing: #24211d;
+    --building: #3d3932;
+    --shadow: #00000029;
+    --tree-rim: #3d5130;
+    --water-lines: #7f9aa1;
+    --europe-land-1: #2f2b25;
+    --europe-land-2: #28251f;
+    --europe-land-3: #2c2822;
+    --europe-other: #25221d;
+    --europe-sea: #1c2626;
+    --lift: 0 1px 2px #0000004d, 0 6px 18px #00000059;
+  }
+}
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --breakpoint-*: initial;
+
+  --font-serif: "Fraunces Variable", "Noto Serif Variable", Georgia, serif;
+  --font-serif--font-variation-settings: "SOFT" 100, "WONK" 0;
+  --font-sans: "Figtree Variable", "Noto Sans Variable", system-ui, sans-serif;
+  --text-display: 2.5rem;
+  --text-display--line-height: 2.75rem;
+  --text-display--font-weight: 500;
+  --text-display--letter-spacing: -0.015em;
+  --text-display-phone: 2.125rem;
+  --text-display-phone--line-height: 2.375rem;
+  --text-display-phone--font-weight: 500;
+  --text-display-phone--letter-spacing: -0.015em;
+  --text-title: 1.75rem;
+  --text-title--line-height: 2rem;
+  --text-title--font-weight: 500;
+  --text-title--letter-spacing: -0.01em;
+  --text-heading: 1.25rem;
+  --text-heading--line-height: 1.625rem;
+  --text-heading--font-weight: 500;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-body--font-weight: 400;
+  --text-guide: 0.9375rem;
+  --text-guide--line-height: 1.3125rem;
+  --text-guide--font-weight: 600;
+  --text-control: 0.875rem;
+  --text-control--line-height: 1.25rem;
+  --text-control--font-weight: 500;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.125rem;
+  --text-small--font-weight: 400;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-label--font-weight: 600;
+  --text-label--letter-spacing: 0.08em;
+  --radius-chip: 8px;
+  --radius-control: 14px;
+  --radius-panel: 22px;
+  --spacing-panel: 480px;
+  --spacing-panel-inset: 32px;
+  --spacing-panel-inset-phone: 20px;
+  --spacing-top-bar: 64px;
+  --spacing-top-bar-phone: 56px;
+  --spacing-block: 22px;
+  --spacing-map-inset: 16px;
+  --spacing-target: 40px;
+  --spacing-target-phone: 44px;
+  --breakpoint-desktop: 64rem;
+}
+
+/* Colours and shadows follow the colour scheme, so utilities read them at run time */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-result-0: var(--result-0);
+  --color-result-1: var(--result-1);
+  --color-result-2: var(--result-2);
+  --color-result-3: var(--result-3);
+  --color-result-muted-0: var(--result-muted-0);
+  --color-result-muted-1: var(--result-muted-1);
+  --color-result-muted-2: var(--result-muted-2);
+  --color-result-muted-3: var(--result-muted-3);
+  --color-tree: var(--tree);
+  --color-park: var(--park);
+  --color-water: var(--water);
+  --color-shallows: var(--shallows);
+  --color-passes: var(--passes);
+  --color-land: var(--land);
+  --color-street: var(--street);
+  --color-street-casing: var(--street-casing);
+  --color-building: var(--building);
+  --color-shadow: var(--shadow);
+  --color-tree-rim: var(--tree-rim);
+  --color-water-lines: var(--water-lines);
+  --color-europe-land-1: var(--europe-land-1);
+  --color-europe-land-2: var(--europe-land-2);
+  --color-europe-land-3: var(--europe-land-3);
+  --color-europe-other: var(--europe-other);
+  --color-europe-sea: var(--europe-sea);
+  --shadow-lift: var(--lift);
+}

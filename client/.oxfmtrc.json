@@ -11,5 +11,9 @@
     "stylesheet": "src/styles.css",
     "functions": ["cn", "cva"]
   },
-  "ignorePatterns": ["pnpm-lock.yaml", "src/routeTree.gen.ts"]
+  "ignorePatterns": [
+    "pnpm-lock.yaml",
+    "src/routeTree.gen.ts",
+    "src/design/tokens.css"
+  ]
 }

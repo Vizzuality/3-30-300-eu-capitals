@@ -3,26 +3,23 @@ import "./no-transitions.css"
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
+  Match,
   RouterContextProvider,
   createMemoryHistory,
   createRouter,
-  type AnyRoute,
 } from "@tanstack/react-router"
 import { render } from "vitest-browser-react"
 
 import { routeTree } from "@/routeTree.gen"
+import { Route as LocaleLayout } from "@/routes/$locale/route"
 
 /*
- * Renders a page's route component as visitors see it at `url` (search
- * parameters included): inside the router, TanStack Query and the global
- * styles.
+ * Renders a page as visitors see it at `url` (search parameters included):
+ * the shared layout (top bar, footer, map area) with the page inside, within
+ * the router, TanStack Query and the global styles. The root's HTML document
+ * is left out, since the test page already has one.
  */
-export async function renderPage(route: AnyRoute, url: string) {
-  const Page = route.options.component
-  if (!Page) {
-    throw new Error(`The route ${route.id} has no component`)
-  }
-
+export async function renderPage(url: string) {
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [url] }),
@@ -33,7 +30,7 @@ export async function renderPage(route: AnyRoute, url: string) {
     defaultOptions: { queries: { retry: false } },
   })
 
-  return render(<Page />, {
+  return render(<Match routeId={LocaleLayout.id} />, {
     wrapper: ({ children }) => (
       <QueryClientProvider client={queryClient}>
         <RouterContextProvider router={router}>

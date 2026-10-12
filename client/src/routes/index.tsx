@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 
-export const Route = createFileRoute("/")({ component: Home })
+import { defaultLocale } from "@/i18n/locales"
 
-// Placeholder until the pages are built
-function Home() {
-  return (
-    <main className="flex min-h-svh items-center justify-center p-6">
-      <h1 className="text-2xl font-medium">3-30-300</h1>
-    </main>
-  )
-}
+// Temporary: `/` will pick the visitor's language (cookie, then browser)
+export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    throw redirect({
+      to: "/$locale",
+      params: { locale: defaultLocale },
+      statusCode: 302,
+    })
+  },
+})

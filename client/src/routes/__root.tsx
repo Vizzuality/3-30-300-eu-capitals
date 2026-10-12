@@ -1,7 +1,13 @@
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
+import {
+  HeadContent,
+  Scripts,
+  createRootRoute,
+  useParams,
+} from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
+import { defaultLocale, isLocale } from "@/i18n/locales"
 import appCss from "../styles.css?url"
 
 export const Route = createRootRoute({
@@ -13,9 +19,6 @@ export const Route = createRootRoute({
       {
         name: "viewport",
         content: "width=device-width, initial-scale=1",
-      },
-      {
-        title: "3-30-300",
       },
     ],
     links: [
@@ -39,18 +42,15 @@ export const Route = createRootRoute({
       },
     ],
   }),
-  notFoundComponent: () => (
-    <main className="container mx-auto p-4 pt-16">
-      <h1>404</h1>
-      <p>The requested page could not be found.</p>
-    </main>
-  ),
   shellComponent: RootDocument,
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // The page's language; an unknown one is a 404 page in English
+  const { locale } = useParams({ strict: false })
+
   return (
-    <html lang="en">
+    <html lang={locale && isLocale(locale) ? locale : defaultLocale}>
       <head>
         <HeadContent />
       </head>

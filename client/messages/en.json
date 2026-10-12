@@ -1,0 +1,91 @@
+{
+  "frame": {
+    "skipLink": "Skip to content",
+    "siteName": "3-30-300",
+    "homeLink": "3-30-300, back to Home",
+    "navigation": "Site",
+    "methodology": "Methodology",
+    "about": "About",
+    "languageCode": "EN",
+    "language": "Language: English",
+    "madeBy": "Made by Vizzuality"
+  },
+  "home": {
+    "meta": {
+      "title": "How green is your capital? The 3-30-300 rule in the 27 EU capitals",
+      "description": "Three trees in view from every home, 30% tree canopy around it and a park within a 300 m walk: see how the 27 EU capitals measure up, building by building."
+    },
+    "title": "How green is your capital?"
+  },
+  "capital": {
+    "meta": {
+      "title": "{capital}: trees in view, tree canopy and parks near every home · 3-30-300",
+      "description": "How many residents of {capital} see three trees from home, have 30% tree canopy around them and live within a 300 m walk of a park? Explore the map, building by building."
+    },
+    "otherCapitals": "Other capitals"
+  },
+  "methodology": {
+    "meta": {
+      "title": "Methodology: how the 3-30-300 rule is measured · 3-30-300",
+      "description": "The open data and the steps behind every result: the trees seen from each facade, the tree canopy within 500 m and the walk to the nearest park, the same for all 27 EU capitals."
+    },
+    "label": "Methodology",
+    "title": "How we checked every home",
+    "sections": {
+      "trees": "3 trees in view",
+      "canopy": "30% canopy around",
+      "park": "300 m to a park",
+      "residents": "Residents",
+      "cityLimits": "City limits",
+      "data": "Data",
+      "limits": "Limits"
+    }
+  },
+  "about": {
+    "meta": {
+      "title": "About this site · 3-30-300",
+      "description": "What the 3-30-300 site measures in the 27 EU capitals, the research it builds on, the open data it uses and where its code is published."
+    },
+    "title": "About this site",
+    "basedOn": "Based on",
+    "credits": "Data credits",
+    "links": "Links"
+  },
+  "notFound": {
+    "meta": {
+      "title": "Page not found · 3-30-300"
+    },
+    "title": "Page not found",
+    "text": "There is no page at this address. It may have moved, or the address may be mistyped.",
+    "home": "Go to the home page"
+  },
+  "temporaryCapitalNames": {
+    "brussels": "Brussels",
+    "sofia": "Sofia",
+    "prague": "Prague",
+    "copenhagen": "Copenhagen",
+    "berlin": "Berlin",
+    "tallinn": "Tallinn",
+    "dublin": "Dublin",
+    "athens": "Athens",
+    "madrid": "Madrid",
+    "paris": "Paris",
+    "zagreb": "Zagreb",
+    "rome": "Rome",
+    "nicosia": "Nicosia",
+    "riga": "Riga",
+    "vilnius": "Vilnius",
+    "luxembourg": "Luxembourg",
+    "budapest": "Budapest",
+    "valletta": "Valletta",
+    "amsterdam": "Amsterdam",
+    "vienna": "Vienna",
+    "warsaw": "Warsaw",
+    "lisbon": "Lisbon",
+    "bucharest": "Bucharest",
+    "ljubljana": "Ljubljana",
+    "bratislava": "Bratislava",
+    "helsinki": "Helsinki",
+    "stockholm": "Stockholm"
+  }
+}
