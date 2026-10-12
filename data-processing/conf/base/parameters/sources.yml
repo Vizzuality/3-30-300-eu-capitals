@@ -1,0 +1,80 @@
+# Data sources. Versions are pinned here; a new
+# release that changes one of them changes this file.
+sources:
+  osm:
+    # Every OpenStreetMap layer (boundary, water, green spaces, walking network, streets and their
+    # names) comes from one dated Geofabrik extract per country (the region is set per capital in
+    # capitals.yml). The file is kept in data/01_raw/osm/<region>/ and is the run's fixed input.
+    # Use one date for every capital of a release; "latest" downloads <region>-latest.osm.pbf.
+    geofabrik_url: https://download.geofabrik.de
+    extract_date: "261011"
+  land_polygons:
+    # OpenStreetMap land polygons (coastline), regenerated daily by osmdata.openstreetmap.de;
+    # the file's Last-Modified date is kept in the manifest and the release metadata.
+    url: https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip
+    layer_path: land-polygons-split-4326/land_polygons.shp
+  overture:
+    release: 2026-09-23.1
+    s3_bucket: overturemaps-us-west-2
+    s3_region: us-west-2
+    s3_prefix: release/2026-09-23.1/theme=buildings/type=building/
+  canopy_height:
+    # Meta & WRI High Resolution Canopy Height Map v1 (Tolan et al. 2024), 1 m, CC BY 4.0
+    base_url: https://dataforgood-fb-data.s3.amazonaws.com/forests/v1/alsgedi_global_v6_float
+    nodata: 255
+    version: v1
+  ghs_pop:
+    # JRC GHS-POP R2023A, epoch 2020, 100 m, Mollweide (ESRI:54009), 1000 km tiles
+    release: GHS_POP_E2020_GLOBE_R2023A_54009_100_V1_0
+    version: R2023A
+    epoch: 2020
+    base_url: https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2023A/GHS_POP_E2020_GLOBE_R2023A_54009_100/V1-0/tiles/
+    crs: ESRI:54009
+    tile_origin: [-18041000.0, 9000000.0]
+    tile_size: 1000000.0
+  wikidata:
+    api_url: https://www.wikidata.org/w/api.php
+  fonts:
+    # Used only to measure the width of street names; SIL Open Font License.
+    figtree: https://raw.githubusercontent.com/google/fonts/main/ofl/figtree/Figtree%5Bwght%5D.ttf
+    noto_sans: https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans%5Bwdth,wght%5D.ttf
+
+  # Credits written into the release (sources.json) for the site's data credits and Methodology
+  # page. Version and date come from the run (the extract, the files, the imagery).
+  credits:
+    osm:
+      name: OpenStreetMap
+      licence: ODbL 1.0
+      licence_url: https://opendatacommons.org/licenses/odbl/1-0/
+      attribution: © OpenStreetMap contributors, available under the Open Database License
+      url: https://www.openstreetmap.org/copyright
+    osm_land_polygons:
+      name: OpenStreetMap land polygons
+      licence: ODbL 1.0
+      licence_url: https://opendatacommons.org/licenses/odbl/1-0/
+      attribution: © OpenStreetMap contributors, available under the Open Database License
+      url: https://osmdata.openstreetmap.de/data/land-polygons.html
+    overture_buildings:
+      name: Overture Maps buildings
+      licence: ODbL 1.0
+      licence_url: https://opendatacommons.org/licenses/odbl/1-0/
+      attribution: Overture Maps Foundation, and the sources listed on its attribution page
+      url: https://docs.overturemaps.org/attribution/
+    canopy_height:
+      name: Meta & WRI High Resolution Canopy Height Maps
+      licence: CC BY 4.0
+      licence_url: https://creativecommons.org/licenses/by/4.0/
+      attribution: Meta and WRI 2024, High Resolution Canopy Height Maps; source imagery © 2016 Maxar
+      url: https://registry.opendata.aws/dataforgood-fb-forests/
+    ghs_pop:
+      name: GHS-POP (Global Human Settlement Layer, population)
+      licence: CC BY 4.0
+      licence_url: https://creativecommons.org/licenses/by/4.0/
+      attribution: "European Commission, Joint Research Centre: GHS-POP R2023A"
+      url: https://human-settlement.emergency.copernicus.eu/ghs_pop2023.php
+    wikidata:
+      name: Wikidata
+      licence: CC0 1.0
+      licence_url: https://creativecommons.org/publicdomain/zero/1.0/
+      attribution: Wikidata
+      url: https://www.wikidata.org/

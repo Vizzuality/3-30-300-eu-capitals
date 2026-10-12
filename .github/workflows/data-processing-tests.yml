@@ -1,0 +1,53 @@
+name: "Data processing: tests"
+
+on:
+  push:
+    paths:
+      - "data-processing/**"
+      - ".github/workflows/data-processing-tests.yml"
+  pull_request:
+    paths:
+      - "data-processing/**"
+      - ".github/workflows/data-processing-tests.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data-processing
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: data-processing/uv.lock
+      - run: uv sync --frozen --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data-processing
+    env:
+      KEDRO_DISABLE_TELEMETRY: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: data-processing/uv.lock
+      - run: uv sync --frozen --group dev
+      - run: uv run pytest

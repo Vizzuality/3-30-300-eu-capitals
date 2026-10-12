@@ -1,0 +1,33 @@
+# city.pmtiles, grid.pmtiles and evidence.pmtiles: zooms, simplification and Tippecanoe flags.
+tiles:
+  # minimum zoom of each layer of city.pmtiles (all go up to 16; deck.gl overzooms beyond)
+  layers:
+    land: 10
+    water: 10            # water bodies of 0.5 ha or more…
+    water_small: 13      # …smaller ones only at street level
+    shore: 10            # the coast line
+    ripples: 14          # the two ripple lines
+    water_marks: 15
+    parks: 13
+    streets: 13
+    canopy: 13
+    buildings: 13
+    trees: 14
+    facades: 16
+  water_min_overview_m2: 5000
+  canopy_simplify_m: 1.0
+  canopy_min_area_m2: 4
+  city:
+    minzoom: 10
+    maxzoom: 16
+    # Tippecanoe flags: -r1 keeps every point (without it, trees and label candidates are dropped
+    # below zoom 16); no feature or tile size limits
+    tippecanoe_flags: ["-Z10", "-z16", "-r1", "--no-feature-limit", "--no-tile-size-limit",
+                       "--no-tiny-polygon-reduction", "--simplification=2", "--buffer=8"]
+  grid:
+    minzoom: 8
+    maxzoom: 14
+    tile_px: 512
+    no_colour: 4         # pixel value for water and outside the city
+  evidence:
+    zoom: 15

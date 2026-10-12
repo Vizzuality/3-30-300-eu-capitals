@@ -1,0 +1,36 @@
+# Buildings and facades.
+facade_walls:      # facades before the tree count (shared walls already dropped)
+  type: data_processing.datasets.GeoParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/facade_walls.parquet
+
+facade_samples:    # points every 5 m, 1 m outside each facade: x, y, f (row of facade_walls)
+  type: data_processing.datasets.ParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/facade_samples.parquet
+
+facades_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/facades.json
+
+facades:           # sid, b (building id), length, bearing, orient, n (trees seen), ok (n >= 3)
+  type: data_processing.datasets.GeoParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/facades.parquet
+
+facade_seen:       # trees seen from each facade: sid, tree, dist, sx, sy (facade point used)
+  type: data_processing.datasets.ParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/facade_seen.parquet
+
+facade_trees_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/facade_trees.json
+
+building_results:  # id, scored, residents, share3, r3, facades, canopy, r30, walk_m, park, r300, score
+  type: data_processing.datasets.ParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/building_results.parquet
+
+building_routes:   # walking route from each building to its green space (EPSG:3035)
+  type: data_processing.datasets.GeoParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/building_routes.parquet
+
+buildings_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/buildings.json

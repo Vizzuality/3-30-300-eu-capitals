@@ -1,0 +1,25 @@
+# Common step 4: residents placed in buildings.
+buildings_source:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/buildings.json
+
+buildings:           # Overture footprints over the analysis area: id (sequential), overture_id,
+                     # cx, cy (representative point, EPSG:3035), scored (point in the city), area_m2
+  type: data_processing.datasets.GeoParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/buildings.parquet
+
+population_source:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/population.json
+
+population:          # residents per 10 m square (float)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/population.tif
+
+building_residents:  # id, residents
+  type: data_processing.datasets.ParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/building_residents.parquet
+
+residents_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/residents.json

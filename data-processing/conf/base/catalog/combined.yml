@@ -1,0 +1,12 @@
+# Combined layer.
+met:           # rules met per city square (0–3), 255 outside the city
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/met.tif
+
+grid_values:   # the values of grid.pmtiles: 0–3 rules met, 4 = no colour (water, outside the city)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/grid_values.tif
+
+city_summary:  # residents, shares (squares weighted by residents), suggested place
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/summary.json

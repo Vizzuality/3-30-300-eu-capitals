@@ -1,0 +1,20 @@
+# Common steps 3 and 5: the shared grid (EPSG:3035, 10 m) and its masks.
+grid:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid.json
+
+grid_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/grid.json
+
+city_mask:   # 1 = the square's centre is in the city
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/city_mask.tif
+
+water_mask:  # 1 = the square's centre is in water (sea, lake, river, canal)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/water_mask.tif
+
+water_2m:    # water at 2 m, for the "never crosses water" tests of rule 300
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/water_2m.tif

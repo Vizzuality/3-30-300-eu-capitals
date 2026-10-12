@@ -1,0 +1,29 @@
+# Known values checked by `just check` (ranges: [min, max]). They pin the Stockholm results of the
+# first full run (2026-10-12, release 2026-10-stockholm) with a small tolerance (shares ± 0.005,
+# residents ± 0.5 %): a change of source or method that moves them must update this file.
+check:
+  # Sizes are warnings, never failures: tiles over these sizes are listed by `just check`.
+  budgets:
+    vector_tile_warn_bytes: 500000         # a vector tile of city.pmtiles (or a grid tile)
+    vector_tile_aim_bytes: 200000          # listed as a note
+    evidence_tile_gzip_warn_bytes: 250000  # an evidence tile, gzipped as it is stored and sent
+  known:
+    stockholm:
+      osm_relation: 398021
+      osm_version: 98
+      name_en: Stockholm
+      area_km2: [208.5, 209.5]           # 209.045 km²: boundary 215.8 km² minus 6.7 km² of sea
+      residents: [1028000, 1038000]      # 1,033,095 (GHS-POP 2020)
+      met:                               # 0.1772, 0.4315, 0.2836, 0.1076
+        - [0.1722, 0.1822]
+        - [0.4265, 0.4365]
+        - [0.2786, 0.2886]
+        - [0.1026, 0.1126]
+      rules:                             # 0.3199, 0.2313, 0.7704
+        "3": [0.3149, 0.3249]
+        "30": [0.2263, 0.2363]
+        "300": [0.7654, 0.7754]
+      # [18.02722, 59.334066]: Kungsholmen (Fridhemsplan). The population-weighted centre is at
+      # Hornstull/Långholmen; Södermalm's densest squares are more than 2 km from it.
+      suggested_name: Kungsholmen
+      suggested_within: [18.015, 59.328, 18.040, 59.340]

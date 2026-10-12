@@ -1,0 +1,76 @@
+[project]
+name = "data-processing"
+version = "0.1.0"
+description = "3-30-300 for the EU capitals: computes the layers and writes the data releases"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "geopandas>=1.2.0",
+    "kedro>=1.7.0",
+    "numba>=0.68.0",
+    "numpy>=2.3",
+    "osmium>=4.3.1",
+    "pandas>=2.3",
+    "pillow>=12.3.0",
+    "pmtiles>=3.8.1",
+    "pyarrow>=25.0.1",
+    "pyogrio>=0.13.0",
+    "pyproj>=3.8.0",
+    "rasterio>=1.5.2",
+    "requests>=2.34.2",
+    "scipy>=1.18.1",
+    "shapely>=2.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+    "rust-just>=1.58.0",
+]
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/data_processing"]
+
+[tool.kedro]
+package_name = "data_processing"
+project_name = "data-processing"
+kedro_init_version = "1.7.0"
+source_dir = "src"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+show-fixes = true
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = ["F", "W", "E", "I", "UP", "B", "PL", "T201"]
+ignore = [
+    "PLR0913", # many arguments: numba kernels and Kedro nodes take their inputs explicitly
+    "PLR0915", # long functions
+    "PLR0912", # many branches
+    "PLR2004", # magic values: thresholds are named in the parameters files
+    "PLR0914",
+    "PLR0917",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["data_processing"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/*" = ["PLC2701", "PLR6301"]
+"**/src/data_processing/check.py" = ["T201"]
+"**/src/data_processing/inspect_evidence.py" = ["T201"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+filterwarnings = ["ignore:register_new_resolver:UserWarning"]
+testpaths = ["tests"]

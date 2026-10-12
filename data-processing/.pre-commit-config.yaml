@@ -1,0 +1,23 @@
+# Install from the repository root: uv run --project data-processing pre-commit install --config data-processing/.pre-commit-config.yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+        files: ^data-processing/
+      - id: end-of-file-fixer
+        files: ^data-processing/
+      - id: trailing-whitespace
+        files: ^data-processing/
+      - id: detect-private-key
+        files: ^data-processing/
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.0
+    hooks:
+      - id: ruff-check
+        args: [--fix, --show-fixes, --config, data-processing/pyproject.toml]
+        files: ^data-processing/
+      - id: ruff-format
+        args: [--config, data-processing/pyproject.toml]
+        files: ^data-processing/

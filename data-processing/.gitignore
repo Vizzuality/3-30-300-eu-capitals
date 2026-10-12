@@ -1,0 +1,26 @@
+# Data: downloads, working files and releases are never committed (ODbL data is published
+# separately, see README.md › Licences)
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# Local configuration and credentials
+conf/local/**
+!conf/local/.gitkeep
+
+# Tools built locally (Tippecanoe)
+.tools/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+tests/.numba_cache/
+*.egg-info/
+
+# Kedro
+.telemetry
+.viz
+*.log

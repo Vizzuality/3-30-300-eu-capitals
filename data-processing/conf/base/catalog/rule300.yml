@@ -1,0 +1,40 @@
+# Layer 3: 300 m to a park.
+parks:              # green spaces of 1 ha or more: pid, area_m2, kind, name
+  type: data_processing.datasets.GeoParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/parks.parquet
+
+parks_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/parks.json
+
+walk_network:       # nodes (EPSG:3035) and straight segments of the walkable ways
+  type: data_processing.datasets.NpzDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/walk_network.npz
+
+walk_network_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/walk_network.json
+
+walk:               # the network with the walking distance of each node and its predecessor
+  type: data_processing.datasets.NpzDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/walk.npz
+
+walk_sources:       # stretches of path within 20 m of a green space: seg, s0, s1, park
+  type: data_processing.datasets.ParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/walk_sources.parquet
+
+walk_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/walk.json
+
+walk_distance:      # walking distance (m) of each city square (inf: no park reachable)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/walk_distance.tif
+
+rule300:            # 1 = 300 m or less
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/rule300.tif
+
+rule300_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/rule300.json

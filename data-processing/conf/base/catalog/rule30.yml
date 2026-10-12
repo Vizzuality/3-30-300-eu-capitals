@@ -1,0 +1,20 @@
+# Layer 2: 30 % canopy.
+canopy_px:      # 1 m pixels of the square with vegetation >= 3 m, on land (0–100)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/canopy_px.tif
+
+land_px:        # 1 m pixels of the square that are land and have canopy-height data (0–100)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/land_px.tif
+
+canopy_share:   # canopy share of the land within 500 m (city squares)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/canopy_share.tif
+
+rule30:         # 1 = share >= 30 %
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/rule30.tif
+
+rule30_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/rule30.json

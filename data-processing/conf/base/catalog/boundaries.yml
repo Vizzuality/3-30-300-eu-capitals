@@ -1,0 +1,28 @@
+# Common steps 1–2. `${runtime_params:capital}` is the capital being run (`just run <capital>`).
+osm_extract:      # the Geofabrik extract (data/01_raw/osm/<region>/): file, timestamp, sha256
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/osm_extract.json
+
+boundary_source:  # the relation: version, outline (GeoJSON) and the sha256 of the outline
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/boundary.json
+
+land_polygons_source:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/land_polygons.json
+
+boundaries:
+  type: data_processing.datasets.GeoParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/boundaries.parquet
+
+boundary_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/boundaries.json
+
+osm_features:     # water, green spaces and highway ways of the analysis area (osm/features/)
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/osm_features.json
+
+water:
+  type: data_processing.datasets.GeoParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/water.parquet

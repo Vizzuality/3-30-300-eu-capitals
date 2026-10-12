@@ -1,0 +1,45 @@
+# The 27 capitals. A capital is the territory of the directly elected government whose remit is
+# the capital city itself (in most capitals, the municipality). A capital runs only once its
+# OpenStreetMap relation version is pinned (`osm_version`): the run fails if the relation has
+# another version in the extract, so a boundary never changes without this file changing.
+#
+# - slug: path segment of the site and folder name in the release
+# - osm_relation / osm_version: the administrative relation of the territory used
+# - osm_extract: the smallest Geofabrik region holding the city, its 1 km buffer and the 200 m
+#   margin kept around green spaces (e.g. europe/sweden; Sweden has no smaller region)
+# - wikidata / country_wikidata: names in the 24 languages (Wikidata labels)
+# - language: language of local names (street and park names), for the `lang` attribute
+#
+# Only Stockholm is pinned and checked so far. The others carry the relation ids found while
+# choosing the boundaries and their Wikidata ids; both must be verified, the version pinned and
+# the Geofabrik region set before they are run.
+locales: [bg, cs, da, de, el, en, es, et, fi, fr, ga, hr, hu, it, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv]
+
+capitals:
+  stockholm: {local_name: Stockholm, country: SE, osm_relation: 398021, osm_version: 98, osm_extract: europe/sweden, wikidata: Q1754, country_wikidata: Q34, language: sv}
+  amsterdam: {local_name: Amsterdam, country: NL, osm_relation: 47811, osm_version: null, wikidata: Q727, country_wikidata: Q55, language: nl}
+  athens: {local_name: Αθήνα, country: GR, osm_relation: 1370736, osm_version: null, wikidata: Q1524, country_wikidata: Q41, language: el}
+  berlin: {local_name: Berlin, country: DE, osm_relation: 62422, osm_version: null, wikidata: Q64, country_wikidata: Q183, language: de}
+  bratislava: {local_name: Bratislava, country: SK, osm_relation: 1702499, osm_version: null, wikidata: Q1780, country_wikidata: Q214, language: sk}
+  brussels: {local_name: Bruxelles / Brussel, country: BE, osm_relation: 54094, osm_version: null, wikidata: Q240, country_wikidata: Q31, language: fr}
+  bucharest: {local_name: București, country: RO, osm_relation: 377733, osm_version: null, wikidata: Q19660, country_wikidata: Q218, language: ro}
+  budapest: {local_name: Budapest, country: HU, osm_relation: 1244004, osm_version: null, wikidata: Q1781, country_wikidata: Q28, language: hu}
+  copenhagen: {local_name: København, country: DK, osm_relation: 2192363, osm_version: null, wikidata: Q1748, country_wikidata: Q35, language: da}
+  dublin: {local_name: Dublin, country: IE, osm_relation: 1109531, osm_version: null, wikidata: Q1761, country_wikidata: Q27, language: en}
+  helsinki: {local_name: Helsinki, country: FI, osm_relation: 34914, osm_version: null, wikidata: Q1757, country_wikidata: Q33, language: fi}
+  lisbon: {local_name: Lisboa, country: PT, osm_relation: 5400890, osm_version: null, wikidata: Q597, country_wikidata: Q45, language: pt}
+  ljubljana: {local_name: Ljubljana, country: SI, osm_relation: 1675898, osm_version: null, wikidata: Q437, country_wikidata: Q215, language: sl}
+  luxembourg: {local_name: Lëtzebuerg, country: LU, osm_relation: 407489, osm_version: null, wikidata: Q1842, country_wikidata: Q32, language: lb}
+  madrid: {local_name: Madrid, country: ES, osm_relation: 5326784, osm_version: null, wikidata: Q2807, country_wikidata: Q29, language: es}
+  nicosia: {local_name: Λευκωσία, country: CY, osm_relation: 17716182, osm_version: null, wikidata: Q3856, country_wikidata: Q229, language: el}
+  paris: {local_name: Paris, country: FR, osm_relation: 7444, osm_version: null, wikidata: Q90, country_wikidata: Q142, language: fr}
+  prague: {local_name: Praha, country: CZ, osm_relation: 435514, osm_version: null, wikidata: Q1085, country_wikidata: Q213, language: cs}
+  riga: {local_name: Rīga, country: LV, osm_relation: 13048688, osm_version: null, wikidata: Q1773, country_wikidata: Q211, language: lv}
+  rome: {local_name: Roma, country: IT, osm_relation: 41485, osm_version: null, wikidata: Q220, country_wikidata: Q38, language: it}
+  sofia: {local_name: София, country: BG, osm_relation: 7276261, osm_version: null, wikidata: Q472, country_wikidata: Q219, language: bg}
+  tallinn: {local_name: Tallinn, country: EE, osm_relation: 350902, osm_version: null, wikidata: Q1770, country_wikidata: Q191, language: et}
+  valletta: {local_name: Il-Belt Valletta, country: MT, osm_relation: 7510580, osm_version: null, wikidata: Q23800, country_wikidata: Q233, language: mt}
+  vienna: {local_name: Wien, country: AT, osm_relation: 109166, osm_version: null, wikidata: Q1741, country_wikidata: Q40, language: de}
+  vilnius: {local_name: Vilnius, country: LT, osm_relation: 968952, osm_version: null, wikidata: Q216, country_wikidata: Q37, language: lt}
+  warsaw: {local_name: Warszawa, country: PL, osm_relation: 2907540, osm_version: null, wikidata: Q270, country_wikidata: Q36, language: pl}
+  zagreb: {local_name: Zagreb, country: HR, osm_relation: 226224, osm_version: null, wikidata: Q1435, country_wikidata: Q224, language: hr}

@@ -1,0 +1,43 @@
+# Export: the release folder, laid out exactly as the bucket (docs/release-format.md).
+# `${runtime_params:release}` is the release name (`just run <capital> [release]`).
+grid_pmtiles:
+  type: data_processing.datasets.PathDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/grid.pmtiles
+city_pmtiles:
+  type: data_processing.datasets.PathDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/city.pmtiles
+evidence_pmtiles:
+  type: data_processing.datasets.PathDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/evidence.pmtiles
+summary_json:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/summary.json
+  indent: null
+ranking_json:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/ranking.json
+  indent: null
+sources_json:     # every data source with its version, date, licence and attribution
+  type: data_processing.datasets.JSONDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/sources.json
+  indent: null
+capitals_json:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals.json
+  indent: null
+
+names:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/names.json
+release_record:   # this capital's entry of ranking.json and capitals.json
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/release_record.json
+grid_pmtiles_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/grid_pmtiles.json
+city_pmtiles_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/city_pmtiles.json
+evidence_pmtiles_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/evidence_pmtiles.json

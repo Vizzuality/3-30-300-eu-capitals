@@ -1,0 +1,60 @@
+# The method, as numbers: the thresholds and distances of the three rules and of the steps
+# shared by every capital. Changing one changes the results of every capital.
+method:
+  crs: EPSG:3035          # ETRS89-LAEA, Europe's statistical grid
+  buffer_m: 1000          # every layer is computed over the city plus 1 km
+  grid_res_m: 10          # the shared grid
+  grid_snap_m: 100        # grid edges on multiples of 100 m
+  chm_res_m: 1            # canopy height pixels, on the same origin as the grid
+
+  trees:                  # Layer 1, step 1
+    min_height_m: 3       # a tree top is a local peak at least 3 m tall…
+    smoothing_sigma_m: 1  # …after light smoothing (Gaussian)
+    peak_radius_m: 3      # …with peaks at least about 3 m apart (peak = maximum within this disc)
+
+  rule3:                  # Layer 1 and Buildings and facades, steps 1–4
+    view_radius_m: 30
+    min_trees: 3
+    edge_bucket_m: 10     # spatial hash of building edges for the line-of-sight test
+
+  rule30:                 # Layer 2
+    canopy_min_height_m: 3
+    radius_m: 500
+    threshold: 0.30       # passes if the share is at least 30 %
+
+  rule300:                # Layer 3
+    green_tags:
+      leisure: [park, garden, nature_reserve]
+      landuse: [forest]
+      natural: [wood]
+    excluded_access: [private, "no"]
+    min_area_m2: 10000    # 1 ha
+    entrance_m: 20        # a path within 20 m of a green space reaches it
+    max_snap_m: 100       # square (or building) to the nearest path, straight line
+    threshold_m: 300
+    sample_step_m: 5      # points along the network used to reach it from a square
+    # Ways people can walk on: every way with a highway tag, except the highway values below,
+    # and except ways with one of the tags below (access=private or no is allowed back when
+    # foot=yes, designated or permissive).
+    walk_excluded_highway: [abandoned, bus_guideway, construction, motorway, motorway_link,
+                            planned, platform, proposed, raceway, razed, bus_stop, elevator,
+                            emergency_bay, rest_area, services]
+    walk_excluded: {area: ["yes"], foot: ["no"], access: [private, "no"], service: [private],
+                    motorroad: ["yes"]}
+    walk_allowed_despite_access: {foot: ["yes", designated, permissive]}
+
+  facades:                # Buildings and facades
+    simplify_m: 0.5       # outline clean-up before cutting walls (removes vertex jitter)
+    corner_deg: 25        # a wall ends where the outline turns by more than 25°
+    min_length_m: 3       # shorter walls are dropped
+    round_piece_m: 15     # outlines without corners (round buildings) are cut into ~15 m pieces
+    sample_step_m: 5      # a point every 5 m…
+    sample_offset_m: 1    # …1 m outside the wall
+    shared_share: 0.5     # a wall is shared when more than half its points fall in another building
+    building_share: 0.5   # a building passes rule 3 when MORE than half its residents pass
+
+  suggested:              # summary.json › suggested
+    square_m: 500
+    within_m: 2000
+
+  water_min_area_m2: 0    # every OSM water area is kept (lakes, rivers, canals, ponds)

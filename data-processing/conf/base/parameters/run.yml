@@ -1,0 +1,16 @@
+# What to run. Both are set on the command line: `kedro run --params capital=stockholm,release=…`
+# (the justfile does it). The defaults below are only used when they are not given.
+capital: ${runtime_params:capital, stockholm}
+release: ${runtime_params:release, 2026-10-stockholm}
+
+# Where nodes that write their own files put them. Keep in line with conf/base/catalog/*.yml.
+paths:
+  raw: data/01_raw
+  intermediate: data/02_intermediate/${runtime_params:capital, stockholm}
+  intermediate_root: data/02_intermediate
+  release: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}
+
+# Folder holding tippecanoe, tippecanoe-decode and tile-join (felt/tippecanoe v2.82.0).
+# `just install-tippecanoe` builds them there; `--params tippecanoe_dir=…` (or the justfile's
+# TIPPECANOE_DIR variable) points elsewhere.
+tippecanoe_dir: ${runtime_params:tippecanoe_dir, .tools/bin}

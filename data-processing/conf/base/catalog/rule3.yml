@@ -1,0 +1,20 @@
+# Layer 1: 3 trees visible.
+canopy_height_source:  # the 1 m canopy height on the capital's grid (data/01_raw/canopy_height/)
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/canopy_height.json
+
+trees:                 # tree tops: tree, x, y (EPSG:3035), height (m), in_city
+  type: data_processing.datasets.ParquetDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/trees.parquet
+
+trees_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/trees.json
+
+rule3:                 # 1 = the square sees at least 3 trees (squares of the city only)
+  type: data_processing.datasets.GridRasterDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/grid/rule3.tif
+
+rule3_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/rule3.json
