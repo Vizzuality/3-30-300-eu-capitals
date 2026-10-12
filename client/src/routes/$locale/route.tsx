@@ -38,9 +38,15 @@ function LocaleLayout() {
     },
   })
 
+  // The page's address: a new one changes the panel's content
+  const pageKey = useMatches({
+    select: (matches) => matches.at(-1)?.pathname ?? "",
+  })
+
   return (
     <IntlProvider locale={locale} messages={messages} timeZone={timeZone}>
       <SiteFrame
+        pageKey={pageKey}
         // The 404 page keeps the map on desktop, like About
         mapArea={page ? (page.mapArea ?? "shown") : "hiddenOnPhone"}
         afterMapBand={page?.afterMapBand}

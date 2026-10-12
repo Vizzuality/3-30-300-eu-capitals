@@ -1,10 +1,9 @@
 /*
- * The design tokens of the site (colours, type, shape, spacing), defined once.
- * Tailwind reads them as CSS custom properties from `tokens.css`, generated
- * from this file by `pnpm tokens`; the map will read the colours from here
- * directly.
- *
- * Motion tokens arrive with the motion system.
+ * The design tokens of the site (colours, type, shape, spacing, motion),
+ * defined once. Tailwind reads them as CSS custom properties from
+ * `tokens.css`, generated from this file by `pnpm tokens`; the map will read
+ * the colours from here directly. Motion and the map's tween helper read the
+ * motion tokens through `tokens-motion.ts`.
  */
 
 /** A colour with its value in light and in dark mode */
@@ -168,4 +167,124 @@ export const spacing = {
  */
 export const breakpoints = {
   desktop: 1024,
+} as const
+
+/** A cubic Bézier curve, as the four numbers of CSS's `cubic-bezier()` */
+export type Curve = readonly [x1: number, y1: number, x2: number, y2: number]
+
+/**
+ * A spring: how long it takes to settle, in milliseconds, and how far it
+ * overshoots its target on the way, as a fraction of the distance travelled
+ */
+export type SpringToken = {
+  kind: "spring"
+  duration: number
+  overshoot: number
+}
+
+/**
+ * A tween along a curve, in milliseconds. Some tokens span a range: the
+ * duration is the usual one and `longest` the upper end, for longer moves.
+ */
+export type EasedToken = {
+  kind: "eased"
+  duration: number
+  longest?: number
+  curve: Curve
+}
+
+export type MotionToken = SpringToken | EasedToken
+
+/**
+ * Springs are for what the visitor touches and for things arriving; the map
+ * glides with no overshoot; what is left behind sinks. Durations of springs
+ * are the time they take to settle within 0.2% of their target.
+ */
+export const motionTokens = {
+  // The hovered or chosen thing rising (2–3 px on the map, 1–2 px in the
+  // panel, with no shadow there)
+  lift: { kind: "spring", duration: 520, overshoot: 0.04 },
+  // A pressed button, chip, tab, link (1.04 × 0.94) or list row (1.01 ×
+  // 0.94) squashing, held while pressed; the Press spring brings it back
+  squashHeld: { kind: "eased", duration: 80, curve: [0.3, 0.7, 0.4, 1] },
+  // A clicked capital or building on the map (from step 15) wobbling once:
+  // wider and flatter, then the other way, then at rest, along one curve
+  squash: { kind: "eased", duration: 340, curve: [0.3, 0.7, 0.4, 1] },
+  // One ring spreading from the click point and fading
+  ring: { kind: "eased", duration: 700, curve: [0.15, 0.7, 0.3, 1] },
+  // Buttons and chips springing back after a press
+  press: { kind: "spring", duration: 370, overshoot: 0.04 },
+  // Camera moves, the city growing into place, the ranking highlight, the
+  // switcher's thumb
+  glide: { kind: "eased", duration: 760, curve: [0.33, 0, 0.15, 1] },
+  // Capitals or cities left behind dropping, shrinking and fading, rippling
+  // outwards from the chosen one
+  sink: {
+    kind: "eased",
+    duration: 480,
+    longest: 760,
+    curve: [0.55, 0, 0.75, 0.3],
+  },
+  // Buildings, trees, facades and icons appearing, in two or three waves
+  pop: { kind: "spring", duration: 480, overshoot: 0.03 },
+  // Sight lines, the walking route and outlines being drawn
+  draw: {
+    kind: "eased",
+    duration: 600,
+    longest: 1100,
+    curve: [0.45, 0, 0.55, 1],
+  },
+  // Spotlight veil, legends, canopy, the 500 m circle
+  fade: {
+    kind: "eased",
+    duration: 320,
+    longest: 360,
+    curve: [0.4, 0, 0.2, 1],
+  },
+  // Panel content rising into place, the guide and the pulse's tag arriving
+  float: { kind: "spring", duration: 650, overshoot: 0.03 },
+  // The guide's pointer and the pulse's dot tapping once and sending out a
+  // ring, then resting, in a 3 s cycle
+  nudge: { kind: "eased", duration: 3000, curve: [0, 0, 0.58, 1] },
+} as const satisfies Record<string, MotionToken>
+
+/** The distances and steps that go with the motion tokens */
+export const motionDetails = {
+  // Rise of a hovered row, chip or button in the panel, in pixels (Lift)
+  liftPanel: 2,
+  // Rise of a hovered or chosen thing on the map, in pixels (Lift)
+  liftMap: 3,
+  // Shape of a pressed button, chip, tab or link, held while pressed
+  // (Squash held)
+  squashHeldScale: { x: 1.04, y: 0.94 },
+  // Shape of a pressed list row and its highlight, held while pressed: a
+  // full-width row grows by about as many pixels as a button (Squash held)
+  squashRowScale: { x: 1.01, y: 0.94 },
+  // The shapes a clicked capital or building passes through, at these parts
+  // of its wobble (Squash)
+  squashKeyframes: {
+    times: [0, 0.3, 0.6, 1],
+    x: [1, 1.06, 0.976, 1],
+    y: [1, 0.931, 1.03, 1],
+  },
+  // Scale of the click ring as it spreads, and its starting opacity (Ring)
+  ringScale: { from: 0.2, to: 1.5 },
+  ringOpacity: 0.9,
+  // How far and how fast what is left behind drops (Sink)
+  sinkDrop: 7,
+  sinkRipple: 300,
+  // Delay between the waves of things popping in (Pop)
+  popWaves: { count: 3, apart: 120 }, // 110–140 ms apart
+  // Panel content: leaving content fades out, then the new content rises
+  // into place in up to three parts (Float)
+  floatRise: 8,
+  floatParts: 3,
+  floatApart: 50,
+  floatExit: { duration: 160, curve: [0.4, 0, 1, 1] as Curve },
+  // The tap of the guide's pointer and the pulse's dot (Nudge)
+  nudgeTap: [1, 0.82, 1.08, 1],
+  nudgeTapTimes: [0, 0.06, 0.14, 0.22],
+  // Under reduced motion, every animation arrives as a fade of at most this
+  // long, in milliseconds
+  reducedFade: 280,
 } as const

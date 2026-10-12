@@ -1,6 +1,7 @@
-import { Link, useParams } from "@tanstack/react-router"
+import { useParams } from "@tanstack/react-router"
 import { useTranslations } from "use-intl"
 
+import { TouchLink } from "@/components/motion/touch-link"
 import { cn } from "@/lib/utils"
 
 // Methodology and About: the current page's link stays highlighted
@@ -11,7 +12,8 @@ const navLink = cn(
 
 /**
  * The top bar of the panel: the site name (back to Home), Methodology, About
- * and the current language.
+ * and the current language. Its links respond like buttons; the language is
+ * text for now and stays still.
  */
 export function TopBar() {
   const t = useTranslations("frame")
@@ -19,26 +21,30 @@ export function TopBar() {
 
   return (
     <header className="flex min-h-top-bar-phone shrink-0 flex-wrap items-center justify-between gap-x-4 pr-3 pl-panel-inset-phone desktop:min-h-top-bar desktop:pr-6 desktop:pl-panel-inset">
-      <Link
+      <TouchLink
         to="/$locale"
         params={{ locale }}
         aria-label={t("homeLink")}
         className="rounded-chip py-1.5 font-serif text-heading leading-none font-semibold tracking-[-0.01em] text-ink"
       >
         {t("siteName")}
-      </Link>
+      </TouchLink>
       <div className="flex items-center gap-0.5">
         <nav aria-label={t("navigation")} className="flex items-center gap-0.5">
-          <Link
+          <TouchLink
             to="/$locale/methodology"
             params={{ locale }}
             className={navLink}
           >
             {t("methodology")}
-          </Link>
-          <Link to="/$locale/about" params={{ locale }} className={navLink}>
+          </TouchLink>
+          <TouchLink
+            to="/$locale/about"
+            params={{ locale }}
+            className={navLink}
+          >
             {t("about")}
-          </Link>
+          </TouchLink>
         </nav>
         {/*
          * The current language, as text: it becomes the button of the

@@ -36,4 +36,8 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;
   }
+  /* Focus goes back to the page itself after moving to another page */
+  body:focus-visible {
+    @apply outline-none;
+  }
 }

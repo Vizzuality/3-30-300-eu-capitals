@@ -7,6 +7,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
+import { MotionProvider } from "@/components/motion/motion-provider"
 import { defaultLocale, isLocale } from "@/i18n/locales"
 import appCss from "../styles.css?url"
 
@@ -55,7 +56,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <MotionProvider>{children}</MotionProvider>
         <TanStackDevtools
           config={{
             position: "bottom-right",

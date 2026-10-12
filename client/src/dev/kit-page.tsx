@@ -1,7 +1,7 @@
 /*
- * The kit page (`/dev/kit`, development only): every element built so far, in
- * both themes, laid out like the reference design's UI kit. It is a tool for
- * the team, never shipped, so its text is not translated.
+ * The dev kit (`/dev/kit`, development only): every element built so far, in
+ * both themes, to review each one on its own. It grows with each step. It is
+ * a tool for the team, never shipped, so its text is not translated.
  */
 import type { ReactNode } from "react"
 
@@ -14,6 +14,7 @@ import {
   type TypeStyle,
 } from "@/design/tokens"
 import { cn } from "@/lib/utils"
+import { MotionKit } from "./kit-motion"
 
 type ColorName = keyof typeof colors
 
@@ -224,16 +225,23 @@ export function KitPage() {
   return (
     <main className="mx-auto flex max-w-360 flex-col gap-7 px-12 pt-16 pb-20">
       <header className="flex flex-col gap-3">
-        <p className="text-label text-ink-2 uppercase">UI kit · 1 of 5</p>
         <h1 className="font-serif text-[56px] leading-[60px] font-medium tracking-[-0.02em]">
-          Foundations
+          Dev kit
         </h1>
         <p className="max-w-190 text-[18px] leading-7 text-ink-2">
-          The design tokens of src/design/tokens.ts: colours with their light
-          and dark values, type, shape and spacing. The page itself follows the
-          system&apos;s colour scheme.
+          Every element of the site built so far, on its own, for review. It
+          grows with each step and exists only in development. The page follows
+          the system&apos;s colour scheme.
         </p>
       </header>
+
+      <div className="flex flex-col gap-1.5">
+        <p className="text-label text-ink-2 uppercase">Foundations</p>
+        <p className="max-w-190 text-small text-ink-2">
+          The design tokens of src/design/tokens.ts: colours with their light
+          and dark values, type, shape, spacing and motion.
+        </p>
+      </div>
 
       <Panel title="Colour">
         <p className="text-small text-ink-2">
@@ -367,6 +375,8 @@ export function KitPage() {
           </table>
         </Panel>
       </div>
+
+      <MotionKit />
     </main>
   )
 }
