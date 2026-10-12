@@ -1,0 +1,43 @@
+name: "Client: lint, type check and build"
+
+on:
+  push:
+    paths:
+      - client/**
+      - .github/actions/setup-client/**
+      - .github/workflows/client-checks.yml
+  pull_request:
+    paths:
+      - client/**
+      - .github/actions/setup-client/**
+      - .github/workflows/client-checks.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-client
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build

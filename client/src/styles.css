@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Colour tokens of DESIGN.md › Colour (interface). The site follows the
+ * visitor's system setting for light or dark mode.
+ */
+:root {
+  color-scheme: light dark;
+
+  --background: #f5f1e8;
+  --surface: #fffcf5;
+  --surface-2: #f6efe2;
+  --ink: #2e2a25;
+  --ink-2: #686055;
+  --line: #e5dccb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #191714;
+    --surface: #22201c;
+    --surface-2: #2b2823;
+    --ink: #f3eee6;
+    --ink-2: #b7ad9f;
+    --line: #3b372f;
+  }
+}
+
+@theme inline {
+  /* Only the design's colours and radii: Tailwind's defaults are removed */
+  --color-*: initial;
+  --radius-*: initial;
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+
+  /* shadcn/ui's names, for the components that use them */
+  --color-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--surface);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-2);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--ink);
+
+  /* DESIGN.md › Shape and depth */
+  --radius-sm: 8px; /* chips, legend swatches */
+  --radius-lg: 14px; /* buttons, cards, fields */
+  --radius-xl: 22px; /* panels, menus, map frames */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

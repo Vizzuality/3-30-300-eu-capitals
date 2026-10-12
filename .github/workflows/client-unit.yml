@@ -1,0 +1,34 @@
+name: "Client: unit tests"
+
+on:
+  push:
+    paths:
+      - client/**
+      - .github/actions/setup-client/**
+      - .github/workflows/client-unit.yml
+  pull_request:
+    paths:
+      - client/**
+      - .github/actions/setup-client/**
+      - .github/workflows/client-unit.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-client
+
+      - name: Unit tests
+        run: pnpm test:unit

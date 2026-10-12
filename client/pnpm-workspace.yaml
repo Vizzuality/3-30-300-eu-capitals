@@ -1,0 +1,14 @@
+# build-script gating: only listed packages may run install scripts
+strictDepBuilds: true
+allowBuilds: {} # no dependency needs an install script today
+
+# supply-chain protection
+minimumReleaseAge: 1440 # minutes: packages published less than a day ago are not installed
+minimumReleaseAgeExclude: []
+blockExoticSubdeps: true # no transitive dependencies from git repositories or tarball URLs
+
+# hygiene
+savePrefix: ""
+verifyDepsBeforeRun: install # scripts reinstall first if node_modules is out of date
+
+overrides: {} # security overrides of transitive dependencies, when needed

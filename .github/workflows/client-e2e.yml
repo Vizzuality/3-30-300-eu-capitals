@@ -1,0 +1,46 @@
+name: "Client: end-to-end tests"
+
+on:
+  push:
+    paths:
+      - client/**
+      - .github/actions/setup-client/**
+      - .github/workflows/client-e2e.yml
+  pull_request:
+    paths:
+      - client/**
+      - .github/actions/setup-client/**
+      - .github/workflows/client-e2e.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-client
+
+      # Against a production build, in the runner's Google Chrome
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Keep the report of failing tests
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-report
+          path: |
+            client/playwright-report/
+            client/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
