@@ -26,6 +26,12 @@
       }
     }
   },
+  "ranking": {
+    "leader": "{capital} leads the way.",
+    "leaderShare": "{tenths, plural, =0 {Fewer than 1 in 10 of its residents meet all three rules.} =10 {Nearly all of its residents meet all three rules.} other {About # in 10 of its residents meet all three rules.}}",
+    "key": "Residents meeting <met3>all {three, number} rules</met3> <met2>{two, number}</met2> <met1>{one, number}</met1> <met0>none</met0>",
+    "row": "{capital}, rank {rank, number}: {three, number, percent} of residents meet all three rules, {two, number, percent} meet two, {one, number, percent} one and {none, number, percent} none"
+  },
   "guide": {
     "label": {
       "start": "Start here",

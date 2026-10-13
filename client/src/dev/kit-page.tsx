@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { ComponentsKit } from "./kit-components"
 import { GuideKit } from "./kit-guide"
 import { MotionKit } from "./kit-motion"
+import { RankingKit } from "./kit-ranking"
 
 type ColorName = keyof typeof colors
 
@@ -101,6 +102,7 @@ const typeClasses: Record<keyof typeof typeScale, string> = {
   figureUnit: "font-sans text-figure-unit text-ink-2",
   status: "font-sans text-status",
   small: "font-sans text-small text-ink-2",
+  rank: "font-sans text-rank",
   label: "font-sans text-label text-ink-2 uppercase",
 }
 
@@ -117,6 +119,7 @@ const typeNames: Record<keyof typeof typeScale, string> = {
   figureUnit: "Figure unit",
   status: "Status",
   small: "Small",
+  rank: "Rank",
   label: "Label",
 }
 
@@ -153,10 +156,13 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
     "Sweden · about 1.04 million residents",
     "Notes, legends, ranking, footer",
   ],
+  ["rank", "17", "A capital's rank, in its round badge in the ranking"],
   ["label", "Other capitals", "Section labels"],
 ]
 
 const radiusSamples: Array<[string, string, string]> = [
+  [`${radii.key} px`, "rounded-key", "Swatches of the ranking's key"],
+  [`${radii.bar} px`, "rounded-bar", "Segments of the ranking's bars"],
   [`${radii.swatch} px`, "rounded-swatch", "Legend swatches"],
   [`${radii.tab} px`, "rounded-tab", "The open tab, inside its track"],
   [`${radii.row} px`, "rounded-row", "Rows of lists, the quiet button"],
@@ -412,11 +418,14 @@ export function KitPage() {
         <p className="text-label text-ink-2 uppercase">Panel</p>
         <p className="max-w-190 text-small text-ink-2">
           The blocks of the panel, built from the components, to compare with
-          the reference&apos;s UI kit of the next step guide.
+          the reference&apos;s UI kit: the next step guide (its Next step guide
+          page) and the ranking (&ldquo;Ranking · Home&rdquo; on its Components
+          page).
         </p>
       </div>
 
       <GuideKit />
+      <RankingKit />
     </main>
   )
 }

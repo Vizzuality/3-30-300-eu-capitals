@@ -145,6 +145,8 @@ export const typeScale = {
   figureUnit: { font: "sans", size: 13, lineHeight: 16, weight: 400 },
   // Whether a rule is met, next to its mark ("met", "not met")
   status: { font: "sans", size: 12, lineHeight: 16, weight: 600 },
+  // A capital's rank, in its round badge in the ranking
+  rank: { font: "sans", size: 11, lineHeight: 14, weight: 600 },
   // Section labels such as "Other capitals"
   label: {
     font: "sans",
@@ -158,6 +160,8 @@ export const typeScale = {
 
 /** Corner radii, in pixels; icon buttons are fully round */
 export const radii = {
+  key: 3, // swatches of the ranking's key
+  bar: 4, // segments of the ranking's bars
   swatch: 8, // legend swatches
   tab: 11, // the open tab, inside its 4 px track
   row: 12, // rows of the ranking and the lists, the quiet button
@@ -232,8 +236,11 @@ export const motionTokens = {
   ring: { kind: "eased", duration: 700, curve: [0.15, 0.7, 0.3, 1] },
   // Buttons and chips springing back after a press
   press: { kind: "spring", duration: 370, overshoot: 0.04 },
-  // Camera moves, the city growing into place, the ranking highlight
+  // Camera moves, the city growing into place
   glide: { kind: "eased", duration: 760, curve: [0.33, 0, 0.15, 1] },
+  // The ranking's highlight following the pointer or the keyboard from row
+  // to row: Glide's curve, with no overshoot, about half as long
+  follow: { kind: "eased", duration: 400, curve: [0.33, 0, 0.15, 1] },
   // Capitals or cities left behind dropping, shrinking and fading, rippling
   // outwards from the chosen one
   sink: {

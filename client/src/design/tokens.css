@@ -123,10 +123,15 @@
   --text-status: 0.75rem;
   --text-status--line-height: 1rem;
   --text-status--font-weight: 600;
+  --text-rank: 0.6875rem;
+  --text-rank--line-height: 0.875rem;
+  --text-rank--font-weight: 600;
   --text-label: 0.75rem;
   --text-label--line-height: 1rem;
   --text-label--font-weight: 600;
   --text-label--letter-spacing: 0.08em;
+  --radius-key: 3px;
+  --radius-bar: 4px;
   --radius-swatch: 8px;
   --radius-tab: 11px;
   --radius-row: 12px;

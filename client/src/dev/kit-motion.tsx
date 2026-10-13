@@ -32,7 +32,8 @@ const tokenUses: Record<TokenName, string> = {
     "A clicked capital or building on the map (from step 15) wobbles once: 1.06 × 0.931, then 0.976 × 1.03, then at rest",
   ring: "One ring spreading from the click point and fading",
   press: "Buttons and chips springing back after a press",
-  glide: "Camera moves, the city growing into place, the ranking highlight",
+  glide: "Camera moves, the city growing into place",
+  follow: "The ranking's highlight following the pointer from row to row",
   sink: "Capitals left behind drop 7 px, shrink and fade, rippling outwards",
   pop: "Buildings, trees and icons appearing, in waves 120 ms apart",
   draw: "Sight lines, the walking route and outlines being drawn",
@@ -50,6 +51,7 @@ const reducedVersions: Record<TokenName, string> = {
   ring: "A still ring fades out",
   press: "No spring: one still ring fades out",
   glide: "No movement: the sample fades in at its end place",
+  follow: "No movement: the highlight fades in on its row",
   sink: "Fades out where it is",
   pop: "Fades in, all at once",
   draw: "The line fades in, already drawn",
@@ -366,11 +368,20 @@ function PressCard() {
 }
 
 function GlideCard() {
+  return <SlideCard name="glide" />
+}
+
+function FollowCard() {
+  return <SlideCard name="follow" />
+}
+
+/** A dot sliding from one side to the other with an eased token */
+function SlideCard({ name }: { name: "glide" | "follow" }) {
   const dot = useElement<HTMLDivElement>()
   const side = useRef(1)
   return (
     <TokenCard
-      name="glide"
+      name={name}
       sample={
         <div
           ref={dot}
@@ -388,7 +399,7 @@ function GlideCard() {
         tween({
           from,
           to: -from,
-          token: "glide",
+          token: name,
           reducedMotion: reduced,
           onUpdate: (x) => {
             element.style.transform = `translateX(${x}px)`
@@ -765,8 +776,8 @@ export function MotionKit() {
         derived from their duration and overshoot; the other tokens become cubic
         Bézier curves. Each curve shows the token&apos;s progress over its
         duration (the dashed line is the target). Lift, Squash held, Squash,
-        Ring, Press and Float play with Motion, as in the panel; Glide, Sink,
-        Pop, Draw and Fade play with the tween helper, as on the map.
+        Ring, Press and Float play with Motion, as in the panel; Glide, Follow,
+        Sink, Pop, Draw and Fade play with the tween helper, as on the map.
       </p>
       <ReducedMotionSwitch />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
@@ -776,6 +787,7 @@ export function MotionKit() {
         <RingCard />
         <PressCard />
         <GlideCard />
+        <FollowCard />
         <SinkCard />
         <PopCard />
         <DrawCard />
