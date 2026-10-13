@@ -137,7 +137,11 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
     "The Next step guide",
   ],
   ["control", "Methodology", "Top bar links, tabs, rows, buttons"],
-  ["figure", "300", "The figures of the rule switcher's chips"],
+  [
+    "figure",
+    "300 m",
+    "The figures of the rule cards and of the rule switcher's chips",
+  ],
   ["figureUnit", "m to a park", "What a figure counts"],
   ["status", "not met", "Whether a rule is met"],
   [

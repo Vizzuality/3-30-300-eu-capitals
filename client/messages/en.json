@@ -15,7 +15,16 @@
       "title": "How green is your capital? The 3-30-300 rule in the 27 EU capitals",
       "description": "Three trees in view from every home, 30% tree canopy around it and a park within a 300 m walk: see how the 27 EU capitals measure up, building by building."
     },
-    "title": "How green is your capital?"
+    "intro": {
+      "label": "The {capitals, number} EU capitals",
+      "title": "How green is your capital?",
+      "lead": "The 3-30-300 rule asks for three trees in view from every home, {canopy, number, percent} tree canopy around it and a park within a {distance, number, ::unit/meter} walk. We checked it for every home in the {capitals, number} EU capitals.",
+      "rules": {
+        "trees": "<figure>{trees, number}</figure> <label>trees in view</label>",
+        "canopy": "<figure>{canopy, number, percent}</figure> <label>canopy around</label>",
+        "park": "<figure>{distance, number, ::unit/meter}</figure> <label>to a park</label>"
+      }
+    }
   },
   "capital": {
     "meta": {

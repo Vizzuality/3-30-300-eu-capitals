@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useTranslations } from "use-intl"
 
+import { HomeIntro } from "@/components/home/home-intro"
 import { NotFoundPage } from "@/components/layout/not-found-page"
 import { rankingQuery } from "@/data/queries"
 import { pageHead } from "@/i18n/head"
@@ -22,11 +22,5 @@ export const Route = createFileRoute("/$locale/")({
 })
 
 function Home() {
-  const t = useTranslations("home")
-
-  return (
-    <h1 className="font-serif text-display-phone desktop:text-display">
-      {t("title")}
-    </h1>
-  )
+  return <HomeIntro />
 }

@@ -15,6 +15,7 @@ import {
   MinusIcon,
   PlusIcon,
 } from "@/components/icons"
+import { IntroRuleCards } from "@/components/home/home-intro"
 import { TouchLink } from "@/components/motion/touch-link"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -25,6 +26,12 @@ import {
   ChipUnit,
 } from "@/components/ui/chip"
 import { IconButton } from "@/components/ui/icon-button"
+import {
+  RuleCard,
+  RuleCardFigure,
+  RuleCardLabel,
+  RuleCards,
+} from "@/components/ui/rule-card"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
 import { textLinkVariants } from "@/components/ui/text-link"
 import { motionDetails } from "@/design/tokens"
@@ -457,6 +464,73 @@ function ChipsSamples() {
   )
 }
 
+// German, about a third longer than English
+const ruleCardsInGerman: Array<[string, string]> = [
+  ["3", "Bäume in Sichtweite"],
+  ["30 %", "Baumkronendach ringsum"],
+  ["300 m", "bis zum nächsten Park"],
+]
+
+function GermanRuleCards({ className }: { className: string }) {
+  return (
+    <RuleCards lang="de" className={className}>
+      {ruleCardsInGerman.map(([figure, label]) => (
+        <RuleCard key={figure}>
+          <RuleCardFigure>{figure}</RuleCardFigure>{" "}
+          <RuleCardLabel>{label}</RuleCardLabel>
+        </RuleCard>
+      ))}
+    </RuleCards>
+  )
+}
+
+// The panel's width on desktop (416 px) and on a 390 px phone (350 px)
+const panelWidth = "w-full max-w-104"
+const phoneWidth = "w-full max-w-87.5"
+
+function RuleCardsSamples() {
+  return (
+    <Cell
+      title="Rule cards · Home intro"
+      note={
+        <>
+          The three rules as a list of small hairline cards: the figure in the
+          Figure style, what it counts in Small, Ink 2. They are not controls,
+          so they do not move. Labels wrap, and long words break where the
+          language allows. The city overview will reuse them with each
+          rule&apos;s share. English and German are shown at the same width, so
+          only the language changes: at the panel&apos;s width on desktop (416
+          px), then at its width on a 390 px phone (350 px), English above
+          German.
+        </>
+      }
+    >
+      <ThemePair>
+        <States
+          rows={[
+            [
+              "English",
+              <div key="english" className={panelWidth}>
+                <IntroRuleCards />
+              </div>,
+            ],
+            ["German", <GermanRuleCards key="german" className={panelWidth} />],
+            [
+              "Phone, 350 px",
+              <div key="phone" className="flex w-full flex-col gap-2.5">
+                <div className={phoneWidth}>
+                  <IntroRuleCards />
+                </div>
+                <GermanRuleCards className={phoneWidth} />
+              </div>,
+            ],
+          ]}
+        />
+      </ThemePair>
+    </Cell>
+  )
+}
+
 function linkSamples(state: Forced = {}) {
   return (
     <>
@@ -560,6 +634,7 @@ export function ComponentsKit() {
         <MapControls />
         <TabsSamples />
         <ChipsSamples />
+        <RuleCardsSamples />
         <Links />
       </section>
     </IntlProvider>

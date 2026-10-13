@@ -129,7 +129,8 @@ export const typeScale = {
   control: { font: "sans", size: 14, lineHeight: 20, weight: 500 },
   // Notes, legends, ranking, footer
   small: { font: "sans", size: 13, lineHeight: 18, weight: 400 },
-  // The figures of the rule switcher's chips ("3", "30", "300")
+  // The figures of the rule cards and of the rule switcher's chips ("3",
+  // "30%", "300 m")
   figure: { font: "serif", size: 24, lineHeight: 28, weight: 500 },
   // What a figure counts ("trees", "% canopy"), under it
   figureUnit: { font: "sans", size: 13, lineHeight: 16, weight: 400 },
