@@ -3,7 +3,6 @@
  * the behaviours of what the visitor touches, and a switch that simulates
  * reduced motion to compare both versions. Development only, not translated.
  */
-import { Tabs } from "@base-ui/react/tabs"
 import { cubicBezier, spring } from "motion"
 import { animate, motion } from "motion/react"
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react"
@@ -33,7 +32,7 @@ const tokenUses: Record<TokenName, string> = {
     "A clicked capital or building on the map (from step 15) wobbles once: 1.06 × 0.931, then 0.976 × 1.03, then at rest",
   ring: "One ring spreading from the click point and fading",
   press: "Buttons and chips springing back after a press",
-  glide: "Camera moves, the ranking highlight, the switcher's thumb",
+  glide: "Camera moves, the city growing into place, the ranking highlight",
   sink: "Capitals left behind drop 7 px, shrink and fade, rippling outwards",
   pop: "Buildings, trees and icons appearing, in waves 120 ms apart",
   draw: "Sight lines, the walking route and outlines being drawn",
@@ -170,7 +169,7 @@ function TokenCard({
       <p className="text-small text-ink-2">
         Reduced motion: {reducedVersions[name]}
       </p>
-      <Button variant="outline" onClick={() => play(reduced)}>
+      <Button onClick={() => play(reduced)}>
         Play {name}
         {reduced && " (reduced)"}
       </Button>
@@ -220,7 +219,7 @@ function LiftCard() {
       sample={
         <span
           ref={chip}
-          className="rounded-chip border border-line bg-surface px-3 py-2 text-control"
+          className="rounded-control border border-line bg-surface px-3 py-2 text-control"
         >
           Rule 3
         </span>
@@ -292,7 +291,7 @@ function SquashHeldCard() {
       sample={
         <div className="flex items-center gap-4">
           <div ref={control} className={sampleBox} />
-          <div ref={row} className="h-10 w-40 rounded-control bg-ink" />
+          <div ref={row} className="h-10 w-40 rounded-row bg-ink" />
         </div>
       }
       play={(reduced) => {
@@ -471,7 +470,7 @@ function PopCard() {
               ref={(element) => {
                 squares.current[index] = element
               }}
-              className="size-7 rounded-chip bg-result-2"
+              className="size-7 rounded-swatch bg-result-2"
             />
           ))}
         </div>
@@ -587,9 +586,9 @@ function FloatCard() {
       name="float"
       sample={
         <div ref={content} className="flex w-48 flex-col gap-2">
-          <div className="h-5 w-32 rounded-chip bg-ink" />
-          <div className="h-3 w-full rounded-chip bg-ink-2/40" />
-          <div className="h-3 w-40 rounded-chip bg-ink-2/40" />
+          <div className="h-5 w-32 rounded-swatch bg-ink" />
+          <div className="h-3 w-full rounded-swatch bg-ink-2/40" />
+          <div className="h-3 w-40 rounded-swatch bg-ink-2/40" />
         </div>
       }
       play={(reduced) => {
@@ -667,35 +666,7 @@ function NudgeCard() {
   )
 }
 
-/** A chip, a tab and a row, each with the behaviours of what is touched */
-function Chip({ children }: { children: ReactNode }) {
-  const touch = useTouchMotion()
-  return (
-    <motion.button
-      type="button"
-      {...touch.props}
-      className="relative rounded-chip border border-line bg-surface px-3 py-2 text-control whitespace-nowrap transition-colors hover:bg-surface-2"
-    >
-      {children}
-      {touch.layers}
-    </motion.button>
-  )
-}
-
-function KitTab({ value, children }: { value: string; children: ReactNode }) {
-  const touch = useTouchMotion()
-  return (
-    <Tabs.Tab
-      value={value}
-      render={<motion.button {...touch.props} />}
-      className="relative flex-1 rounded-control px-3 py-2 text-control text-ink-2 transition-colors hover:text-ink data-active:bg-surface data-active:text-ink"
-    >
-      {children}
-      {touch.layers}
-    </Tabs.Tab>
-  )
-}
-
+/** A row, with the behaviours of what is touched */
 function Row({ name, value }: { name: string; value: string }) {
   const touch = useTouchMotion()
   return (
@@ -720,36 +691,13 @@ function Behaviours() {
         and sends out one ring from the point pressed, its centre with the
         keyboard (Squash held, Ring); releasing springs back (Press). Rows press
         the same way. Under reduced motion nothing moves and a press shows one
-        still ring. Applied with useTouchMotion: the Button component has it
-        built in, the tabs get it through Base UI&apos;s render prop, and the
-        top bar&apos;s links are TouchLink (the router&apos;s Link made with
-        createLink).
+        still ring. Applied with useTouchMotion: the buttons, tabs and chips of
+        the Components section have it built in (through Base UI&apos;s render
+        prop), and the top bar&apos;s links are TouchLink (the router&apos;s
+        Link made with createLink). The rows below try it on the ranking&apos;s
+        rows.
       </p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-        <div className="flex flex-col items-start gap-2.5 rounded-control border border-line bg-surface p-4">
-          <p className="text-label text-ink-2 uppercase">Buttons</p>
-          <div className="flex gap-2.5">
-            <Button>All capitals</Button>
-            <Button variant="outline">Whole city</Button>
-          </div>
-        </div>
-        <div className="flex flex-col items-start gap-2.5 rounded-control border border-line bg-surface p-4">
-          <p className="text-label text-ink-2 uppercase">Chips</p>
-          <div className="flex flex-wrap gap-2">
-            <Chip>3 trees</Chip>
-            <Chip>30% canopy</Chip>
-            <Chip>300 m park</Chip>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2.5 rounded-control border border-line bg-surface p-4">
-          <p className="text-label text-ink-2 uppercase">Tabs (Base UI)</p>
-          <Tabs.Root defaultValue="ranking">
-            <Tabs.List className="flex gap-1 rounded-control bg-surface-2 p-1">
-              <KitTab value="ranking">Ranking</KitTab>
-              <KitTab value="az">A–Z</KitTab>
-            </Tabs.List>
-          </Tabs.Root>
-        </div>
         <div className="flex flex-col gap-1 rounded-control border border-line bg-surface p-4">
           <p className="text-label text-ink-2 uppercase">Rows</p>
           <Row name="Helsinki" value="30%" />
@@ -783,7 +731,6 @@ function ReducedMotionSwitch() {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Button
-        variant={reduced ? "default" : "outline"}
         aria-pressed={reduced}
         onClick={() => simulateReducedMotion(!reduced)}
       >

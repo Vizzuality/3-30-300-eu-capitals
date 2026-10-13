@@ -22,7 +22,8 @@
       "title": "{capital}: trees in view, tree canopy and parks near every home · 3-30-300",
       "description": "How many residents of {capital} see three trees from home, have 30% tree canopy around them and live within a 300 m walk of a park? Explore the map, building by building."
     },
-    "otherCapitals": "Other capitals"
+    "otherCapitals": "Other capitals",
+    "closeBuilding": "Close the building"
   },
   "methodology": {
     "meta": {
@@ -50,6 +51,11 @@
     "basedOn": "Based on",
     "credits": "Data credits",
     "links": "Links"
+  },
+  "map": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "wholeCity": "Whole city"
   },
   "notFound": {
     "meta": {

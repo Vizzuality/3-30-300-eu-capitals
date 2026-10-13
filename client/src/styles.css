@@ -5,6 +5,22 @@
 /* The design tokens, generated from src/design/tokens.ts */
 @import "./design/tokens.css";
 
+/*
+ * Hover, as Tailwind defines it, plus `data-force-hover`: the kit page sets it
+ * to show a control's hover look while the pointer is elsewhere. Nothing on
+ * the site sets it.
+ */
+@custom-variant hover {
+  @media (hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+  &[data-force-hover] {
+    @slot;
+  }
+}
+
 /* The site follows the visitor's system setting for light or dark mode */
 :root {
   color-scheme: light dark;
@@ -32,8 +48,12 @@
     /* Columns of percentages line up */
     font-variant-numeric: tabular-nums;
   }
-  /* The 2 px Ink focus ring of every control */
-  :focus-visible {
+  /*
+   * The 2 px Ink focus ring of every control, shown for the keyboard only
+   * (`data-force-focus`: the kit page showing it on a control at rest)
+   */
+  :focus-visible,
+  [data-force-focus] {
     @apply outline-2 outline-offset-2 outline-ring;
   }
   /* Focus goes back to the page itself after moving to another page */

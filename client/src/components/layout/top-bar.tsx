@@ -21,11 +21,16 @@ export function TopBar() {
 
   return (
     <header className="flex min-h-top-bar-phone shrink-0 flex-wrap items-center justify-between gap-x-4 pr-3 pl-panel-inset-phone desktop:min-h-top-bar desktop:pr-6 desktop:pl-panel-inset">
+      {/*
+       * The current page on Home only, with any tab open, not on the pages
+       * under its address
+       */}
       <TouchLink
         to="/$locale"
         params={{ locale }}
+        activeOptions={{ exact: true, includeSearch: false }}
         aria-label={t("homeLink")}
-        className="rounded-chip py-1.5 font-serif text-heading leading-none font-semibold tracking-[-0.01em] text-ink"
+        className="rounded-row py-1.5 font-serif text-heading leading-none font-semibold tracking-[-0.01em] text-ink"
       >
         {t("siteName")}
       </TouchLink>

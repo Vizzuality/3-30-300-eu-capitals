@@ -14,6 +14,7 @@ import {
   type TypeStyle,
 } from "@/design/tokens"
 import { cn } from "@/lib/utils"
+import { ComponentsKit } from "./kit-components"
 import { MotionKit } from "./kit-motion"
 
 type ColorName = keyof typeof colors
@@ -94,6 +95,9 @@ const typeClasses: Record<keyof typeof typeScale, string> = {
   body: "font-sans text-body",
   guide: "font-sans text-guide",
   control: "font-sans text-control",
+  figure: "font-serif text-figure",
+  figureUnit: "font-sans text-figure-unit text-ink-2",
+  status: "font-sans text-status",
   small: "font-sans text-small text-ink-2",
   label: "font-sans text-label text-ink-2 uppercase",
 }
@@ -106,6 +110,9 @@ const typeNames: Record<keyof typeof typeScale, string> = {
   body: "Body",
   guide: "Guide",
   control: "Control",
+  figure: "Figure",
+  figureUnit: "Figure unit",
+  status: "Status",
   small: "Small",
   label: "Label",
 }
@@ -130,6 +137,9 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
     "The Next step guide",
   ],
   ["control", "Methodology", "Top bar links, tabs, rows, buttons"],
+  ["figure", "300", "The figures of the rule switcher's chips"],
+  ["figureUnit", "m to a park", "What a figure counts"],
+  ["status", "not met", "Whether a rule is met"],
   [
     "small",
     "Sweden · about 1.04 million residents",
@@ -139,11 +149,13 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
 ]
 
 const radiusSamples: Array<[string, string, string]> = [
-  [`${radii.chip} px`, "rounded-chip", "Chips of the key, legend swatches"],
+  [`${radii.swatch} px`, "rounded-swatch", "Legend swatches"],
+  [`${radii.tab} px`, "rounded-tab", "The open tab, inside its track"],
+  [`${radii.row} px`, "rounded-row", "Rows of lists, the quiet button"],
   [
     `${radii.control} px`,
     "rounded-control",
-    "Buttons, cards, fields, tabs, the guide",
+    "Buttons, chips, cards, fields, the tab track, the guide",
   ],
   [`${radii.panel} px`, "rounded-panel", "Panels, menus, figures"],
   ["Round", "rounded-full", "Icon buttons, map controls, map tags"],
@@ -377,6 +389,16 @@ export function KitPage() {
       </div>
 
       <MotionKit />
+
+      <div className="flex flex-col gap-1.5">
+        <p className="text-label text-ink-2 uppercase">Components</p>
+        <p className="max-w-190 text-small text-ink-2">
+          The controls built on these foundations, to compare with the
+          reference&apos;s UI kit of components.
+        </p>
+      </div>
+
+      <ComponentsKit />
     </main>
   )
 }

@@ -129,6 +129,12 @@ export const typeScale = {
   control: { font: "sans", size: 14, lineHeight: 20, weight: 500 },
   // Notes, legends, ranking, footer
   small: { font: "sans", size: 13, lineHeight: 18, weight: 400 },
+  // The figures of the rule switcher's chips ("3", "30", "300")
+  figure: { font: "serif", size: 24, lineHeight: 28, weight: 500 },
+  // What a figure counts ("trees", "% canopy"), under it
+  figureUnit: { font: "sans", size: 13, lineHeight: 16, weight: 400 },
+  // Whether a rule is met, next to its mark ("met", "not met")
+  status: { font: "sans", size: 12, lineHeight: 16, weight: 600 },
   // Section labels such as "Other capitals"
   label: {
     font: "sans",
@@ -142,8 +148,10 @@ export const typeScale = {
 
 /** Corner radii, in pixels; icon buttons are fully round */
 export const radii = {
-  chip: 8, // chips, legend swatches
-  control: 14, // buttons, cards, fields, tabs, the guide
+  swatch: 8, // legend swatches
+  tab: 11, // the open tab, inside its 4 px track
+  row: 12, // rows of the ranking and the lists, the quiet button
+  control: 14, // buttons, chips, cards, fields, the tab track, the guide
   panel: 22, // panels, menus, map frames
 } as const
 
@@ -214,8 +222,7 @@ export const motionTokens = {
   ring: { kind: "eased", duration: 700, curve: [0.15, 0.7, 0.3, 1] },
   // Buttons and chips springing back after a press
   press: { kind: "spring", duration: 370, overshoot: 0.04 },
-  // Camera moves, the city growing into place, the ranking highlight, the
-  // switcher's thumb
+  // Camera moves, the city growing into place, the ranking highlight
   glide: { kind: "eased", duration: 760, curve: [0.33, 0, 0.15, 1] },
   // Capitals or cities left behind dropping, shrinking and fading, rippling
   // outwards from the chosen one

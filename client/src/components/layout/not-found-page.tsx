@@ -1,5 +1,7 @@
-import { Link } from "@tanstack/react-router"
 import { useLocale, useTranslations } from "use-intl"
+
+import { TouchLink } from "@/components/motion/touch-link"
+import { buttonVariants } from "@/components/ui/button"
 
 /** The 404 page's panel content, in the language of the address */
 export function NotFoundPage() {
@@ -10,14 +12,14 @@ export function NotFoundPage() {
     <div className="flex flex-col gap-2.5">
       <h1 className="font-serif text-title">{t("title")}</h1>
       <p className="text-ink-2">{t("text")}</p>
-      <p>
-        <Link
+      <p className="mt-2">
+        <TouchLink
           to="/$locale"
           params={{ locale }}
-          className="rounded-chip text-control font-semibold underline decoration-line underline-offset-3 hover:decoration-current"
+          className={buttonVariants({ variant: "secondary" })}
         >
           {t("home")}
-        </Link>
+        </TouchLink>
       </p>
     </div>
   )
