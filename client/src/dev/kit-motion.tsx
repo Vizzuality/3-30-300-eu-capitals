@@ -39,7 +39,8 @@ const tokenUses: Record<TokenName, string> = {
   fade: "Spotlight veil, legends, canopy, the 500 m circle",
   float:
     "Panel content: leaving content fades out in 160 ms, the new content rises 8 px in up to three parts 50 ms apart",
-  nudge: "The guide's pointer taps once and sends out a ring, every 3 s",
+  nudge:
+    "The guide's pointer taps once and sends out a ring, every 3 s, three times per step",
 }
 
 const reducedVersions: Record<TokenName, string> = {
@@ -54,7 +55,8 @@ const reducedVersions: Record<TokenName, string> = {
   draw: "The line fades in, already drawn",
   fade: "The same fade, 280 ms at most",
   float: "Fades out, then fades in, all at once",
-  nudge: "Still, with one faint ring",
+  nudge:
+    "Still: the guide neither taps nor rings; the map's pulse (later) keeps one faint ring",
 }
 
 function formatToken(token: MotionToken) {
@@ -652,13 +654,22 @@ function NudgeCard() {
         element.className =
           "pointer-events-none absolute inset-0 rounded-full border-2 border-ink"
         ring.append(element)
+        const { from, to } = motionDetails.nudgeRingScale
+        const { shown, gone } = motionDetails.nudgeRingTimes
         void animate(
           element,
-          { scale: [0.35, 1.9], opacity: [0, 0.9, 0] },
           {
-            duration: cycle * 0.55,
+            scale: [from, to],
+            opacity: [0, motionDetails.nudgeRingOpacity, 0],
+          },
+          {
+            duration: cycle * gone,
             ease: [...motionTokens.nudge.curve],
-            opacity: { duration: cycle * 0.55, times: [0, 0.15, 1] },
+            opacity: {
+              duration: cycle * gone,
+              ease: [...motionTokens.nudge.curve],
+              times: [0, shown / gone, 1],
+            },
           }
         ).then(() => element.remove())
       }}
@@ -717,7 +728,7 @@ function subscribeToSystem(onChange: () => void) {
   return () => media.removeEventListener("change", onChange)
 }
 
-function ReducedMotionSwitch() {
+export function ReducedMotionSwitch() {
   const reduced = usePrefersReducedMotion()
   const system = useSyncExternalStore(
     subscribeToSystem,

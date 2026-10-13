@@ -15,7 +15,10 @@ async function mapAreaInstance(page: Page) {
   return (await mapArea.getAttribute("data-instance")) as string
 }
 
-const announcer = (page: Page) => page.locator("[aria-live='polite']")
+// The page's announcer, outside the page's content (the Next step guide has
+// its own live region, inside it)
+const announcer = (page: Page) =>
+  page.locator("[aria-live='polite']:not(main *)")
 
 /** Focus is at the start of the page: the next Tab reaches the skip link */
 async function expectFocusAtStart(page: Page) {

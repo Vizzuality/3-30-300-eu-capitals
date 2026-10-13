@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { NextStepGuide } from "@/components/guide/next-step-guide"
 import { HomeIntro } from "@/components/home/home-intro"
 import { NotFoundPage } from "@/components/layout/not-found-page"
 import { rankingQuery } from "@/data/queries"
 import { pageHead } from "@/i18n/head"
+import { guideState } from "@/lib/guide"
 import { assertLocale } from "./-guards"
 
 export const Route = createFileRoute("/$locale/")({
@@ -21,6 +23,13 @@ export const Route = createFileRoute("/$locale/")({
   component: Home,
 })
 
+// The parts of the page that float in, one after the other: the intro, then
+// the guide
 function Home() {
-  return <HomeIntro />
+  return (
+    <>
+      <HomeIntro />
+      <NextStepGuide state={guideState({ page: "home" })} />
+    </>
+  )
 }

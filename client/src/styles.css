@@ -21,6 +21,13 @@
   }
 }
 
+/*
+ * Devices pointed at with a finger rather than a mouse: phones and tablets.
+ * Text that says "Click" there says "Tap" (both are in the page, and the
+ * browser shows the right one before any script runs).
+ */
+@custom-variant touch (@media (hover: none) and (pointer: coarse));
+
 /* The site follows the visitor's system setting for light or dark mode */
 :root {
   color-scheme: light dark;

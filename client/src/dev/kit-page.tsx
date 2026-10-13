@@ -15,6 +15,7 @@ import {
 } from "@/design/tokens"
 import { cn } from "@/lib/utils"
 import { ComponentsKit } from "./kit-components"
+import { GuideKit } from "./kit-guide"
 import { MotionKit } from "./kit-motion"
 
 type ColorName = keyof typeof colors
@@ -94,6 +95,7 @@ const typeClasses: Record<keyof typeof typeScale, string> = {
   heading: "font-serif text-heading",
   body: "font-sans text-body",
   guide: "font-sans text-guide",
+  guideStep: "font-sans text-guide-step uppercase",
   control: "font-sans text-control",
   figure: "font-serif text-figure",
   figureUnit: "font-sans text-figure-unit text-ink-2",
@@ -109,6 +111,7 @@ const typeNames: Record<keyof typeof typeScale, string> = {
   heading: "Heading",
   body: "Body",
   guide: "Guide",
+  guideStep: "Guide step",
   control: "Control",
   figure: "Figure",
   figureUnit: "Figure unit",
@@ -134,8 +137,9 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
   [
     "guide",
     "Click a building to see why it scores as it does",
-    "The Next step guide",
+    "The Next step guide's sentence",
   ],
+  ["guideStep", "Next · 2 of 3", "The Next step guide's step label"],
   ["control", "Methodology", "Top bar links, tabs, rows, buttons"],
   [
     "figure",
@@ -149,7 +153,7 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
     "Sweden · about 1.04 million residents",
     "Notes, legends, ranking, footer",
   ],
-  ["label", "Other capitals", "Section labels, guide step"],
+  ["label", "Other capitals", "Section labels"],
 ]
 
 const radiusSamples: Array<[string, string, string]> = [
@@ -403,6 +407,16 @@ export function KitPage() {
       </div>
 
       <ComponentsKit />
+
+      <div className="flex flex-col gap-1.5">
+        <p className="text-label text-ink-2 uppercase">Panel</p>
+        <p className="max-w-190 text-small text-ink-2">
+          The blocks of the panel, built from the components, to compare with
+          the reference&apos;s UI kit of the next step guide.
+        </p>
+      </div>
+
+      <GuideKit />
     </main>
   )
 }

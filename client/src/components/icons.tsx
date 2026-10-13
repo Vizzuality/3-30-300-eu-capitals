@@ -4,6 +4,7 @@ import {
   LuChevronLeft,
   LuMaximize,
   LuMinus,
+  LuMousePointer,
   LuPlus,
   LuX,
 } from "react-icons/lu"
@@ -13,7 +14,12 @@ import {
  * line weight it is drawn at in the design. They are decorative: the control
  * that holds one carries its name, so they are hidden from screen readers.
  */
-function sized(Icon: IconType, size: number, strokeWidth: number) {
+function sized(
+  Icon: IconType,
+  size: number,
+  strokeWidth: number,
+  look: IconBaseProps = {}
+) {
   return function SizedIcon(props: IconBaseProps) {
     return (
       <Icon
@@ -21,6 +27,7 @@ function sized(Icon: IconType, size: number, strokeWidth: number) {
         strokeWidth={strokeWidth}
         aria-hidden="true"
         focusable="false"
+        {...look}
         {...props}
       />
     )
@@ -47,3 +54,8 @@ export const TickIcon = sized(LuCheck, 8, 4.5)
 
 /** Not met: a dash, inside its round mark */
 export const DashIcon = sized(LuMinus, 8, 4.5)
+
+/** The Next step guide's pointer: an arrow, filled, as in the design */
+export const PointerIcon = sized(LuMousePointer, 18, 2, {
+  fill: "currentColor",
+})

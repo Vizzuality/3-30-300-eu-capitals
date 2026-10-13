@@ -26,6 +26,40 @@
       }
     }
   },
+  "guide": {
+    "label": {
+      "start": "Start here",
+      "next": "Next · {step, number} of {total, number}",
+      "facade": "Facade selected",
+      "explore": "Explore"
+    },
+    "sentence": {
+      "home": {
+        "click": "Click a capital on the map, or a row in the ranking",
+        "tap": "Tap a capital on the map, or a row in the ranking"
+      },
+      "overview": {
+        "click": "Click anywhere on the map to zoom in on a street",
+        "tap": "Tap anywhere on the map to zoom in on a street"
+      },
+      "street": {
+        "click": "Click a building to see why it scores as it does",
+        "tap": "Tap a building to see why it scores as it does"
+      },
+      "building": {
+        "click": "Switch rules with 3 · 30 · 300, or click a facade to see the trees it sees",
+        "tap": "Switch rules with 3 · 30 · 300, or tap a facade to see the trees it sees"
+      },
+      "facade": {
+        "click": "Click the facade again to see the whole building",
+        "tap": "Tap the facade again to see the whole building"
+      },
+      "explore": {
+        "click": "Click another building to compare it, or press Esc to go back to the street",
+        "tap": "Tap another building to compare it"
+      }
+    }
+  },
   "capital": {
     "meta": {
       "title": "{capital}: trees in view, tree canopy and parks near every home · 3-30-300",

@@ -104,6 +104,10 @@
   --text-guide: 0.9375rem;
   --text-guide--line-height: 1.3125rem;
   --text-guide--font-weight: 600;
+  --text-guide-step: 0.6875rem;
+  --text-guide-step--line-height: 0.875rem;
+  --text-guide-step--font-weight: 600;
+  --text-guide-step--letter-spacing: 0.08em;
   --text-control: 0.875rem;
   --text-control--line-height: 1.25rem;
   --text-control--font-weight: 500;

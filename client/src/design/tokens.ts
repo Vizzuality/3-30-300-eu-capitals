@@ -123,8 +123,17 @@ export const typeScale = {
   heading: { font: "serif", size: 20, lineHeight: 26, weight: 500 },
   // Text
   body: { font: "sans", size: 16, lineHeight: 24, weight: 400 },
-  // The Next step guide
+  // The Next step guide's sentence
   guide: { font: "sans", size: 15, lineHeight: 21, weight: 600 },
+  // The Next step guide's step label ("Next · 2 of 3"), above its sentence
+  guideStep: {
+    font: "sans",
+    size: 11,
+    lineHeight: 14,
+    weight: 600,
+    letterSpacing: 0.08,
+    uppercase: true,
+  },
   // Top bar links, tabs, rows, buttons
   control: { font: "sans", size: 14, lineHeight: 20, weight: 500 },
   // Notes, legends, ranking, footer
@@ -292,6 +301,16 @@ export const motionDetails = {
   // The tap of the guide's pointer and the pulse's dot (Nudge)
   nudgeTap: [1, 0.82, 1.08, 1],
   nudgeTapTimes: [0, 0.06, 0.14, 0.22],
+  // The ring sent out with each tap: it appears in the first 8% of the
+  // cycle and has spread and faded by 55%, then rests (Nudge)
+  nudgeRingScale: { from: 0.35, to: 1.9 },
+  nudgeRingOpacity: 0.9,
+  nudgeRingTimes: { shown: 0.08, gone: 0.55 },
+  // The first tap waits for the guide to float into place, in milliseconds
+  nudgeDelay: 800,
+  // The guide nudges this many times each time its step changes (on first
+  // show too), then rests until the next change
+  nudgeCount: 3,
   // Under reduced motion, every animation arrives as a fade of at most this
   // long, in milliseconds
   reducedFade: 280,

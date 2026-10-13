@@ -349,7 +349,13 @@ export function PanelPart({
         className
       )}
     >
-      <AnimatePresence initial={false} onExitComplete={panel?.onPartLeft}>
+      {/*
+       * No `initial={false}` here: the first page's arrival is decided by
+       * `PanelPage` itself, and Motion would pass that setting down to every
+       * animation inside the page, for as long as it stays, so they would
+       * jump to their end (the guide's nudge would never play)
+       */}
+      <AnimatePresence onExitComplete={panel?.onPartLeft}>
         <PanelPage key={panel?.visit ?? pageKey} name={name} pageKey={pageKey}>
           {children}
         </PanelPage>

@@ -12,3 +12,15 @@ export const ruleThresholds = {
   // Walk to the nearest park or forest, in metres
   parkDistance: 300,
 } as const
+
+/**
+ * The three rules, by the figure that names them in the switcher
+ * (3 · 30 · 300). A selected building shows the evidence of one at a time,
+ * the 3 trees rule first.
+ */
+export const rules = [3, 30, 300] as const
+
+export type Rule = (typeof rules)[number]
+
+/** The rule a selected building opens with */
+export const defaultRule: Rule = 3
