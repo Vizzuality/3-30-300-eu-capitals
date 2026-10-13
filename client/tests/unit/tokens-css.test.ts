@@ -5,10 +5,8 @@ import { toCssName, tokensCss } from "@/design/tokens-css"
 
 describe("design tokens as CSS", () => {
   test("tokens.css matches tokens.ts (run `pnpm tokens` after a change)", () => {
-    const file = readFileSync(
-      new URL("../../src/design/tokens.css", import.meta.url),
-      "utf8"
-    )
+    // Read from the client folder, where the tests run
+    const file = readFileSync("src/design/tokens.css", "utf8")
 
     expect(file).toBe(tokensCss())
   })

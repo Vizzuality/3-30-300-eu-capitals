@@ -1,10 +1,12 @@
 import { createFileRoute, notFound } from "@tanstack/react-router"
-import { useTranslations } from "use-intl"
+import { useLocale, useTranslations } from "use-intl"
 
 import { NotFoundPage } from "@/components/layout/not-found-page"
+import { summaryQuery, useSummary } from "@/data/queries"
 import { pageHead } from "@/i18n/head"
+import { nameIn } from "@/i18n/names"
 import { isCapitalSlug } from "@/lib/capitals"
-import { assertLocale } from "../-guards"
+import { assertLocale } from "@/routes/$locale/-guards"
 
 export const Route = createFileRoute("/$locale/capitals/$slug")({
   beforeLoad: ({ params }) => {
@@ -14,10 +16,22 @@ export const Route = createFileRoute("/$locale/capitals/$slug")({
     }
     return { slug: params.slug }
   },
+  loader: async ({ context }) => {
+    // A capital the release does not have yet is a missing page
+    const summary = await context.queryClient.query({
+      ...summaryQuery(context.slug),
+      staleTime: "static",
+    })
+    if (!summary) {
+      throw notFound()
+    }
+    return { name: summary.name }
+  },
   head: (context) =>
     pageHead(context, (t) => {
-      // Stand-in names until the capitals' data brings them in every language
-      const capital = t(`temporaryCapitalNames.${context.match.context.slug}`)
+      const capital = context.loaderData
+        ? nameIn(context.loaderData.name, context.params.locale)
+        : ""
       return {
         title: t("capital.meta.title", { capital }),
         description: t("capital.meta.description", { capital }),
@@ -30,13 +44,12 @@ export const Route = createFileRoute("/$locale/capitals/$slug")({
 })
 
 function Capital() {
-  const t = useTranslations()
+  const locale = useLocale()
   const { slug } = Route.useRouteContext()
+  const summary = useSummary(slug)
 
   return (
-    <h1 className="font-serif text-title">
-      {t(`temporaryCapitalNames.${slug}`)}
-    </h1>
+    <h1 className="font-serif text-title">{nameIn(summary.name, locale)}</h1>
   )
 }
 

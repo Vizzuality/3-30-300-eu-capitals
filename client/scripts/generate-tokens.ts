@@ -3,10 +3,11 @@
  * `pnpm tokens` after changing a token; a unit test fails while the two differ.
  */
 import { writeFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 
-import { tokensCss } from "../src/design/tokens-css.ts"
+import { tokensCss } from "@/design/tokens-css"
 
-const path = new URL("../src/design/tokens.css", import.meta.url)
+const path = fileURLToPath(import.meta.resolve("@/design/tokens.css"))
 
 writeFileSync(path, tokensCss())
-console.log(`Written ${path.pathname}`)
+console.log(`Written ${path}`)

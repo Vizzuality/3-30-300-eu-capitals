@@ -7,7 +7,10 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@fixtures/*": ["./tests/fixtures/*"],
+      "@messages/*": ["./messages/*"],
+      "@scripts/*": ["./scripts/*"]
     },
 
     /* Bundler mode */

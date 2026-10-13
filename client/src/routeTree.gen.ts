@@ -14,6 +14,7 @@ import { Route as LocaleRouteRouteImport } from './routes/$locale/route'
 import { Route as LocaleIndexRouteImport } from './routes/$locale/index'
 import { Route as LocaleAboutRouteImport } from './routes/$locale/about'
 import { Route as LocaleMethodologyRouteImport } from './routes/$locale/methodology'
+import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as LocaleCapitalsSlugRouteImport } from './routes/$locale/capitals/$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const LocaleMethodologyRoute = LocaleMethodologyRouteImport.update({
   path: '/methodology',
   getParentRoute: () => LocaleRouteRoute,
 } as any)
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LocaleCapitalsSlugRoute = LocaleCapitalsSlugRouteImport.update({
   id: '/capitals/$slug',
   path: '/capitals/$slug',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/$locale': typeof LocaleRouteRouteWithChildren
   '/$locale/about': typeof LocaleAboutRoute
   '/$locale/methodology': typeof LocaleMethodologyRoute
+  '/api/$': typeof ApiSplatRoute
   '/$locale/': typeof LocaleIndexRoute
   '/$locale/capitals/$slug': typeof LocaleCapitalsSlugRoute
 }
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$locale/about': typeof LocaleAboutRoute
   '/$locale/methodology': typeof LocaleMethodologyRoute
+  '/api/$': typeof ApiSplatRoute
   '/$locale': typeof LocaleIndexRoute
   '/$locale/capitals/$slug': typeof LocaleCapitalsSlugRoute
 }
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/$locale': typeof LocaleRouteRouteWithChildren
   '/$locale/about': typeof LocaleAboutRoute
   '/$locale/methodology': typeof LocaleMethodologyRoute
+  '/api/$': typeof ApiSplatRoute
   '/$locale/': typeof LocaleIndexRoute
   '/$locale/capitals/$slug': typeof LocaleCapitalsSlugRoute
 }
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/$locale'
     | '/$locale/about'
     | '/$locale/methodology'
+    | '/api/$'
     | '/$locale/'
     | '/$locale/capitals/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$locale/about'
     | '/$locale/methodology'
+    | '/api/$'
     | '/$locale'
     | '/$locale/capitals/$slug'
   id:
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '/$locale'
     | '/$locale/about'
     | '/$locale/methodology'
+    | '/api/$'
     | '/$locale/'
     | '/$locale/capitals/$slug'
   fileRoutesById: FileRoutesById
@@ -100,6 +112,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LocaleRouteRoute: typeof LocaleRouteRouteWithChildren
+  ApiSplatRoute: typeof ApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -139,6 +152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LocaleMethodologyRouteImport
       parentRoute: typeof LocaleRouteRoute
     }
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$locale/capitals/$slug': {
       id: '/$locale/capitals/$slug'
       path: '/capitals/$slug'
@@ -170,6 +190,7 @@ const LocaleRouteRouteWithChildren = LocaleRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LocaleRouteRoute: LocaleRouteRouteWithChildren,
+  ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
