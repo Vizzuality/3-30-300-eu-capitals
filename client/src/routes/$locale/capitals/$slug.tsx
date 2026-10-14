@@ -1,6 +1,12 @@
-import { createFileRoute, notFound } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  notFound,
+  stripSearchParams,
+} from "@tanstack/react-router"
+import { useCallback, useEffect, useMemo } from "react"
 
 import { CapitalHeader } from "@/components/capital/capital-header"
+import { MiddleBlock } from "@/components/capital/middle-block"
 import { OtherCapitals } from "@/components/capital/other-capitals"
 import { NextStepGuide } from "@/components/guide/next-step-guide"
 import { NotFoundPage } from "@/components/layout/not-found-page"
@@ -12,16 +18,24 @@ import {
   useRanking,
   useSummary,
 } from "@/data/queries"
+import { standInBuilding } from "@/data/stand-in-buildings"
 import { pageHead } from "@/i18n/head"
 import { nameIn } from "@/i18n/names"
-import { capitalSearchSchema } from "@/lib/capital-search"
+import {
+  capitalSearchDefaults,
+  capitalSearchSchema,
+} from "@/lib/capital-search"
+import { capitalView, guideInput } from "@/lib/capital-view"
 import { isCapitalSlug } from "@/lib/capitals"
 import { guideState } from "@/lib/guide"
+import type { Rule } from "@/lib/rules"
 import { assertLocale } from "@/routes/$locale/-guards"
 
 export const Route = createFileRoute("/$locale/capitals/$slug")({
-  // The selected building, its rule and its facade
+  // The selected building, its rule and its facade, and the area in view;
+  // the 3 trees rule, shown by default, is left out of links
   validateSearch: capitalSearchSchema,
+  search: { middlewares: [stripSearchParams(capitalSearchDefaults)] },
   beforeLoad: ({ params }) => {
     assertLocale(params.locale)
     if (!isCapitalSlug(params.slug)) {
@@ -56,33 +70,107 @@ export const Route = createFileRoute("/$locale/capitals/$slug")({
         description: t("capital.meta.description", { capital }),
       }
     }),
-  // On phones, "Other capitals" comes after the map band
-  staticData: { afterMapBand: CapitalNeighbours },
+  // On phones, the middle block and "Other capitals" come after the map band
+  staticData: { afterMapBand: CapitalAfterBand },
   notFoundComponent: NotFoundPage,
   component: Capital,
 })
 
+/**
+ * What the page shows, from its address: the city overview, the street or a
+ * selected building. Until the map reads a building's figures from the
+ * city's tiles, only the stand-in release's buildings can be selected.
+ */
+function useCapitalView() {
+  const { slug } = Route.useRouteContext()
+  const search = Route.useSearch()
+
+  return useMemo(
+    () =>
+      capitalView(
+        search,
+        search.building === undefined
+          ? undefined
+          : standInBuilding(slug, search.building)
+      ),
+    [slug, search]
+  )
+}
+
 // The parts of the page that float in, one after the other: the header,
-// then the guide, then Other capitals (after the map band on phones)
+// then the guide, then the middle block and Other capitals (after the map
+// band on phones)
 function Capital() {
   const { slug } = Route.useRouteContext()
   const summary = useSummary(slug)
-  const search = Route.useSearch()
+  const view = useCapitalView()
 
-  // Until the map reports its view, the address says it: the city overview,
-  // or a selected building
   return (
     <>
       <CapitalHeader summary={summary} />
-      <NextStepGuide state={guideState({ page: "capital", ...search })} />
+      <NextStepGuide state={guideState(guideInput(view))} />
     </>
   )
 }
 
-function CapitalNeighbours() {
+function CapitalAfterBand() {
   const { slug } = Route.useRouteContext()
+  const summary = useSummary(slug)
   const ranking = useRanking()
   const { capitals } = useCapitals()
+  const view = useCapitalView()
+  const navigate = Route.useNavigate()
+  const selected = view.view === "building"
 
-  return <OtherCapitals slug={slug} ranking={ranking} capitals={capitals} />
+  // Each rule shown is a step back in the browser's history. A facade is
+  // only shown with the 3 trees rule, so another rule leaves it.
+  const showRule = useCallback(
+    (rule: Rule) =>
+      navigate({
+        search: (previous) => ({ ...previous, rule, facade: undefined }),
+        resetScroll: false,
+      }),
+    [navigate]
+  )
+
+  // Back to the street, without the building or its facade
+  const close = useCallback(
+    () =>
+      navigate({
+        search: (previous) => ({
+          ...previous,
+          building: undefined,
+          facade: undefined,
+        }),
+        resetScroll: false,
+      }),
+    [navigate]
+  )
+
+  // Escape closes the building too, unless something else answered it
+  useEffect(() => {
+    if (!selected) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        close()
+      }
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [selected, close])
+
+  return (
+    <>
+      <MiddleBlock
+        view={view}
+        shares={summary.shares.rules}
+        language={summary.language}
+        onRuleChange={showRule}
+        onClose={close}
+      />
+      <OtherCapitals slug={slug} ranking={ranking} capitals={capitals} />
+    </>
+  )
 }

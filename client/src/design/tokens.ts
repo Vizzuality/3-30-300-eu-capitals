@@ -149,6 +149,8 @@ export const typeScale = {
   figureUnit: { font: "sans", size: 13, lineHeight: 16, weight: 400 },
   // Whether a rule is met, next to its mark ("met", "not met")
   status: { font: "sans", size: 12, lineHeight: 16, weight: 600 },
+  // A result card's verdict: met or not met, then what the rule needs
+  cardStatus: { font: "sans", size: 14, lineHeight: 20, weight: 400 },
   // A capital's rank, in its round badge in the ranking
   rank: { font: "sans", size: 11, lineHeight: 14, weight: 600 },
   // Section labels such as "Other capitals"

@@ -89,7 +89,52 @@
     "shares": "{three, number, percent} of residents meet all three rules, {two, number, percent} meet two, {one, number, percent} one and {none, number, percent} none",
     "otherCapitals": "Other capitals",
     "allRanking": "All {capitals, number}<hidden> capitals, in the ranking</hidden>",
-    "closeBuilding": "Close the building"
+    "closeBuilding": "Close the building",
+    "overview": {
+      "sentence": "Every {cell, number, ::unit/meter} square of the city, coloured by the number of rules met by the people who live there.",
+      "label": "Residents meeting each rule",
+      "rules": {
+        "trees": "<figure>{trees, number}</figure> <label>trees in view</label> <result>{share, number, percent}</result>",
+        "canopy": "<figure>{canopy, number, percent}</figure> <label>canopy around</label> <result>{share, number, percent}</result>",
+        "park": "<figure>{distance, number, ::unit/meter}</figure> <label>to a park</label> <result>{share, number, percent}</result>"
+      }
+    },
+    "street": {
+      "sentence": "Each building takes the colour of the number of rules its residents meet. Greenery has its own colour."
+    },
+    "building": {
+      "label": "Selected building · {amount, select, none {no residents} few {fewer than one resident} other {about {residents, plural, one {# resident} other {# residents}}}}",
+      "rules": "Rule shown",
+      "chips": {
+        "3": "<figure>{rule, number}</figure> <unit>trees</unit>",
+        "30": "<figure>{rule, number}</figure> <unit>% canopy</unit>",
+        "300": "<figure>{rule, number}</figure> <unit>m to a park</unit>"
+      },
+      "status": "{met, select, yes {met} other {not met}}"
+    },
+    "cards": {
+      "trees": {
+        "context": "Whole building · {facades, plural, =0 {no facades} one {# facade} other {# facades}}",
+        "result": "{share, number, percent} of residents see {trees, number} trees or more",
+        "status": "<b>{met, select, yes {met} other {not met}}</b> · more than half needed",
+        "note": "{facades, plural, =0 {Its walls are all shared or too short to look out from.} one {Its only facade {passing, plural, =0 {sees fewer than {trees, number} trees} other {sees {trees, number} trees or more}}. It shows the trees it can see.} other {{passing, plural, =0 {None of its {facades, number} facades sees} one {1 of its {facades, number} facades sees} other {{passing, number} of its {facades, number} facades see}} {trees, number} trees or more. Each facade shows the trees it can see.}}"
+      },
+      "canopy": {
+        "context": "Whole building · land within {radius, number, ::unit/meter}",
+        "result": "{canopy, number, percent} tree canopy",
+        "status": "<b>{met, select, yes {met} other {not met}}</b> · {needed, number, percent} needed"
+      },
+      "park": {
+        "context": "Whole building · nearest park of {area, number, ::unit/hectare} or more",
+        "result": "{kind, select, route {{walk, number, ::unit/meter} walk to {named, select, yes {<name>{park}</name>} other {the nearest park}}} touching {Next to {named, select, yes {<name>{park}</name>} other {a park}}} other {No path within {reach, number, ::unit/meter} leads to a park}}",
+        "status": "<b>{met, select, yes {met} other {not met}}</b> · {distance, number, ::unit/meter} or less"
+      },
+      "facade": {
+        "context": "{orientation, select, N {North} NE {North-east} E {East} SE {South-east} S {South} SW {South-west} W {West} other {North-west}} facade · {amount, select, none {no residents} few {fewer than one resident} other {about {residents, plural, one {# resident} other {# residents}}}}",
+        "result": "{trees, plural, =0 {Sees no trees} one {Sees # tree} other {Sees # trees}}",
+        "status": "<b>{met, select, yes {met} other {not met}}</b> · {needed, number} trees needed"
+      }
+    }
   },
   "methodology": {
     "meta": {

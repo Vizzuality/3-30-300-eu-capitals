@@ -82,7 +82,7 @@ const stateNotes: Record<GuideState, string> = {
   overview:
     "Under the city header. The map's pulse (steps 16–17) sits on the suggested place.",
   street:
-    "Not reachable from an address until the map reports its view (step 14 on).",
+    "?at=… narrower than 1.5 km: the area in view, which the map will write (step 14 on).",
   building: "?building=…",
   facade: "?building=…&facade=…",
   explore: "?building=…&rule=30 or 300; a facade counts only with rule 3.",

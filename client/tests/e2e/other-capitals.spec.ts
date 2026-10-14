@@ -101,7 +101,7 @@ test("a capital opens from Other capitals, without the building", async ({
   page,
   isMobile,
 }) => {
-  await page.goto("/en/capitals/stockholm?building=12&rule=30")
+  await page.goto("/en/capitals/stockholm?building=31947&rule=30")
   await hydrated(page)
 
   // Stockholm, between the capitals ranked just above and just below it

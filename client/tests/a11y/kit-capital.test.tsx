@@ -15,9 +15,11 @@ import { CapitalKit } from "@/dev/kit-capital"
 import { routeTree } from "@/routeTree.gen"
 
 /*
- * The capital page's header and Other capitals on their own: the kit page's
- * section shows them with the stand-in release, then the rows of Other
- * capitals in each state, in both themes. The kit page is not part of the
+ * The capital page's header, middle block and Other capitals on their own:
+ * the kit page's section shows them with the stand-in release, then the
+ * middle block (overview, street, a building with each rule and a facade,
+ * every card met and not met) and the rows of Other capitals in each state,
+ * in both themes. The kit page is not part of the
  * site's routes, so the section is rendered alone, inside a router for its
  * links.
  */
@@ -47,7 +49,7 @@ async function renderCapitalKit() {
 }
 
 describe("Kit page, Capital page", () => {
-  test("the header and Other capitals in every state", async () => {
+  test("the header, the middle block and Other capitals in every state", async () => {
     await renderCapitalKit()
 
     await expect(document.body).toHaveNoA11yViolations()
@@ -65,6 +67,31 @@ describe("Kit page, Capital page", () => {
     await expect
       .element(page.getByRole("link", { name: /^Brussels, rank 18:/ }).first())
       .toHaveFocus()
+
+    await expect(document.body).toHaveNoA11yViolations()
+  })
+
+  test("the rule switcher to try, operated with the keyboard", async () => {
+    await renderCapitalKit()
+
+    const demo = page.getByRole("radiogroup", { name: "Rule shown" }).first()
+    demo.getByRole("radio", { name: "3 trees met" }).element().focus()
+    await userEvent.keyboard("{ArrowLeft}")
+    await expect
+      .element(demo.getByRole("radio", { name: "300 m to a park not met" }))
+      .toBeChecked()
+    await expect
+      .element(page.getByText("361 m walk to Vita bergen").first())
+      .toBeInTheDocument()
+    await expect
+      .poll(() =>
+        [...document.querySelectorAll("[data-slot='swap-part']")].every(
+          (part) =>
+            !part.hasAttribute("inert") &&
+            getComputedStyle(part).opacity === "1"
+        )
+      )
+      .toBe(true)
 
     await expect(document.body).toHaveNoA11yViolations()
   })

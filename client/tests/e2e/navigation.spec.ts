@@ -24,7 +24,8 @@ const PHONE = { width: 390, height: 844 }
 /*
  * The order in which keyboard and screen reader users meet the parts of the
  * page: on desktop the map area comes after the footer; on phones the band
- * sits in the page's content, between what comes before and after it.
+ * sits in the page's content, between what comes before and after it (on
+ * a capital's page, its middle block and Other capitals come after it).
  */
 async function readingOrder(page: Page) {
   return page.evaluate(() => {
@@ -56,6 +57,7 @@ async function expectReadingOrder(page: Page, layout: "desktop" | "phone") {
               "header",
               "main",
               "Stockholm",
+              "Residents meeting each rule",
               "Other capitals",
               "footer",
               "map area",
@@ -68,6 +70,7 @@ async function expectReadingOrder(page: Page, layout: "desktop" | "phone") {
               "main",
               "Stockholm",
               "map area",
+              "Residents meeting each rule",
               "Other capitals",
               "footer",
             ],

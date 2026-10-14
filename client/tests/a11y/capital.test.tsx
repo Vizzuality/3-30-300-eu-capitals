@@ -74,16 +74,71 @@ describe("Capital page", () => {
     await expect(document.body).toHaveNoA11yViolations()
   })
 
-  // Each state of the Next step guide that an address can reach (the street
-  // needs the map, and is checked on the kit page)
+  // Each state of the middle block and the Next step guide that an address
+  // can reach: the street from the area in view, then a building of the
+  // stand-in release, with each rule and one of its facades
   test.each([
-    ["a building selected, rule 3", "?building=12"],
-    ["a facade selected", "?building=12&rule=3&facade=40"],
-    ["rule 30", "?building=12&rule=30"],
-    ["rule 300", "?building=12&rule=300"],
-  ])("next step guide: %s", async (_, search) => {
+    ["the street", "?at=18.06,59.312,18.08,59.318"],
+    ["a building selected, rule 3", "?building=31947"],
+    ["a facade selected", "?building=31947&rule=3&facade=102293"],
+    ["rule 30", "?building=31947&rule=30"],
+    ["rule 300", "?building=31947&rule=300"],
+    ["rule 300, the nearest park without a name", "?building=2677&rule=300"],
+    ["rule 300, no path to a park", "?building=64634&rule=300"],
+  ])("middle block and guide: %s", async (_, search) => {
     await renderPage(`/en/capitals/stockholm${search}`)
+    await expect
+      .element(
+        page
+          .getByRole("main")
+          .getByText(/Selected building|building takes|Every 10 m square/)
+      )
+      .toBeInTheDocument()
+
+    await expect(document.body).toHaveNoA11yViolations()
+  })
+
+  test("the rule switcher reached and operated with the keyboard", async () => {
+    await renderPage("/en/capitals/stockholm?building=31947")
+
+    // From the close button, as a keyboard user moves on
+    page.getByRole("button", { name: "Close the building" }).element().focus()
+    await userEvent.keyboard("{Tab}")
+    await expect
+      .element(page.getByRole("radio", { name: "3 trees met" }))
+      .toHaveFocus()
+    await userEvent.keyboard("{ArrowRight}")
+    await expect
+      .element(page.getByRole("radio", { name: "30 % canopy not met" }))
+      .toBeChecked()
+    await expectSwapped("20% tree canopy")
+
+    await expect(document.body).toHaveNoA11yViolations()
+  })
+
+  test("the building closed with Escape", async () => {
+    await renderPage("/en/capitals/stockholm?building=31947&rule=300")
+
+    page
+      .getByRole("radio", { name: "300 m to a park not met" })
+      .element()
+      .focus()
+    await userEvent.keyboard("{Escape}")
+    await expectSwapped("Residents meeting each rule")
 
     await expect(document.body).toHaveNoA11yViolations()
   })
 })
+
+/** The middle block shows `text`, the content it replaced having faded out */
+async function expectSwapped(text: string) {
+  await expect.element(page.getByText(text)).toBeInTheDocument()
+  await expect.poll(() => document.querySelector("main [inert]")).toBeNull()
+  await expect
+    .poll(() =>
+      [...document.querySelectorAll("main [data-slot='swap-part']")].every(
+        (part) => getComputedStyle(part).opacity === "1"
+      )
+    )
+    .toBe(true)
+}

@@ -26,8 +26,8 @@ export type GuideInput =
   | {
       page: "capital"
       /**
-       * The map's view. Until the map reports it, the address is all there
-       * is: the city overview, or street level once a building is selected.
+       * The map's view when no building is selected, from the area in view
+       * (see `mapViewOf`): the city overview when it is not given
        */
       view?: MapView
       building?: number

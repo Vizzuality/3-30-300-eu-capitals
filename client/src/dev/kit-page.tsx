@@ -105,6 +105,7 @@ const typeClasses: Record<keyof typeof typeScale, string> = {
   figure: "font-serif text-figure",
   figureUnit: "font-sans text-figure-unit text-ink-2",
   status: "font-sans text-status",
+  cardStatus: "font-sans text-card-status text-ink-2",
   small: "font-sans text-small text-ink-2",
   rank: "font-sans text-rank",
   label: "font-sans text-label text-ink-2 uppercase",
@@ -124,6 +125,7 @@ const typeNames: Record<keyof typeof typeScale, string> = {
   figure: "Figure",
   figureUnit: "Figure unit",
   status: "Status",
+  cardStatus: "Card status",
   small: "Small",
   rank: "Rank",
   label: "Label",
@@ -159,6 +161,11 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
   ],
   ["figureUnit", "m to a park", "What a figure counts"],
   ["status", "not met", "Whether a rule is met"],
+  [
+    "cardStatus",
+    "not met · 30% needed",
+    "A result card's verdict and what the rule needs",
+  ],
   [
     "small",
     "Sweden · about 1.04 million residents",

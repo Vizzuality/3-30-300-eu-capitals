@@ -226,6 +226,79 @@ export const sourcesSchema = z.object({
   capitals: z.partialRecord(capitalSlugSchema, capitalSourcesSchema),
 })
 
+// `capitals/<slug>/evidence.pmtiles`: one building of a tile
+
+/** A reference to a tree or a point listed once in the tile */
+const tileRef = z.int().nonnegative()
+
+/** A met (1) or failed (0) rule */
+const ruleFlag = z.union([z.literal(0), z.literal(1)])
+
+/**
+ * The evidence of one building, as an evidence tile holds it: its results,
+ * and per facade the trees it sees. Values are rounded towards the flags, so
+ * they never contradict them (the canopy down, the walk and the share of
+ * residents seeing 3 trees up).
+ */
+export const evidenceBuildingSchema = z.object({
+  // Rule 3, rule 30, rule 300
+  rules: z.tuple([ruleFlag, ruleFlag, ruleFlag]),
+  // Modelled, so a building may have a fraction of a resident, or none
+  residents: z.number().nonnegative(),
+  // Share of its residents behind facades that see 3 trees or more
+  share3: shareSchema,
+  // Share of the land within 500 m covered by tree crowns
+  canopy: shareSchema,
+  // Walk to the nearest park or forest in metres; 0 when it touches one,
+  // null when no path within 100 m leads to one
+  walk: z.int().nonnegative().nullable(),
+  // The green space reached, by its id in the tile
+  park: z.int().nonnegative().nullable(),
+  route: z.array(tileRef).nullable(),
+  facades: z.object({
+    // The id of its first facade; the others follow it. Null without facades
+    first: z.int().positive().nullable(),
+    // Per facade, the trees it sees and where each is seen from
+    seen: z.array(z.array(tileRef)),
+    from: z.array(z.array(tileRef)),
+  }),
+})
+
+/** A green space of an evidence tile, without its outline */
+export const evidenceParkSchema = z.object({
+  // Null when it has no name
+  name: z.string().min(1).nullable(),
+  kind: z.enum(["park", "garden", "nature_reserve", "forest", "wood"]),
+  // Area of the whole green space in hectares
+  ha: z.number().positive(),
+})
+
+// `capitals/<slug>/city.pmtiles`, layer `facades`: one facade's attributes
+
+/** Where a facade looks, from true north */
+export const orientations = [
+  "N",
+  "NE",
+  "E",
+  "SE",
+  "S",
+  "SW",
+  "W",
+  "NW",
+] as const
+
+export const facadeAttributesSchema = z.object({
+  // The facade's id, and its building's
+  sid: z.int().positive(),
+  b: z.int().positive(),
+  // Whether it sees 3 trees or more, and how many it sees
+  ok: ruleFlag,
+  n: z.int().nonnegative(),
+  orient: z.enum(orientations),
+  // Its share of the building's residents, by length
+  res: z.number().nonnegative(),
+})
+
 export type Names = z.infer<typeof namesSchema>
 export type Shares = z.infer<typeof sharesSchema>
 export type CapitalSources = z.infer<typeof capitalSourcesSchema>
@@ -235,6 +308,10 @@ export type Capitals = z.infer<typeof capitalsSchema>
 export type Capital = Capitals["capitals"][number]
 export type Summary = z.infer<typeof summarySchema>
 export type Sources = z.infer<typeof sourcesSchema>
+export type EvidenceBuilding = z.infer<typeof evidenceBuildingSchema>
+export type EvidencePark = z.infer<typeof evidenceParkSchema>
+export type FacadeAttributes = z.infer<typeof facadeAttributesSchema>
+export type Orientation = (typeof orientations)[number]
 
 /** The schema of each kind of release file the data API returns */
 export const releaseFileSchemas = {

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
  * Rule cards: the three rules side by side (3 trees in view, 30% canopy
  * around, 300 m to a park), each a figure over what it counts. Small hairline
  * cards, flat and still: they are not controls. On Home they introduce the
- * rule; the city overview will reuse them with each rule's share.
+ * rule; the city overview adds each rule's share of residents under it.
  */
 
 /** The cards, as a list in three equal columns, 8 px apart */
@@ -56,4 +56,11 @@ function RuleCardLabel({ children }: { children: ReactNode }) {
   )
 }
 
-export { RuleCard, RuleCardFigure, RuleCardLabel, RuleCards }
+/** The share of residents meeting the rule, under what it counts ("32%") */
+function RuleCardShare({ children }: { children: ReactNode }) {
+  return (
+    <span className="mt-1.5 text-small font-semibold text-ink">{children}</span>
+  )
+}
+
+export { RuleCard, RuleCardFigure, RuleCardLabel, RuleCardShare, RuleCards }

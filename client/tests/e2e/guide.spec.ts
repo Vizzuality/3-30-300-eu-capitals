@@ -82,7 +82,7 @@ test("the guide follows the visitor through a capital", async ({
   await expect(guide(page)).toHaveAttribute("aria-live", "polite")
 
   // A building selected
-  await goTo(page, "/en/capitals/stockholm?building=12")
+  await goTo(page, "/en/capitals/stockholm?building=31947")
   await expectGuide(page, isMobile, "Next · 3 of 3", {
     click:
       "Switch rules with 3 · 30 · 300, or click a facade to see the trees it sees",
@@ -90,14 +90,14 @@ test("the guide follows the visitor through a capital", async ({
   })
 
   // One of its facades
-  await goTo(page, "/en/capitals/stockholm?building=12&facade=40")
+  await goTo(page, "/en/capitals/stockholm?building=31947&facade=102293")
   await expectGuide(page, isMobile, "Facade selected", {
     click: "Click the facade again to see the whole building",
     tap: "Tap the facade again to see the whole building",
   })
 
   // Another rule
-  await goTo(page, "/en/capitals/stockholm?building=12&rule=30")
+  await goTo(page, "/en/capitals/stockholm?building=31947&rule=30")
   await expectGuide(page, isMobile, "Explore", {
     click:
       "Click another building to compare it, or press Esc to go back to the street",
@@ -116,7 +116,7 @@ test(
   "a new page is announced by its name, and its guide stays quiet",
   { tag: "@motion" },
   async ({ page, isMobile }) => {
-    await page.goto("/en/capitals/stockholm?building=12")
+    await page.goto("/en/capitals/stockholm?building=31947")
     await hydrated(page)
     await watchArrivingGuides(page)
 
@@ -154,7 +154,7 @@ test("a shared link opens on the guide of its building", async ({
     }
   })
 
-  await page.goto("/en/capitals/stockholm?building=12&rule=300")
+  await page.goto("/en/capitals/stockholm?building=31947&rule=300")
   await hydrated(page)
 
   await expectGuide(page, isMobile, "Explore", {
@@ -243,7 +243,7 @@ test(
     await page.clock.install()
     await page.goto("/en/capitals/stockholm")
     await hydrated(page)
-    await goTo(page, "/en/capitals/stockholm?building=12")
+    await goTo(page, "/en/capitals/stockholm?building=31947")
     await expect(
       page.locator("main [data-guide-state='building']")
     ).toBeVisible()
@@ -281,7 +281,7 @@ test(
     await expectStill(page, 3_000)
 
     // A new step nudges three times again, then rests
-    await goTo(page, "/en/capitals/stockholm?building=12")
+    await goTo(page, "/en/capitals/stockholm?building=31947")
     await expect(
       page.locator("main [data-guide-state='building']")
     ).toBeVisible()
