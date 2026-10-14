@@ -7,7 +7,19 @@ Failures (exit code 1) are real errors:
 - grid.pmtiles: tiles that are not 512 px single-channel PNGs with values 0–4, or wrong zooms;
 - city.pmtiles: not vector tiles, wrong zooms, a layer or an attribute missing;
 - evidence.pmtiles: tiles that are not gzip JSON at zoom 15 or break the schema;
-- a known value of Stockholm out of its range (conf/base/parameters/check.yml).
+- outline.json: not a GeoJSON Feature of the release and the capital, not a valid MultiPolygon,
+  bounds other than the city's (summary.json › bbox), or over its size limit (check.yml);
+- summary.json › context: missing, or a rectangle that does not hold the city, or least zooms
+  over the page's greatest zoom (they have no floor: a whole city may be fitted below 9);
+- context.pmtiles: not vector tiles, zooms other than summary.json › zooms.context (which must
+  reach down to the least zooms), its water or roads layer missing, a road or a place breaking
+  the schema, a place outside the city, layers other than water, roads and places; its size
+  over the budget is a warning;
+- europe.pmtiles (once the release is complete): not vector tiles, wrong zooms, a layer missing
+  or one the format does not have (`land`, dropped: the countries cover it);
+- capitals.json: a capital without its place on the Home map (scale, display, leader);
+- any archive whose metadata holds an absolute path (of the machine that built it);
+- a known value of a capital out of its range (conf/base/parameters/check.yml).
 
 Sizes are warnings only (budgets in check.yml): vector tiles over the warning size, those over
 the aim, and evidence tiles over the warning size (gzipped) are listed; the largest sizes are
@@ -27,11 +39,14 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
+import shapely
+import shapely.geometry
 from PIL import Image
 from pmtiles.reader import MmapSource, Reader, all_tiles
 from pmtiles.tile import Compression, TileType
 
 from data_processing.config import PROJECT, parameters
+from data_processing.core.tiles import absolute_paths
 
 LAYERS = {
     "land": set(),
@@ -46,8 +61,18 @@ LAYERS = {
     "facades": {"sid", "b", "ok", "n", "orient", "res"},
     "trees": {"id", "h"},
 }
+# Layers a capital can lack: Tippecanoe leaves out a layer without features
+OPTIONAL_LAYERS = {"water_marks": "no water 30 m or more from a shore"}
 LOCALES = 24
 BUILDING_KEYS = {"rules", "residents", "share3", "canopy", "walk", "park", "route", "facades"}
+EUROPE_LAYERS = {
+    "sea": set(),
+    "countries": {"code", "eu", "tint"},
+    "borders": set(),
+    "coastline": {"kind"},
+    "graticule": {"axis", "deg"},
+    "sea_marks": set(),
+}
 
 
 class Report:
@@ -115,6 +140,7 @@ def check_summary(r: Report, path: Path, slug: str, release: str, locales: list[
         "suggested",
         "centre",
         "bbox",
+        "context",
         "area_km2",
         "label_chars",
         "zooms",
@@ -169,11 +195,19 @@ def check_index(r: Report, folder: Path, release: str, locales: list[str]) -> li
             "centre",
             "display",
             "km",
+            "scale",
+            "leader",
             "outline",
         ):
             r.check(key in c, f"{w}: missing {key}")
-        ring = c.get("outline", [[[]]])[0][0]
-        r.check(len(ring) >= 4 and ring[0] == ring[-1], f"{w}: outline rings must be closed")
+        rings = [ring for poly in c.get("outline") or [[[]]] for ring in poly]
+        r.check(
+            all(len(ring) >= 4 and ring[0] == ring[-1] for ring in rings),
+            f"{w}: outline rings must be closed",
+        )
+        r.check(isinstance(c.get("scale"), int | float) and c["scale"] >= 1, f"{w}: scale")
+        leader = c.get("leader")
+        r.check(leader is None or len(leader) == 2, f"{w}: leader is not null or [lon, lat]")
     if not ranking.get("complete"):
         r.note(f"ranking.json and capitals.json are partial: {len(slugs)} of 27 capitals")
     europe = folder / "europe.pmtiles"
@@ -184,15 +218,194 @@ def check_index(r: Report, folder: Path, release: str, locales: list[str]) -> li
     return slugs
 
 
+def check_europe(r: Report, path: Path, home: dict) -> dict:
+    f, reader = _reader(path)
+    h = reader.header()
+    meta = reader.metadata()
+    w = "europe.pmtiles"
+    check_no_local_paths(r, meta, w)
+    r.check(h["tile_type"] == TileType.MVT, f"{w}: tile type is not MVT")
+    r.check(
+        h["min_zoom"] == home["minzoom"] and h["max_zoom"] == home["maxzoom"],
+        f"{w}: zooms {h['min_zoom']}–{h['max_zoom']}",
+    )
+    layers = {v["id"]: set(v.get("fields", {})) for v in meta.get("vector_layers", [])}
+    extra = sorted(set(layers) - set(EUROPE_LAYERS))
+    r.check(not extra, f"{w}: layers not in the format: {extra}")
+    for name, fields in EUROPE_LAYERS.items():
+        if r.check(name in layers, f"{w}: layer {name} is missing"):
+            r.check(fields <= layers[name], f"{w}: layer {name} lacks {fields - layers[name]}")
+    sizes = [len(data) for _, data in all_tiles(reader.get_bytes)]
+    f.close()
+    return {"tiles": len(sizes), "max_bytes": max(sizes, default=0), "bytes": path.stat().st_size}
+
+
 def _reader(path: Path):
     f = path.open("rb")
     return f, Reader(MmapSource(f))
+
+
+def check_no_local_paths(r: Report, meta: dict, where: str) -> None:
+    found = absolute_paths(meta)
+    r.check(not found, f"{where}: metadata holds absolute paths: {found}")
+
+
+def check_outline(
+    r: Report, path: Path, slug: str, release: str, summary: dict, budgets: dict
+) -> dict:
+    """capitals/<slug>/outline.json: the city limits, a GeoJSON Feature (docs/release-format.md)."""
+    w = f"{slug}/outline.json"
+    size = path.stat().st_size
+    r.check(
+        size <= budgets["outline_json_max_bytes"],
+        f"{w}: {size // 1000} kB, over the {budgets['outline_json_max_bytes'] // 1000} kB limit",
+    )
+    if size > budgets["outline_json_warn_bytes"]:
+        r.warn(f"{w}: {size // 1000} kB")
+    doc = json.loads(path.read_text())
+    r.check(doc.get("type") == "Feature", f"{w}: not a GeoJSON Feature")
+    r.check(doc.get("schema_version") == 1, f"{w}: schema_version is not 1")
+    r.check(doc.get("release") == release, f"{w}: release is {doc.get('release')}")
+    r.check(doc.get("slug") == slug, f"{w}: slug is {doc.get('slug')}")
+    r.check(isinstance(doc.get("tolerance_m"), int | float), f"{w}: tolerance_m")
+    geometry = doc.get("geometry") or {}
+    if not r.check(geometry.get("type") == "MultiPolygon", f"{w}: geometry is not a MultiPolygon"):
+        return {"bytes": size}
+    g = shapely.geometry.shape(geometry)
+    r.check(g.is_valid, f"{w}: invalid geometry ({shapely.is_valid_reason(g)})")
+    # the city's: its bounds are the summary's box (the city's own, rounded outwards to 5
+    # decimals), give or take the simplification (under 1.5 m) and the rounding
+    bbox = summary.get("bbox", [0, 0, 0, 0])
+    r.check(
+        all(abs(a - b) <= 1e-4 for a, b in zip(g.bounds, bbox, strict=True)),
+        f"{w}: bounds {[round(v, 5) for v in g.bounds]} differ from the city's {bbox}",
+    )
+    return {
+        "bytes": size,
+        "points": int(shapely.get_num_coordinates(g)),
+        "parts": len(g.geoms),
+        "holes": int(sum(len(p.interiors) for p in g.geoms)),
+    }
+
+
+CONTEXT_LAYERS = {
+    "water": set(),
+    "roads": {"class", "tunnel", "dual"},
+    "places": {"name", "tier", "rank", "w"},
+}
+ROAD_CLASSES = {"motorway", "trunk", "primary", "secondary", "tertiary"}
+
+
+def check_context_features(r: Report, w: str, roads: list, places: list, city) -> None:
+    """Attributes of the roads and places of a context archive (decoded features), and every
+    place inside the city (``city``: the outline's geometry, longitude and latitude)."""
+    for f in roads:
+        p = f["properties"]
+        ok = (
+            p.get("class") in ROAD_CLASSES and p.get("tunnel") in (0, 1) and p.get("dual") in (0, 1)
+        )
+        if not r.check(ok, f"{w}: a road breaks the schema: {p}"):
+            break
+    near_city = city.buffer(1e-4)  # the outline is simplified by about a metre
+    for f in places:
+        p = f["properties"]
+        ok = (
+            isinstance(p.get("name"), str)
+            and p["name"]
+            and p.get("tier") in (1, 2)
+            and isinstance(p.get("rank"), int)
+            and p["rank"] >= 0
+            and isinstance(p.get("w"), int | float)
+            and p["w"] > 0
+            and set(p) == CONTEXT_LAYERS["places"]  # no other name: the local one only
+        )
+        if not r.check(ok, f"{w}: place {p} breaks the schema"):
+            break
+        pt = shapely.geometry.shape(f["geometry"])
+        r.check(near_city.covers(pt), f"{w}: place {p.get('name')!r} is outside the city")
+
+
+def _decode(decode: Path, path: Path, z: int, layer: str) -> list:
+    out = subprocess.run(
+        [str(decode), f"--minimum-zoom={z}", f"--maximum-zoom={z}", f"--layer={layer}", str(path)],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    feats = []
+    for tile in json.loads(out).get("features", []):
+        for layer_fc in tile.get("features", []):
+            feats.extend(layer_fc.get("features", []))
+    return feats
+
+
+def check_context(
+    r: Report,
+    path: Path,
+    slug: str,
+    summary: dict,
+    budgets: dict,
+    max_zoom: float,
+    decode: Path | None = None,
+    city_geom=None,
+) -> dict:
+    """summary.json › context and capitals/<slug>/context.pmtiles (docs/release-format.md)."""
+    w = f"{slug}/summary.json context"
+    ctx = summary.get("context") or {}
+    bbox, city = ctx.get("bbox"), summary.get("bbox", [0, 0, 0, 0])
+    if r.check(isinstance(bbox, list) and len(bbox) == 4, f"{w}: bbox"):
+        r.check(
+            bbox[0] <= city[0] and bbox[1] <= city[1] and bbox[2] >= city[2] and bbox[3] >= city[3],
+            f"{w}: {bbox} does not hold the city {city}",
+        )
+    mz = ctx.get("min_zoom") or {}
+    r.check(
+        set(mz) == {"desktop", "phone"} and all(0 < v <= max_zoom for v in mz.values()),
+        f"{w}: min_zoom {mz}",
+    )
+    tile_zooms = summary.get("zooms", {}).get("context")
+    r.check(
+        isinstance(tile_zooms, list) and mz and tile_zooms[0] <= math.floor(min(mz.values())),
+        f"{w}: zooms.context {tile_zooms} do not reach the least zoom {mz}",
+    )
+    w = f"{slug}/context.pmtiles"
+    f, reader = _reader(path)
+    h, meta = reader.header(), reader.metadata()
+    check_no_local_paths(r, meta, w)
+    r.check(h["tile_type"] == TileType.MVT, f"{w}: tile type is not MVT")
+    r.check(
+        [h["min_zoom"], h["max_zoom"]] == tile_zooms,
+        f"{w}: zooms {h['min_zoom']}–{h['max_zoom']}, summary.json says {tile_zooms}",
+    )
+    layers = {v["id"]: set(v.get("fields", {})) for v in meta.get("vector_layers", [])}
+    r.check(set(layers) <= set(CONTEXT_LAYERS), f"{w}: layers {sorted(layers)}")
+    for name in ("water", "roads"):
+        r.check(name in layers, f"{w}: layer {name} is missing")
+    if "places" not in layers:
+        r.note(f"{w}: no places (no district level in the city)")
+    for name, fields in CONTEXT_LAYERS.items():
+        if name in layers:
+            r.check(fields <= layers[name], f"{w}: layer {name} lacks {fields - layers[name]}")
+    sizes = [len(data) for _, data in all_tiles(reader.get_bytes)]
+    f.close()
+    if decode is not None and decode.exists() and city_geom is not None:
+        z = tile_zooms[1] if isinstance(tile_zooms, list) else h["max_zoom"]
+        roads = _decode(decode, path, z, "roads") if "roads" in layers else []
+        places = _decode(decode, path, z, "places") if "places" in layers else []
+        check_context_features(r, w, roads, places, city_geom)
+    size = path.stat().st_size
+    if size > budgets["context_pmtiles_warn_bytes"]:
+        r.warn(f"{w}: {size // 1000} kB")
+    if max(sizes, default=0) > budgets["vector_tile_warn_bytes"]:
+        r.warn(f"{w}: a tile is {max(sizes) // 1000} kB")
+    return {"bytes": size, "tiles": len(sizes), "max_bytes": max(sizes, default=0)}
 
 
 def check_grid(r: Report, path: Path, budgets: dict, grid: dict) -> dict:
     f, reader = _reader(path)
     h = reader.header()
     w = f"{path.parent.name}/grid.pmtiles"
+    check_no_local_paths(r, reader.metadata(), w)
     r.check(h["tile_type"] == TileType.PNG, f"{w}: tile type is not PNG")
     r.check(
         h["min_zoom"] == grid["minzoom"] and h["max_zoom"] == grid["maxzoom"],
@@ -224,12 +437,16 @@ def check_city(r: Report, path: Path, budgets: dict, tippecanoe_dir: Path) -> di
     h = reader.header()
     meta = reader.metadata()
     w = f"{path.parent.name}/city.pmtiles"
+    check_no_local_paths(r, meta, w)
     r.check(h["tile_type"] == TileType.MVT, f"{w}: tile type is not MVT")
     r.check(
         h["min_zoom"] == 10 and h["max_zoom"] == 16, f"{w}: zooms {h['min_zoom']}–{h['max_zoom']}"
     )
     layers = {v["id"]: set(v.get("fields", {})) for v in meta.get("vector_layers", [])}
     for name, fields in LAYERS.items():
+        if name in OPTIONAL_LAYERS and name not in layers:
+            r.note(f"{w}: no {name} ({OPTIONAL_LAYERS[name]})")
+            continue
         if r.check(name in layers, f"{w}: layer {name} is missing"):
             r.check(fields <= layers[name], f"{w}: layer {name} lacks {fields - layers[name]}")
     sizes, over_aim, biggest = [], [], (0, None)
@@ -289,6 +506,7 @@ def check_evidence(r: Report, path: Path, budgets: dict, zoom: int) -> dict:
     h = reader.header()
     meta = reader.metadata()
     w = f"{path.parent.name}/evidence.pmtiles"
+    check_no_local_paths(r, meta, w)
     r.check(h["tile_type"] == TileType.UNKNOWN, f"{w}: tile type is not unknown")
     r.check(h["tile_compression"] == Compression.GZIP, f"{w}: tiles are not gzip")
     r.check(h["min_zoom"] == zoom and h["max_zoom"] == zoom, f"{w}: zoom is not {zoom} only")
@@ -339,7 +557,7 @@ def check_evidence(r: Report, path: Path, budgets: dict, zoom: int) -> dict:
 
 
 ISO_DATE = re.compile(r"^\d{4}(-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}Z)?)?$")
-NEEDS_VERSION = {"osm", "overture_buildings", "canopy_height", "ghs_pop"}
+NEEDS_VERSION = {"osm", "overture_buildings", "canopy_height", "ghs_pop", "natural_earth"}
 
 
 def check_sources(r: Report, path: Path, release: str, summaries: dict, credits: dict) -> None:
@@ -370,6 +588,8 @@ def check_sources(r: Report, path: Path, release: str, summaries: dict, credits:
 
 
 def check_known(r: Report, slug: str, summary: dict, known: dict) -> None:
+    """Known values of a capital (each optional): boundary relation and version, English name,
+    area and residents (ranges), shares (ranges) and where the suggested place falls."""
     k = known.get(slug)
     if not k:
         return
@@ -379,23 +599,25 @@ def check_known(r: Report, slug: str, summary: dict, known: dict) -> None:
         src["relation"] == k["osm_relation"] and src["relation_version"] == k["osm_version"],
         f"{w}: boundary is relation {src.get('relation')} v{src.get('relation_version')}",
     )
-    lo, hi = k["residents"]
-    r.check(lo <= summary["residents"] <= hi, f"{w}: residents {summary['residents']}")
-    lo, hi = k["area_km2"]
-    r.check(lo <= summary["area_km2"] <= hi, f"{w}: area {summary['area_km2']} km²")
-    for i, (lo, hi) in enumerate(k["met"]):
+    if "name_en" in k:
+        r.check(summary["name"]["en"] == k["name_en"], f"{w}: English name")
+    for key in ("residents", "area_km2"):
+        if key in k:
+            lo, hi = k[key]
+            r.check(lo <= summary[key] <= hi, f"{w}: {key} {summary[key]}, expected {lo}–{hi}")
+    for i, (lo, hi) in enumerate(k.get("met", [])):
         v = summary["shares"]["met"][i]
         r.check(lo <= v <= hi, f"{w}: share meeting {i} rules is {v}, expected {lo}–{hi}")
-    for rule, (lo, hi) in k["rules"].items():
+    for rule, (lo, hi) in k.get("rules", {}).items():
         v = summary["shares"]["rules"][str(rule)]
         r.check(lo <= v <= hi, f"{w}: share meeting rule {rule} is {v}, expected {lo}–{hi}")
-    w_, s_, e_, n_ = k["suggested_within"]
-    lon, lat = summary["suggested"]
-    r.check(
-        w_ <= lon <= e_ and s_ <= lat <= n_,
-        f"{w}: suggested {summary['suggested']} is not in {k['suggested_name']}",
-    )
-    r.check(summary["name"]["en"] == k["name_en"], f"{w}: English name")
+    if "suggested_within" in k:
+        w_, s_, e_, n_ = k["suggested_within"]
+        lon, lat = summary["suggested"]
+        r.check(
+            w_ <= lon <= e_ and s_ <= lat <= n_,
+            f"{w}: suggested {summary['suggested']} is not in {k['suggested_name']}",
+        )
 
 
 def main(release: str) -> int:
@@ -417,7 +639,14 @@ def main(release: str) -> int:
         d = folder / "capitals" / slug
         missing = [
             n
-            for n in ("grid.pmtiles", "city.pmtiles", "evidence.pmtiles", "summary.json")
+            for n in (
+                "grid.pmtiles",
+                "city.pmtiles",
+                "evidence.pmtiles",
+                "outline.json",
+                "context.pmtiles",
+                "summary.json",
+            )
             if not (d / n).exists()
         ]
         if not r.check(not missing, f"{slug}: missing {missing}"):
@@ -430,8 +659,21 @@ def main(release: str) -> int:
             "evidence": check_evidence(
                 r, d / "evidence.pmtiles", budgets, tiles["evidence"]["zoom"]
             ),
+            "outline": check_outline(r, d / "outline.json", slug, release, summary, budgets),
+            "context": check_context(
+                r,
+                d / "context.pmtiles",
+                slug,
+                summary,
+                budgets,
+                params["overview"]["max_zoom"],
+                PROJECT / params["tippecanoe_dir"] / "tippecanoe-decode",
+                shapely.geometry.shape(json.loads((d / "outline.json").read_text())["geometry"]),
+            ),
         }
         check_known(r, slug, summary, params["check"]["known"])
+    if (folder / "europe.pmtiles").exists():
+        results["europe"] = check_europe(r, folder / "europe.pmtiles", params["home"])
     if (folder / "sources.json").exists():
         check_sources(r, folder / "sources.json", release, summaries, params["sources"]["credits"])
     print(json.dumps(results, indent=1, default=str))

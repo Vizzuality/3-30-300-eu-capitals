@@ -30,9 +30,12 @@ def _ensure_parent(path: Path) -> None:
 
 
 class JSONDataset(AbstractDataset[Any, Any]):
-    def __init__(self, filepath: str, indent: int | None = 1):
+    """A JSON file. ``compact`` writes it without any whitespace (``indent`` is then ignored)."""
+
+    def __init__(self, filepath: str, indent: int | None = 1, compact: bool = False):
         self._filepath = Path(filepath)
-        self._indent = indent
+        self._indent = None if compact else indent
+        self._separators = (",", ":") if compact else None
 
     def load(self) -> Any:
         return json.loads(self._filepath.read_text(encoding="utf-8"))
@@ -41,7 +44,13 @@ class JSONDataset(AbstractDataset[Any, Any]):
         _ensure_parent(self._filepath)
         tmp = self._filepath.with_suffix(self._filepath.suffix + ".tmp")
         tmp.write_text(
-            json.dumps(data, indent=self._indent, ensure_ascii=False, sort_keys=False),
+            json.dumps(
+                data,
+                indent=self._indent,
+                separators=self._separators,
+                ensure_ascii=False,
+                sort_keys=False,
+            ),
             encoding="utf-8",
         )
         tmp.replace(self._filepath)

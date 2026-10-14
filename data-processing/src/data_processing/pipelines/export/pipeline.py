@@ -1,8 +1,16 @@
-"""Export: the capital's folder of the release (grid, city and evidence archives, summary)."""
+"""Export: the capital's folder of the release (grid, city and evidence archives, the city's
+outline, summary)."""
 
 from kedro.pipeline import Pipeline, node, pipeline
 
-from .nodes import city_archive, download_names, evidence_archive, grid_archive, summary
+from .nodes import (
+    city_archive,
+    city_outline,
+    download_names,
+    evidence_archive,
+    grid_archive,
+    summary,
+)
 
 
 def create_pipeline(**kwargs) -> Pipeline:
@@ -52,6 +60,12 @@ def create_pipeline(**kwargs) -> Pipeline:
                 name="evidence_archive",
             ),
             node(
+                city_outline,
+                ["params:capital", "params:release", "boundaries", "params:tiles"],
+                ["outline_json", "outline_json_stats"],
+                name="city_outline",
+            ),
+            node(
                 download_names,
                 [
                     "params:capital",
@@ -80,6 +94,8 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "osm_extract",
                     "params:sources",
                     "params:tiles",
+                    "params:home",
+                    "params:overview",
                     "params:paths",
                 ],
                 ["summary_json", "release_record"],

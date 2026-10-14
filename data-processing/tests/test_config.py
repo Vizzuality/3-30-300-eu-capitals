@@ -20,7 +20,18 @@ def test_stockholm_boundary_is_pinned():
 
 def test_unpinned_capital_does_not_run():
     with pytest.raises(ValueError):
-        capital_config("madrid", P["capitals"])
+        capital_config("x", {"x": {"osm_relation": 1, "osm_version": None}})
+
+
+def test_every_capital_is_pinned():
+    caps = P["capitals"]
+    assert len(caps) == 27
+    for slug in caps:
+        cfg = capital_config(slug, caps)
+        assert cfg["osm_extract"] and cfg["wikidata"] and cfg["country_wikidata"]
+    # Nicosia is the merged municipality minus the UN buffer zone, both pinned
+    assert caps["nicosia"]["osm_relation"] == 17716182
+    assert caps["nicosia"]["osm_subtract"] == [{"relation": 3263909, "version": 166}]
 
 
 def test_method_numbers():
@@ -61,7 +72,9 @@ def test_sources_are_pinned():
         "canopy_height",
         "ghs_pop",
         "wikidata",
+        "natural_earth",
     ]
+    assert s["natural_earth"]["version"] == "5.1.1"
 
 
 def test_datasets_round_trip(tmp_path):
@@ -80,3 +93,12 @@ def test_datasets_round_trip(tmp_path):
     p.save(str(tmp_path / "c.npz"))
     with pytest.raises(DatasetError, match="catalog expects"):
         p.save(str(tmp_path / "other.npz"))
+
+
+def test_known_values_pin_the_configured_boundaries():
+    known = P["check"]["known"]
+    assert set(known) == set(P["capitals"])
+    for slug, k in known.items():
+        cfg = P["capitals"][slug]
+        assert (k["osm_relation"], k["osm_version"]) == (cfg["osm_relation"], cfg["osm_version"])
+        assert k["residents"][0] < k["residents"][1] and k["area_km2"][0] < k["area_km2"][1]

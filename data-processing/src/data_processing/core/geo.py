@@ -44,10 +44,26 @@ def polygon_parts(geom) -> list[shapely.Polygon]:
 
 
 def lonlat_bbox(geom_3035, crs: str = "EPSG:3035", pad_deg: float = 0.0):
-    """(west, south, east, north) of a projected geometry, densified so edges are covered."""
+    """(west, south, east, north) covering the projected bounding box of a geometry (densified so
+    its edges are covered): a box around that box, looser than the geometry's own longitude and
+    latitude bounds where the projection is turned against the meridians (up to 0.09° wider for
+    Helsinki in EPSG:3035). For download and tile extents; ``lonlat_bounds`` gives the tight box."""
     g = reproject(shapely.segmentize(shapely.box(*geom_3035.bounds), 500.0), crs, "EPSG:4326")
     w, s, e, n = g.bounds
     return (w - pad_deg, s - pad_deg, e + pad_deg, n + pad_deg)
+
+
+def lonlat_bounds(geom, crs: str, decimals: int) -> list[float]:
+    """[west, south, east, north] of a geometry in longitude, latitude: its own bounds, rounded
+    outwards to ``decimals`` so that the box still holds every point."""
+    w, s, e, n = reproject(geom, crs, "EPSG:4326").bounds
+    k = 10**decimals
+    return [
+        math.floor(w * k) / k,
+        math.floor(s * k) / k,
+        math.ceil(e * k) / k,
+        math.ceil(n * k) / k,
+    ]
 
 
 def true_bearing(x, y, dx, dy, crs: str = "EPSG:3035") -> np.ndarray:

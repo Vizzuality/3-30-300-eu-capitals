@@ -3,7 +3,13 @@ buffer, and read the water, green spaces and ways of the analysis area.
 
 The outline is the capital's OpenStreetMap administrative relation, read from a dated Geofabrik
 extract and checked against the version pinned in capitals.yml (the run stops if the relation has
-changed). The sea is cut out with OpenStreetMap's land polygons; lakes and rivers stay in the city.
+changed). Where the territory is not exactly one relation, the relations listed in
+``osm_subtract`` (each pinned too) are cut out of it. The sea is cut out with OpenStreetMap's land
+polygons; lakes and rivers stay in the city.
+
+A capital whose analysis area crosses the edge of every single Geofabrik region reads several
+extracts (``osm_extract`` as a list): the boundary comes from the first, the features from all of
+them, each OpenStreetMap object kept once.
 """
 
 from __future__ import annotations
@@ -40,15 +46,53 @@ def capital_config(capital: str, capitals: dict) -> dict:
     return {"slug": capital, **cfg}
 
 
-def download_osm_extract(capital: str, capitals: dict, sources: dict, paths: dict) -> dict:
-    """The capital's Geofabrik extract, dated (``extract_date``, YYMMDD) or ``latest``. Kept in
-    ``data/01_raw/osm/<region>/`` with its md5 checked, its header timestamp and its sha256, and
-    never downloaded again once there."""
-    cfg = capital_config(capital, capitals)
-    src = sources["osm"]
-    region = cfg.get("osm_extract")
-    if not region:
-        raise ValueError(f"{capital}: set osm_extract (a Geofabrik region) in capitals.yml")
+def extract_regions(cfg: dict) -> list[str]:
+    """The Geofabrik regions of a capital: ``osm_extract`` is one region or a list (the first
+    holds the boundary)."""
+    regions = cfg.get("osm_extract")
+    regions = [regions] if isinstance(regions, str) else list(regions or [])
+    if not regions:
+        raise ValueError(f"{cfg.get('slug')}: set osm_extract (a Geofabrik region) in capitals.yml")
+    return regions
+
+
+def context_regions(cfg: dict) -> list[str]:
+    """Every Geofabrik region the context rectangle needs: the capital's own extracts, then
+    ``context_extracts`` (the regions its rectangle crosses into)."""
+    out = []
+    for r in [*extract_regions(cfg), *(cfg.get("context_extracts") or [])]:
+        if r not in out:
+            out.append(r)
+    return out
+
+
+def extract_file(region: str, sources: dict, paths: dict) -> Path:
+    """Where the dated extract of a Geofabrik region is kept (data/01_raw/osm/<region>/)."""
+    base = region.rsplit("/", 1)[-1]
+    return Path(paths["raw"]) / "osm" / base / f"{base}-{sources['osm']['extract_date']}.osm.pbf"
+
+
+def context_extracts_on_disk(cfg: dict, sources: dict, paths: dict) -> list[dict]:
+    """The regions of ``context_extracts`` whose extract is on disk, checked (md5 and header in
+    its manifest, as ``download_osm_extract`` leaves them): region, file and header timestamp.
+    Never downloaded here."""
+    own = set(extract_regions(cfg))
+    out = []
+    for region in context_regions(cfg):
+        f = extract_file(region, sources, paths)
+        entry = read_manifest(f.parent)["files"].get(f.name, {})
+        if region in own or not f.exists() or "header" not in entry or "md5" not in entry:
+            continue
+        out.append({"region": region, "file": str(f), "timestamp": entry["header"]["timestamp"]})
+    return out
+
+
+def subtracted_relations(cfg: dict) -> list[tuple[int, int]]:
+    """(relation, pinned version) of every relation cut out of the territory."""
+    return [(int(m["relation"]), int(m["version"])) for m in cfg.get("osm_subtract") or []]
+
+
+def _download_region(region: str, src: dict, paths: dict) -> dict:
     base = region.rsplit("/", 1)[-1]
     name = f"{base}-{src['extract_date']}.osm.pbf"
     url = f"{src['geofabrik_url']}/{region}-{src['extract_date']}.osm.pbf"
@@ -79,13 +123,24 @@ def download_osm_extract(capital: str, capitals: dict, sources: dict, paths: dic
         "file": str(path),
         "region": region,
         "url": url,
-        "extract_date": src["extract_date"],
         "timestamp": entry["header"]["timestamp"],
         "sequence_number": entry["header"]["sequence_number"],
         "bytes": entry["bytes"],
         "sha256": entry["sha256"],
         "md5": entry["md5"],
         "downloaded": entry["downloaded"],
+    }
+
+
+def download_osm_extract(capital: str, capitals: dict, sources: dict, paths: dict) -> dict:
+    """The capital's Geofabrik extracts, dated (``extract_date``, YYMMDD) or ``latest``. Each is
+    kept in ``data/01_raw/osm/<region>/`` with its md5 checked, its header timestamp and its
+    sha256, and never downloaded again once there."""
+    cfg = capital_config(capital, capitals)
+    src = sources["osm"]
+    return {
+        "extract_date": src["extract_date"],
+        "extracts": [_download_region(r, src, paths) for r in extract_regions(cfg)],
     }
 
 
@@ -104,20 +159,40 @@ def _store(folder: Path, key: dict, value: dict) -> dict:
     return value
 
 
+def compose_territory(relation, subtract=()) -> shapely.Geometry:
+    """The territory: the relation's area minus the areas of the relations cut out of it."""
+    if not subtract:
+        return polygonal(relation)
+    return polygonal(shapely.difference(relation, shapely.union_all(list(subtract))))
+
+
 def read_boundary(osm_extract: dict, capital: str, capitals: dict, paths: dict) -> dict:
-    """The relation's version (checked against the pin) and its assembled outline."""
+    """The relation's version (checked against the pin) and the territory's outline: the
+    relation's area, minus the relations of ``osm_subtract`` (their versions checked too)."""
     cfg = capital_config(capital, capitals)
     rid = cfg["osm_relation"]
+    minus = subtracted_relations(cfg)
+    primary = osm_extract["extracts"][0]
     folder = Path(paths["intermediate"]) / "osm" / "boundary"
-    key = {"extract": osm_extract["sha256"], "relation": rid, "reader": OSM_READER_VERSION}
+    key = {
+        "extract": primary["sha256"],
+        "relation": rid,
+        "subtract": [m for m, _ in minus],
+        "reader": OSM_READER_VERSION,
+    }
     value = _cache(folder, key)
     if value is None:
-        rel = osm.relations(osm_extract["file"]).get(rid)
-        if rel is None:
-            raise ValueError(f"{capital}: relation {rid} is not in {osm_extract['file']}")
-        geom = osm.area_of_relation(osm_extract["file"], rid)
-        if geom is None:
-            raise ValueError(f"{capital}: relation {rid} could not be assembled into an area")
+        rels = osm.relations(primary["file"])
+        ids = [rid, *(m for m, _ in minus)]
+        for i in ids:
+            if i not in rels:
+                raise ValueError(f"{capital}: relation {i} is not in {primary['file']}")
+        areas = osm.areas_of_relations(primary["file"], ids)
+        for i in ids:
+            if i not in areas:
+                raise ValueError(f"{capital}: relation {i} could not be assembled into an area")
+        geom = compose_territory(areas[rid], [areas[m] for m, _ in minus])
+        rel = rels[rid]
         value = _store(
             folder,
             key,
@@ -128,17 +203,30 @@ def read_boundary(osm_extract: dict, capital: str, capitals: dict, paths: dict) 
                 "name": rel["tags"].get("name"),
                 "admin_level": rel["tags"].get("admin_level"),
                 "wikidata": rel["tags"].get("wikidata"),
+                "subtracted": [
+                    {
+                        "relation": m,
+                        "version": rels[m]["version"],
+                        "name": rels[m]["tags"].get("name"),
+                        "relation_timestamp": rels[m]["timestamp"],
+                    }
+                    for m, _ in minus
+                ],
                 "geometry_sha256": hashlib.sha256(shapely.to_wkb(geom)).hexdigest(),
                 "geometry": json.loads(shapely.to_geojson(geom)),
             },
         )
-    if value["version"] != cfg["osm_version"]:
-        raise ValueError(
-            f"{capital}: relation {rid} is at version {value['version']} in the extract, "
-            f"capitals.yml pins version {cfg['osm_version']}. Check the change, then update "
-            "the pin."
-        )
-    return {**value, "osm_extract_timestamp": osm_extract["timestamp"]}
+    pins = [(rid, cfg["osm_version"], value["version"])]
+    pins += [
+        (m, pinned, s["version"]) for (m, pinned), s in zip(minus, value["subtracted"], strict=True)
+    ]
+    for i, pinned, found in pins:
+        if found != pinned:
+            raise ValueError(
+                f"{capital}: relation {i} is at version {found} in the extract, capitals.yml "
+                f"pins version {pinned}. Check the change, then update the pin."
+            )
+    return {**value, "osm_extract_timestamp": primary["timestamp"]}
 
 
 def download_land_polygons(sources: dict, paths: dict) -> dict:
@@ -199,13 +287,15 @@ def read_osm(osm_extract: dict, boundaries: gpd.GeoDataFrame, method: dict, path
     """Water, green spaces and every way with a highway tag over the analysis area (its bounding
     box plus 0.005°, which covers the 200 m margin kept around green spaces), with the same
     selections as before: water and green spaces as closed ways and as multipolygon relations
-    (nature reserves also as boundary relations), assembled by libosmium."""
+    (nature reserves also as boundary relations), assembled by libosmium. With several extracts,
+    each is read and every object is kept once (from the first extract that has it whole)."""
     area = boundaries.set_index("name").geometry["analysis"]
     bbox = [round(v, 6) for v in lonlat_bbox(area, method["crs"], pad_deg=0.005)]
     green_tags = method["rule300"]["green_tags"]
+    extracts = osm_extract["extracts"]
     folder = Path(paths["intermediate"]) / "osm" / "features"
     key = {
-        "extract": osm_extract["sha256"],
+        "extracts": [e["sha256"] for e in extracts],
         "bbox": bbox,
         "green_tags": green_tags,
         "reader": OSM_READER_VERSION,
@@ -213,7 +303,10 @@ def read_osm(osm_extract: dict, boundaries: gpd.GeoDataFrame, method: dict, path
     value = _cache(folder, key)
     if value is not None:
         return value
-    rels = osm.relations(osm_extract["file"])
+    rels: dict = {}
+    for e in extracts:
+        for rid, d in osm.relations(e["file"]).items():
+            rels.setdefault(rid, d)
     water_rel = {r for r, d in rels.items() if osm.water_selected(d["tags"], "relation")}
     green_rel = {
         r for r, d in rels.items() if osm.green_selected(d["tags"], "relation", green_tags)
@@ -228,7 +321,9 @@ def read_osm(osm_extract: dict, boundaries: gpd.GeoDataFrame, method: dict, path
             out.add("area")
         return out
 
-    f = osm.read_features(osm_extract["file"], bbox, water_rel | green_rel, keep_way)
+    f = osm.merge_features(
+        [osm.read_features(e["file"], bbox, water_rel | green_rel, keep_way) for e in extracts]
+    )
     # relation areas carry the relation's own tags (libosmium leaves out `type`), and are chosen
     # by the relation ids selected above
     rows = [("way", i, t, g) for i, t, g in f["closed"]]
@@ -265,7 +360,7 @@ def read_osm(osm_extract: dict, boundaries: gpd.GeoDataFrame, method: dict, path
         "water": str(folder / "water.parquet"),
         "green": str(folder / "green.parquet"),
         "highways": str(folder / "highways.jsonl"),
-        "extract_timestamp": osm_extract["timestamp"],
+        "extract_timestamp": extracts[0]["timestamp"],
         "bbox": bbox,
         "counts": {
             "highway_ways": len(f["ways"]),

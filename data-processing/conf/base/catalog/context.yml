@@ -1,34 +1,34 @@
-# Contextual layers: Tippecanoe input (newline-delimited GeoJSON, EPSG:4326), one file per group.
+# Contextual layers: Tippecanoe input (newline-delimited GeoJSON, EPSG:4326, gzipped), one file per group.
 tiles_water:
   type: data_processing.datasets.PathDataset
-  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/water.geojsonseq
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/water.geojsonseq.gz
 tiles_water_stats:
   type: data_processing.datasets.JSONDataset
   filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/tiles_water.json
 tiles_parks:
   type: data_processing.datasets.PathDataset
-  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/parks.geojsonseq
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/parks.geojsonseq.gz
 fonts:
   type: data_processing.datasets.JSONDataset
   filepath: data/02_intermediate/${runtime_params:capital, stockholm}/sources/fonts.json
 tiles_streets:
   type: data_processing.datasets.PathDataset
-  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/streets.geojsonseq
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/streets.geojsonseq.gz
 tiles_streets_stats:
   type: data_processing.datasets.JSONDataset
   filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/tiles_streets.json
 tiles_canopy:
   type: data_processing.datasets.PathDataset
-  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/canopy.geojsonseq
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/canopy.geojsonseq.gz
 tiles_canopy_stats:
   type: data_processing.datasets.JSONDataset
   filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/tiles_canopy.json
 tiles_trees:
   type: data_processing.datasets.PathDataset
-  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/trees.geojsonseq
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/trees.geojsonseq.gz
 tiles_buildings:
   type: data_processing.datasets.PathDataset
-  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/buildings.geojsonseq
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/buildings.geojsonseq.gz
 building_points:   # id, lon, lat: the representative point as written in the tiles (cx, cy)
   type: data_processing.datasets.ParquetDataset
   filepath: data/02_intermediate/${runtime_params:capital, stockholm}/building_points.parquet

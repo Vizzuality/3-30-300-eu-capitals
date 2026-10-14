@@ -1,0 +1,19 @@
+# The capital page's overview: the water of its context rectangle (summary.json › context).
+context_tiles:    # Tippecanoe input (newline-delimited GeoJSON, EPSG:4326, gzipped)
+  type: data_processing.datasets.PathDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/context.geojsonseq.gz
+context_tiles_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/context_tiles.json
+context_pmtiles:
+  type: data_processing.datasets.PathDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/capitals/${runtime_params:capital, stockholm}/context.pmtiles
+context_pmtiles_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/context_pmtiles.json
+context_orientation_tiles:   # roads and places (Tippecanoe input, EPSG:4326, gzipped)
+  type: data_processing.datasets.PathDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/tiles/context_orientation.geojsonseq.gz
+context_orientation_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/context_orientation.json

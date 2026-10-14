@@ -2,28 +2,32 @@
 # `${runtime_params:release}` is the release name (`just run <capital> [release]`).
 grid_pmtiles:
   type: data_processing.datasets.PathDataset
-  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/grid.pmtiles
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/capitals/${runtime_params:capital, stockholm}/grid.pmtiles
 city_pmtiles:
   type: data_processing.datasets.PathDataset
-  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/city.pmtiles
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/capitals/${runtime_params:capital, stockholm}/city.pmtiles
 evidence_pmtiles:
   type: data_processing.datasets.PathDataset
-  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/evidence.pmtiles
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/capitals/${runtime_params:capital, stockholm}/evidence.pmtiles
 summary_json:
   type: data_processing.datasets.JSONDataset
-  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals/${runtime_params:capital, stockholm}/summary.json
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/capitals/${runtime_params:capital, stockholm}/summary.json
   indent: null
+outline_json:     # the city limits drawn on the capital's page (GeoJSON Feature, lon/lat)
+  type: data_processing.datasets.JSONDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/capitals/${runtime_params:capital, stockholm}/outline.json
+  compact: true
 ranking_json:
   type: data_processing.datasets.JSONDataset
-  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/ranking.json
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/ranking.json
   indent: null
 sources_json:     # every data source with its version, date, licence and attribution
   type: data_processing.datasets.JSONDataset
-  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/sources.json
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/sources.json
   indent: null
 capitals_json:
   type: data_processing.datasets.JSONDataset
-  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-stockholm}/capitals.json
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/capitals.json
   indent: null
 
 names:
@@ -38,6 +42,9 @@ grid_pmtiles_stats:
 city_pmtiles_stats:
   type: data_processing.datasets.JSONDataset
   filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/city_pmtiles.json
+outline_json_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/outline_json.json
 evidence_pmtiles_stats:
   type: data_processing.datasets.JSONDataset
   filepath: data/02_intermediate/${runtime_params:capital, stockholm}/stats/evidence_pmtiles.json

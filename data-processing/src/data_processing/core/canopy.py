@@ -40,7 +40,12 @@ GDAL_ENV = {
     "GDAL_HTTP_USERAGENT": "3-30-300-data-processing/0.1",
     "GDAL_HTTP_MAX_RETRY": "8",
     "GDAL_HTTP_RETRY_DELAY": "5",
+    "GDAL_CACHEMAX": "512",  # MB; the bands are read once, a larger block cache only fills memory
 }
+
+# Pixels of output per band: about 1,000 rows of a 30 km wide capital. Wider capitals get
+# thinner bands, so that the bands read at once (one per worker) stay within a few GB.
+BAND_PIXELS = 30_000_000
 
 
 def quadkey_offset(qk: str) -> tuple[int, int]:
@@ -111,7 +116,7 @@ def build_chm(
     fine: Grid,
     target: Path,
     nodata: int = 255,
-    band_rows: int = 1000,
+    band_rows: int | None = None,
     workers: int = 6,
 ) -> float:
     """Write the 1 m canopy height raster of ``fine`` (uint8 metres, ``nodata`` = no data)."""
@@ -135,6 +140,9 @@ def build_chm(
         "blockysize": 512,
         "BIGTIFF": "IF_SAFER",
     }
+    # each output pixel depends only on the source pixels it covers, so the banding does not
+    # change the result
+    band_rows = band_rows or max(100, min(1000, BAND_PIXELS // fine.width))
     bands = [(r, min(band_rows, fine.height - r)) for r in range(0, fine.height, band_rows)]
 
     def job(rb):

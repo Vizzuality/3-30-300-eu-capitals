@@ -1,7 +1,7 @@
 """Export: the release folder of a capital, laid out exactly as the bucket:
-``capitals/<slug>/{grid,city,evidence}.pmtiles`` and ``summary.json``; and the cross-capital
-files ``ranking.json``, ``capitals.json`` and ``sources.json``. Formats are documented in
-docs/release-format.md.
+``capitals/<slug>/{grid,city,evidence}.pmtiles``, ``outline.json`` and ``summary.json``; and the
+cross-capital files ``ranking.json``, ``capitals.json`` and ``sources.json``. Formats are
+documented in docs/release-format.md.
 """
 
 from __future__ import annotations
@@ -23,22 +23,33 @@ import requests
 import shapely
 
 from data_processing.core.download import HEADERS, now_utc
-from data_processing.core.geo import lonlat_bbox, reproject, web_mercator_tile
+from data_processing.core.geo import (
+    lonlat_bbox,
+    lonlat_bounds,
+    polygon_parts,
+    polygonal,
+    reproject,
+    web_mercator_tile,
+)
+from data_processing.core.home_layout import display_outline, home_layout, home_px_m
+from data_processing.core.overview import context_rectangle
 from data_processing.core.tiles import (
     Compression,
     TileFrame,
     TileType,
+    drop_metadata,
     gzip_bytes,
     png_bytes,
     render_grid_tile,
     tile_range,
     write_pmtiles,
 )
-from data_processing.pipelines.boundaries.nodes import capital_config
+from data_processing.pipelines.boundaries.nodes import capital_config, context_extracts_on_disk
 
 log = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
+GEOFABRIK = "Geofabrik "  # the start of an OpenStreetMap version: "Geofabrik europe/sweden-261011"
 
 
 def capital_dir(paths: dict, capital: str) -> Path:
@@ -143,6 +154,9 @@ def city_archive(
         str(target),
         "--force",
         "-P",
+        # temporary files next to the inputs, not in /tmp (often in memory)
+        "-t",
+        str(Path(tiles_water).parent),
         *tiles["city"]["tippecanoe_flags"],
         f"--name={capital}-city",
         "-q",
@@ -154,6 +168,7 @@ def city_archive(
         tiles_buildings,
     ]
     subprocess.run(cmd, check=True)
+    drop_metadata(target)  # Tippecanoe's command line, with this machine's absolute paths
     stats = {
         "bytes": target.stat().st_size,
         "tippecanoe": (version.stdout or version.stderr).strip(),
@@ -300,6 +315,7 @@ def evidence_archive(
             out[str(int(bid))] = {
                 "rules": [int(r.r3), int(r.r30), int(r.r300)],
                 "residents": round(n_res, 1),
+                # 1e-9 thousandths: the tolerance of the building rule (SHARE_TOLERANCE)
                 "share3": math.ceil(float(r.share3) * 1000 - 1e-9) / 1000,
                 "canopy": math.floor(float(r.canopy) * 1000 + 1e-9) / 1000,
                 "walk": walk,
@@ -368,15 +384,43 @@ def evidence_archive(
 
 
 # ------------------------------------------------------------------ names (Wikidata)
+def localized_names(labels: dict, locales: list, overrides: dict | None = None):
+    """One name per locale from Wikidata labels: the label, else the ``mul`` label, else English;
+    ``overrides`` (capitals.yml › name_overrides) replace the labels that are not the plain name.
+    Returns the names and the fallbacks used (``<locale>:mul``, ``<locale>:en``,
+    ``<locale>:override``)."""
+    overrides = overrides or {}
+    unknown = set(overrides) - set(locales)
+    if unknown:
+        raise ValueError(f"name_overrides for unknown locales {sorted(unknown)}")
+    names, fallbacks = {}, []
+    for loc in locales:
+        if loc in overrides:
+            names[loc] = overrides[loc]
+            fallbacks.append(f"{loc}:override")
+        elif loc in labels:
+            names[loc] = labels[loc]["value"]
+        elif "mul" in labels:
+            names[loc] = labels["mul"]["value"]
+            fallbacks.append(f"{loc}:mul")
+        else:
+            names[loc] = labels["en"]["value"]
+            fallbacks.append(f"{loc}:en")
+    return names, fallbacks
+
+
 def download_names(capital: str, capitals: dict, locales: list, sources: dict, paths: dict) -> dict:
-    """Labels of the capital and its country in the 24 languages (fallback: ``mul``, then
-    English, recorded in ``fallbacks``)."""
+    """Names of the capital and its country in the 24 languages, from the Wikidata labels of
+    ``name_wikidata`` (the city, where the territory's item is named after a region) or else
+    ``wikidata``, and of ``country_wikidata``; ``name_overrides`` replace the capital's labels
+    that are not its plain name. Fallbacks (``mul``, then English) are recorded in ``fallbacks``."""
     cfg = capital_config(capital, capitals)
     folder = Path(paths["raw"]) / "wikidata" / capital
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / "labels.json"
-    ids = [cfg["wikidata"], cfg["country_wikidata"]]
-    if not target.exists():
+    ids = [cfg.get("name_wikidata", cfg["wikidata"]), cfg["country_wikidata"]]
+    cached = json.loads(target.read_text()) if target.exists() else None
+    if cached is None or not set(ids) <= set(cached["answer"].get("entities", {})):
         r = requests.get(
             sources["wikidata"]["api_url"],
             headers=HEADERS,
@@ -398,19 +442,13 @@ def download_names(capital: str, capitals: dict, locales: list, sources: dict, p
     data = json.loads(target.read_text())
     entities = data["answer"]["entities"]
     out, fallbacks = {}, []
-    for key, qid in (("capital", ids[0]), ("country", ids[1])):
-        labels = entities[qid]["labels"]
-        names = {}
-        for loc in locales:
-            if loc in labels:
-                names[loc] = labels[loc]["value"]
-            elif "mul" in labels:
-                names[loc] = labels["mul"]["value"]
-                fallbacks.append(f"{key}:{loc}:mul")
-            else:
-                names[loc] = labels["en"]["value"]
-                fallbacks.append(f"{key}:{loc}:en")
+    for key, qid, overrides in (
+        ("capital", ids[0], cfg.get("name_overrides")),
+        ("country", ids[1], None),
+    ):
+        names, used = localized_names(entities[qid]["labels"], locales, overrides)
         out[key] = names
+        fallbacks += [f"{key}:{u}" for u in used]
     return {
         **out,
         "wikidata": {"capital": ids[0], "country": ids[1]},
@@ -445,17 +483,28 @@ def capital_sources(
     population_source,
     names,
     sources,
+    context_extracts: list[dict] | None = None,
 ) -> dict:
-    """Version and date of every source used for one capital (summary.json › sources)."""
+    """Version and date of every source used for one capital (summary.json › sources). The
+    OpenStreetMap extracts are the capital's own, then those its overview's water also reads
+    (``context_extracts_on_disk``)."""
     imagery = canopy_height_source["imagery_dates_in_city"]
     overture = buildings_source["query"]["release"]
+    extracts = [*osm_extract["extracts"], *(context_extracts or [])]
+    regions = ", ".join(f"{e['region']}-{osm_extract['extract_date']}" for e in extracts)
+    osm_block = {
+        "version": f"{GEOFABRIK}{regions}",
+        "date": merge_dates([_iso(e["timestamp"]) for e in extracts]),
+        "relation": boundary_stats["relation"],
+        "relation_version": boundary_stats["version"],
+    }
+    if boundary_stats.get("subtracted"):
+        osm_block["subtracted"] = [
+            {"relation": m["relation"], "relation_version": m["version"]}
+            for m in boundary_stats["subtracted"]
+        ]
     return {
-        "osm": {
-            "version": f"Geofabrik {osm_extract['region']}-{osm_extract['extract_date']}",
-            "date": _iso(osm_extract["timestamp"]),
-            "relation": boundary_stats["relation"],
-            "relation_version": boundary_stats["version"],
-        },
+        "osm": osm_block,
         "osm_land_polygons": {
             "version": None,
             "date": _iso_http_date(boundary_stats["land_polygons"]["last_modified"]),
@@ -481,17 +530,28 @@ def merge_dates(dates: list[str]) -> str:
     return ends[0] if len(ends) == 1 else f"{ends[0]}/{ends[-1]}"
 
 
-def sources_document(release: str, records: list[dict], sources: dict) -> dict:
-    """sources.json: every source with its version, date, licence and attribution."""
+def sources_document(
+    release: str, records: list[dict], sources: dict, release_sources: dict | None = None
+) -> dict:
+    """sources.json: every source with its version, date, licence and attribution.
+    ``release_sources`` holds the version and date of the sources used for the release as a whole
+    rather than per capital (Natural Earth, for the Home map)."""
     out = []
+    release_sources = release_sources or {}
     for sid, meta in sources["credits"].items():
         per = [r["sources"][sid] for r in records if sid in r.get("sources", {})]
+        if sid in release_sources:
+            per = [release_sources[sid]]
         versions = sorted({p["version"] for p in per if p.get("version")})
+        version = ", ".join(versions) if versions else None
+        if sid == "osm" and versions:  # every extract once, after one "Geofabrik"
+            regions = {x for v in versions for x in v.removeprefix(GEOFABRIK).split(", ")}
+            version = GEOFABRIK + ", ".join(sorted(regions))
         out.append(
             {
                 "id": sid,
                 "name": meta["name"],
-                "version": ", ".join(versions) if versions else None,
+                "version": version,
                 "date": merge_dates([p.get("date") for p in per]),
                 "licence": meta["licence"],
                 "licence_url": meta["licence_url"],
@@ -508,18 +568,24 @@ def sources_document(release: str, records: list[dict], sources: dict) -> dict:
 
 
 # ------------------------------------------------------------------ summary.json
-def _outline_record(city, crs: str):
-    """Real outline for the Home map: rings in metres from the centre (azimuthal equidistant),
-    simplified to about 50 m; centre in longitude, latitude."""
+def _ring(coords) -> list:
+    """A ring in whole metres, without repeated points."""
+    c = np.round(np.asarray(coords)).astype(int)
+    keep = np.r_[True, np.any(c[1:] != c[:-1], axis=1)]
+    return c[keep].tolist()
+
+
+def _outline_record(city, crs: str, km: float, home: dict):
+    """The outline Home draws (capitals.json › outline): rings in whole metres from the centre
+    (azimuthal equidistant), made for the size it is drawn at (``display_outline``); centre in
+    longitude, latitude. The city's figures never come from it."""
     c = reproject(city.centroid, crs, "EPSG:4326")
     lon, lat = c.x, c.y
     aeqd = f"+proj=aeqd +lat_0={lat} +lon_0={lon} +units=m +datum=WGS84"
-    g = reproject(city.simplify(50), crs, aeqd)
+    g = display_outline(reproject(city, crs, aeqd), home_px_m(km, home["layout"]), home["outline"])
     polys = []
     for poly in shapely.get_parts(g):
-        rings = [np.round(np.asarray(poly.exterior.coords), 1).tolist()]
-        rings += [np.round(np.asarray(r.coords), 1).tolist() for r in poly.interiors]
-        polys.append(rings)
+        polys.append([_ring(poly.exterior.coords), *(_ring(r.coords) for r in poly.interiors)])
     return [round(lon, 6), round(lat, 6)], polys
 
 
@@ -538,12 +604,16 @@ def summary(
     osm_extract: dict,
     sources: dict,
     tiles: dict,
+    home: dict,
+    overview: dict,
     paths: dict,
 ) -> tuple[dict, dict]:
     cfg = capital_config(capital, capitals)
     crs = boundaries.crs.to_string()
     city = boundaries.set_index("name").geometry["city"]
-    centre, outline = _outline_record(city, crs)
+    km = round(float(np.sqrt(city.area / 1e6)), 2)
+    centre, outline = _outline_record(city, crs, km, home)
+    context = context_rectangle(lonlat_bounds(city, crs, 7), overview)
     shares = {
         "met": [round(v, 4) for v in city_summary["met"]],
         "rules": {k: round(v, 4) for k, v in city_summary["rules"].items()},
@@ -560,13 +630,15 @@ def summary(
         "shares": shares,
         "suggested": city_summary["suggested"],
         "centre": centre,
-        "bbox": [round(v, 5) for v in _city_ll_bbox(boundaries, "city")],
+        "bbox": lonlat_bounds(city, crs, 5),
+        "context": {k: v for k, v in context.items() if k != "tile_zooms"},
         "area_km2": boundary_stats["city_km2"],
         "label_chars": tiles_streets_stats["label_chars"],
         "zooms": {
             "grid": [tiles["grid"]["minzoom"], tiles["grid"]["maxzoom"]],
             "city": [tiles["city"]["minzoom"], tiles["city"]["maxzoom"]],
             "evidence": tiles["evidence"]["zoom"],
+            "context": context["tile_zooms"],
         },
         "sources": capital_sources(
             osm_extract,
@@ -576,6 +648,7 @@ def summary(
             population_source,
             names,
             sources,
+            context_extracts_on_disk(cfg, sources, paths),
         ),
     }
     record = {
@@ -588,16 +661,106 @@ def summary(
         "residents": doc["residents"],
         "shares": shares,
         "centre": centre,
-        "km": round(float(np.sqrt(city.area / 1e6)), 2),
+        "km": km,
         "outline": outline,
         "sources": doc["sources"],
     }
     return doc, record
 
 
+# ------------------------------------------------------------------ outline.json
+EARTH_M = 2 * math.pi * 6378137.0  # Web Mercator's circumference
+
+
+def outline_tolerance_m(lat: float, outline: dict) -> float:
+    """Metres on the ground of ``tolerance_px`` pixels of ``tile_px`` px tiles at ``zoom`` and
+    latitude ``lat`` (tiles.yml › outline)."""
+    m_per_px = EARTH_M / (outline["tile_px"] * 2 ** outline["zoom"])
+    return outline["tolerance_px"] * m_per_px * math.cos(math.radians(lat))
+
+
+def _round_coords(value, decimals: int):
+    if isinstance(value[0], list | tuple):
+        return [_round_coords(v, decimals) for v in value]
+    return [round(value[0], decimals), round(value[1], decimals)]
+
+
+def drawn(geom, crs: str, tol: float, decimals: int) -> shapely.MultiPolygon:
+    """A geometry as the capital's page draws it: every part and hole kept, simplified to ``tol``
+    metres (Douglas-Peucker, topology kept), in longitude, latitude rounded to ``decimals``,
+    exteriors counter-clockwise (RFC 7946)."""
+    simple = polygonal(shapely.simplify(geom, tol, preserve_topology=True))
+    ll = reproject(simple, crs, "EPSG:4326")
+    geo = json.loads(shapely.to_geojson(ll))
+    rounded = shapely.from_geojson(
+        json.dumps({**geo, "coordinates": _round_coords(geo["coordinates"], decimals)})
+    )
+    if not rounded.is_valid:  # rounding can touch two rings of a narrow gap
+        rounded = polygonal(rounded)
+    multi = shapely.MultiPolygon(polygon_parts(rounded))
+    return shapely.orient_polygons(multi, exterior_cw=False)
+
+
+def _geojson(geom, decimals: int) -> dict:
+    out = json.loads(shapely.to_geojson(geom))
+    out["coordinates"] = _round_coords(out["coordinates"], decimals)
+    return out
+
+
+def city_outline(
+    capital: str, release: str, boundaries: gpd.GeoDataFrame, tiles: dict
+) -> tuple[dict, dict]:
+    """capitals/<slug>/outline.json: a GeoJSON Feature whose geometry is the city of the figures
+    (boundary minus the sea, every island and hole), simplified to ``outline_tolerance_m`` at the
+    city's latitude; with the release's ``schema_version``, ``release`` and ``slug``."""
+    crs = boundaries.crs.to_string()
+    city = boundaries.set_index("name").geometry["city"]
+    o = tiles["outline"]
+    tol = outline_tolerance_m(reproject(city.centroid, crs, "EPSG:4326").y, o)
+    geom = drawn(city, crs, tol, o["decimals"])
+    doc = {
+        "type": "Feature",
+        "schema_version": SCHEMA_VERSION,
+        "release": release,
+        "slug": capital,
+        "tolerance_m": round(tol, 2),
+        "properties": {"slug": capital},
+        "geometry": _geojson(geom, o["decimals"]),
+    }
+    stats = {
+        "points": int(shapely.get_num_coordinates(geom)),
+        "points_full": int(shapely.get_num_coordinates(city)),
+        "parts": len(geom.geoms),
+        "holes": int(sum(len(p.interiors) for p in geom.geoms)),
+        "tolerance_m": round(tol, 3),
+        "bytes": len(json.dumps(doc, separators=(",", ":"), ensure_ascii=False).encode()),
+    }
+    log.info(
+        "outline.json: %d points (%d full), %d kB",
+        stats["points"],
+        stats["points_full"],
+        stats["bytes"] // 1000,
+    )
+    return doc, stats
+
+
 # ------------------------------------------------------------------ ranking.json, capitals.json
+def natural_earth_version(natural_earth_source: dict) -> dict:
+    """Version and date of Natural Earth (the archive's Last-Modified) for sources.json."""
+    return {
+        "version": natural_earth_source["version"],
+        "date": _iso_http_date(natural_earth_source.get("last_modified")),
+    }
+
+
 def release_index(
-    release: str, capitals: dict, sources: dict, paths: dict, release_record: dict | None = None
+    release: str,
+    capitals: dict,
+    sources: dict,
+    home: dict,
+    paths: dict,
+    natural_earth_source: dict,
+    release_record: dict | None = None,
 ) -> tuple[dict, dict, dict]:
     """Cross-capital files, from the capitals of this release processed so far (each capital's
     ``release_record.json``). ``release_record`` (the capital just run) only orders the nodes."""
@@ -610,10 +773,11 @@ def release_index(
             if r["release"] == release:
                 records.append(r)
     records.sort(key=lambda r: (-r["shares"]["met"][3], r["slug"]))
+    complete = len(records) == len(capitals)
     ranking = {
         "schema_version": SCHEMA_VERSION,
         "release": release,
-        "complete": len(records) == len(capitals),
+        "complete": complete,
         "capitals": [
             {
                 "rank": i + 1,
@@ -626,10 +790,11 @@ def release_index(
             for i, r in enumerate(records)
         ],
     }
+    places = home_layout(records, home["layout"]) if records else {}
     caps = {
         "schema_version": SCHEMA_VERSION,
         "release": release,
-        "complete": len(records) == len(capitals),
+        "complete": complete,
         "capitals": [
             {
                 "slug": r["slug"],
@@ -639,8 +804,10 @@ def release_index(
                 "country": r["country"],
                 "residents": r["residents"],
                 "centre": r["centre"],
-                "display": r["centre"],
+                "display": places[r["slug"]]["display"],
                 "km": r["km"],
+                "scale": places[r["slug"]]["scale"],
+                "leader": places[r["slug"]]["leader"],
                 "outline": r["outline"],
             }
             for r in sorted(records, key=lambda r: r["slug"])
@@ -649,4 +816,5 @@ def release_index(
     log.info(
         "ranking.json, capitals.json, sources.json: %d of %d capitals", len(records), len(capitals)
     )
-    return ranking, caps, sources_document(release, records, sources)
+    release_sources = {"natural_earth": natural_earth_version(natural_earth_source)}
+    return ranking, caps, sources_document(release, records, sources, release_sources)

@@ -5,41 +5,100 @@
 #
 # - slug: path segment of the site and folder name in the release
 # - osm_relation / osm_version: the administrative relation of the territory used
+# - osm_subtract: relations cut out of that territory, each with its pinned version (only where
+#   the relation is larger than the territory; see Nicosia)
 # - osm_extract: the smallest Geofabrik region holding the city, its 1 km buffer and the 200 m
-#   margin kept around green spaces (e.g. europe/sweden; Sweden has no smaller region)
-# - wikidata / country_wikidata: names in the 24 languages (Wikidata labels)
+#   margin kept around green spaces (e.g. europe/sweden; Sweden has no smaller region); a list
+#   when no single region holds them (the first holds the boundary)
+# - context_extracts: the other Geofabrik regions that the capital's context rectangle (the
+#   overview's water, context.pmtiles) crosses into, found from Geofabrik's index; those not on
+#   disk are left out of the context and listed by the run, never downloaded by it
+# - places: only where the rule for the overview's district names picks the wrong levels: the
+#   two tiers, as `admin_level=<n>` or `place=<value>` (see the notes below); and `name_rules`,
+#   to write the names as people say them: a regular expression (`pattern`), its `replace` and a
+#   `note`, applied to every name of both tiers, in turn (`name_keep`: names left whole). Language rules for the names: the local
+#   language; two languages where other maps such as OpenStreetMap display two (OSM's `name`:
+#   Brussels' "Ixelles - Elsene"); never more unless official in the city. So the names are
+#   OSM's `name`, no `name:xx` is added, and a rule never drops a language
+# - wikidata / country_wikidata: the Wikidata items of the territory and of its country; their
+#   labels are the names in the 24 languages
+# - name_wikidata: only where the territory's item is named after something else than the city
+#   (Brussels: the region): the item whose labels name the city, the one the city's OpenStreetMap
+#   place node (capital=yes) links to with its `wikidata` tag
+# - name_overrides: only where a Wikidata label is not the plain name of the city ("City of …"):
+#   the plain name, from the `name:<locale>` tag of the city's OpenStreetMap place node
 # - language: language of local names (street and park names), for the `lang` attribute
 #
-# Only Stockholm is pinned and checked so far. The others carry the relation ids found while
-# choosing the boundaries and their Wikidata ids; both must be verified, the version pinned and
-# the Geofabrik region set before they are run.
+# Every relation was checked against the territory it must be (area against the official area,
+# outline, holes and exclaves) for the extract of 2026-10-11. Notes:
+# - amsterdam: the municipality including Weesp (merged in 2022), an exclave east of Diemen; the
+#   IJ, IJmeer and Markermeer are lakes in OpenStreetMap, so nothing is cut as sea. Its analysis
+#   area reaches into the provinces of Utrecht and Flevoland, hence three extracts.
+# - bratislava: the city's buffer crosses into Austria and Hungary, hence three extracts.
+# - brussels: the Brussels-Capital Region (all 19 municipalities), not the City of Brussels. It is
+#   named as the city, Brussels (Q239, the item of OpenStreetMap's place node 1635651356), not as
+#   the region (Q240); Irish from the node's name:ga, Wikidata's ga label being "Cathair na
+#   Bruiséile" (the City of Brussels).
+# - copenhagen: Copenhagen Municipality; Frederiksberg is an inner ring of the relation (a hole),
+#   and the sea forts are separate parts.
+# - nicosia: the municipality merged in 2024 (relation 17716182 is exactly the union of the former
+#   municipalities of Nicosia 2628521, Agios Dometios 2628523, Engomi 2628524 and Aglantzia
+#   15022747) minus the United Nations Buffer Zone (relation 3263909), which the municipality does
+#   not govern; it reaches no further north than the buffer zone.
+# - luxembourg: Maltese from the place node's name:mt (node 52943358), Wikidata's mt label being
+#   "Belt tal-Lussemburgu" (the City of Luxembourg).
+# - stockholm: district names from place=suburb (the 116 stadsdelar), then place=neighbourhood:
+#   its admin_level 9 gives the 11 stadsdelsområden, administrative names ("Södermalms
+#   stadsdelsområde"), not the names people use.
+# - prague: district names from place=suburb (the 112 cadastral areas: Vinohrady, Smíchov,
+#   Žižkov), then place=neighbourhood: its admin levels 5 and 6 are the numbered administrative
+#   districts ("obvod Praha 1", "SO Praha 13").
+# - vilnius: district names from place=suburb (Senamiestis, Naujamiestis), then place=quarter: its
+#   admin_level 10 names are the seniūnijos ("Senamiesčio seniūnija"), administrative names.
+# - zagreb: district names from place=suburb (Trešnjevka, Trnje), then place=neighbourhood: its
+#   admin levels 9 and 10 are named "Gradska četvrt …" and "Mjesni odbor …".
+# - vienna: the 23 Bezirke (admin_level 9), then place=suburb: its admin_level 10 is the
+#   cadastral communities ("Katastralgemeinde Neubau").
+# - dublin: district names from place=suburb, all 58: its admin levels 9 and 10 are electoral
+#   divisions ("Grangegorman East"), not the names people use.
+# - athens: district names from place=neighbourhood (Plaka, Kolonaki): its admin_level 10 names
+#   are "Συνοικία …" ("district of …").
+# - rome: district names from place=quarter (the quartieri: Parioli, Trieste), then
+#   place=neighbourhood: its admin_level 10 is the 15 municipi, numbered ("Municipio Roma II").
+# - paris: district names shortened to the arrondissement's number ("18e", "1er"), and the
+#   quartiers without "Quartier", their article kept where French uses it ("La Roquette", "Les
+#   Halles", "Belleville"); kept whole where the short name would mislead (`name_keep`:
+#   "Quartier d'Amérique" and "Quartier de l'Europe" would read as continents, "Quartier de la
+#   Gare" and "Quartier du Combat" as a station and a fight).
+# - bratislava: district names without the city's name ("Bratislava-Petržalka" → "Petržalka").
+# - rome: Roma Capitale, with its exclave to the north-west and Vatican City as a hole.
 locales: [bg, cs, da, de, el, en, es, et, fi, fr, ga, hr, hu, it, lt, lv, mt, nl, pl, pt, ro, sk, sl, sv]
 
 capitals:
-  stockholm: {local_name: Stockholm, country: SE, osm_relation: 398021, osm_version: 98, osm_extract: europe/sweden, wikidata: Q1754, country_wikidata: Q34, language: sv}
-  amsterdam: {local_name: Amsterdam, country: NL, osm_relation: 47811, osm_version: null, wikidata: Q727, country_wikidata: Q55, language: nl}
-  athens: {local_name: Αθήνα, country: GR, osm_relation: 1370736, osm_version: null, wikidata: Q1524, country_wikidata: Q41, language: el}
-  berlin: {local_name: Berlin, country: DE, osm_relation: 62422, osm_version: null, wikidata: Q64, country_wikidata: Q183, language: de}
-  bratislava: {local_name: Bratislava, country: SK, osm_relation: 1702499, osm_version: null, wikidata: Q1780, country_wikidata: Q214, language: sk}
-  brussels: {local_name: Bruxelles / Brussel, country: BE, osm_relation: 54094, osm_version: null, wikidata: Q240, country_wikidata: Q31, language: fr}
-  bucharest: {local_name: București, country: RO, osm_relation: 377733, osm_version: null, wikidata: Q19660, country_wikidata: Q218, language: ro}
-  budapest: {local_name: Budapest, country: HU, osm_relation: 1244004, osm_version: null, wikidata: Q1781, country_wikidata: Q28, language: hu}
-  copenhagen: {local_name: København, country: DK, osm_relation: 2192363, osm_version: null, wikidata: Q1748, country_wikidata: Q35, language: da}
-  dublin: {local_name: Dublin, country: IE, osm_relation: 1109531, osm_version: null, wikidata: Q1761, country_wikidata: Q27, language: en}
-  helsinki: {local_name: Helsinki, country: FI, osm_relation: 34914, osm_version: null, wikidata: Q1757, country_wikidata: Q33, language: fi}
-  lisbon: {local_name: Lisboa, country: PT, osm_relation: 5400890, osm_version: null, wikidata: Q597, country_wikidata: Q45, language: pt}
-  ljubljana: {local_name: Ljubljana, country: SI, osm_relation: 1675898, osm_version: null, wikidata: Q437, country_wikidata: Q215, language: sl}
-  luxembourg: {local_name: Lëtzebuerg, country: LU, osm_relation: 407489, osm_version: null, wikidata: Q1842, country_wikidata: Q32, language: lb}
-  madrid: {local_name: Madrid, country: ES, osm_relation: 5326784, osm_version: null, wikidata: Q2807, country_wikidata: Q29, language: es}
-  nicosia: {local_name: Λευκωσία, country: CY, osm_relation: 17716182, osm_version: null, wikidata: Q3856, country_wikidata: Q229, language: el}
-  paris: {local_name: Paris, country: FR, osm_relation: 7444, osm_version: null, wikidata: Q90, country_wikidata: Q142, language: fr}
-  prague: {local_name: Praha, country: CZ, osm_relation: 435514, osm_version: null, wikidata: Q1085, country_wikidata: Q213, language: cs}
-  riga: {local_name: Rīga, country: LV, osm_relation: 13048688, osm_version: null, wikidata: Q1773, country_wikidata: Q211, language: lv}
-  rome: {local_name: Roma, country: IT, osm_relation: 41485, osm_version: null, wikidata: Q220, country_wikidata: Q38, language: it}
-  sofia: {local_name: София, country: BG, osm_relation: 7276261, osm_version: null, wikidata: Q472, country_wikidata: Q219, language: bg}
-  tallinn: {local_name: Tallinn, country: EE, osm_relation: 350902, osm_version: null, wikidata: Q1770, country_wikidata: Q191, language: et}
-  valletta: {local_name: Il-Belt Valletta, country: MT, osm_relation: 7510580, osm_version: null, wikidata: Q23800, country_wikidata: Q233, language: mt}
-  vienna: {local_name: Wien, country: AT, osm_relation: 109166, osm_version: null, wikidata: Q1741, country_wikidata: Q40, language: de}
-  vilnius: {local_name: Vilnius, country: LT, osm_relation: 968952, osm_version: null, wikidata: Q216, country_wikidata: Q37, language: lt}
-  warsaw: {local_name: Warszawa, country: PL, osm_relation: 2907540, osm_version: null, wikidata: Q270, country_wikidata: Q36, language: pl}
-  zagreb: {local_name: Zagreb, country: HR, osm_relation: 226224, osm_version: null, wikidata: Q1435, country_wikidata: Q224, language: hr}
+  stockholm: {local_name: Stockholm, country: SE, osm_relation: 398021, osm_version: 98, osm_extract: europe/sweden, places: {tier1: place=suburb, tier2: place=neighbourhood}, wikidata: Q1754, country_wikidata: Q34, language: sv}
+  amsterdam: {local_name: Amsterdam, country: NL, osm_relation: 47811, osm_version: 77, osm_extract: [europe/netherlands/noord-holland, europe/netherlands/utrecht, europe/netherlands/flevoland], context_extracts: [europe/netherlands/zuid-holland], wikidata: Q727, country_wikidata: Q55, language: nl}
+  athens: {local_name: Αθήνα, country: GR, osm_relation: 1370736, osm_version: 190, osm_extract: europe/greece, places: {tier1: place=neighbourhood}, wikidata: Q1524, country_wikidata: Q41, language: el}
+  berlin: {local_name: Berlin, country: DE, osm_relation: 62422, osm_version: 451, osm_extract: europe/germany/brandenburg, context_extracts: [europe/germany/sachsen-anhalt, europe/poland/zachodniopomorskie], wikidata: Q64, country_wikidata: Q183, language: de}
+  bratislava: {local_name: Bratislava, country: SK, osm_relation: 1702499, osm_version: 54, osm_extract: [europe/slovakia, europe/austria, europe/hungary], places: {name_rules: [{pattern: '^Bratislava-', replace: '', note: 'the borough without the city: Bratislava-Petržalka → Petržalka'}]}, wikidata: Q1780, country_wikidata: Q214, language: sk}
+  brussels: {local_name: Bruxelles / Brussel, country: BE, osm_relation: 54094, osm_version: 177, osm_extract: europe/belgium, wikidata: Q240, name_wikidata: Q239, name_overrides: {ga: An Bhruiséil}, country_wikidata: Q31, language: fr}
+  bucharest: {local_name: București, country: RO, osm_relation: 377733, osm_version: 32, osm_extract: europe/romania, wikidata: Q19660, country_wikidata: Q218, language: ro}
+  budapest: {local_name: Budapest, country: HU, osm_relation: 1244004, osm_version: 162, osm_extract: europe/hungary, context_extracts: [europe/slovakia], wikidata: Q1781, country_wikidata: Q28, language: hu}
+  copenhagen: {local_name: København, country: DK, osm_relation: 2192363, osm_version: 160, osm_extract: europe/denmark, context_extracts: [europe/sweden], wikidata: Q1748, country_wikidata: Q35, language: da}
+  dublin: {local_name: Dublin, country: IE, osm_relation: 1109531, osm_version: 218, osm_extract: europe/ireland-and-northern-ireland, places: {tier1: place=suburb}, wikidata: Q1761, country_wikidata: Q27, language: en}
+  helsinki: {local_name: Helsinki, country: FI, osm_relation: 34914, osm_version: 95, osm_extract: europe/finland, context_extracts: [europe/estonia], wikidata: Q1757, country_wikidata: Q33, language: fi}
+  lisbon: {local_name: Lisboa, country: PT, osm_relation: 5400890, osm_version: 31, osm_extract: europe/portugal, wikidata: Q597, country_wikidata: Q45, language: pt}
+  ljubljana: {local_name: Ljubljana, country: SI, osm_relation: 1675898, osm_version: 34, osm_extract: europe/slovenia, wikidata: Q437, country_wikidata: Q215, language: sl}
+  luxembourg: {local_name: Lëtzebuerg, country: LU, osm_relation: 407489, osm_version: 46, osm_extract: europe/luxembourg, context_extracts: [europe/belgium, europe/france/lorraine, europe/germany/saarland, europe/germany/rheinland-pfalz], wikidata: Q1842, name_overrides: {mt: Lussemburgu}, country_wikidata: Q32, language: lb}
+  madrid: {local_name: Madrid, country: ES, osm_relation: 5326784, osm_version: 64, osm_extract: europe/spain/madrid, context_extracts: [europe/spain/castilla-la-mancha, europe/spain/castilla-y-leon], wikidata: Q2807, country_wikidata: Q29, language: es}
+  nicosia: {local_name: Λευκωσία, country: CY, osm_relation: 17716182, osm_version: 16, osm_subtract: [{relation: 3263909, version: 166}], osm_extract: europe/cyprus, wikidata: Q3856, country_wikidata: Q229, language: el}
+  paris: {local_name: Paris, country: FR, osm_relation: 7444, osm_version: 204, osm_extract: europe/france/ile-de-france, places: {name_rules: [{pattern: '^Paris (\d+(?:er|e)) Arrondissement$', replace: '\1', note: 'the arrondissement as Parisians say it: Paris 18e Arrondissement → 18e'}, {pattern: '^Quartier de la ', replace: 'La ', note: 'a quartier without "Quartier", its article kept as French uses it: Quartier de la Roquette → La Roquette'}, {pattern: '^Quartier de l([''’])', replace: 'L\1', note: 'a quartier without "Quartier", its article kept as French uses it: Quartier de l''Odéon → L''Odéon'}, {pattern: '^Quartier des ', replace: 'Les ', note: 'a quartier without "Quartier", its article kept as French uses it: Quartier des Halles → Les Halles'}, {pattern: '^Quartier du ', replace: 'Le ', note: 'a quartier without "Quartier", its article kept as French uses it: Quartier du Val-de-Grâce → Le Val-de-Grâce'}, {pattern: '^Quartier d([''’])', replace: '', note: 'a quartier without "Quartier", its article kept as French uses it: Quartier d''Auteuil → Auteuil'}, {pattern: '^Quartier (de )?', replace: '', note: 'a quartier without "Quartier", its article kept as French uses it: Quartier de Belleville → Belleville'}], name_keep: ["Quartier d'Amérique", "Quartier de l'Europe", "Quartier de la Gare", "Quartier du Combat"]}, wikidata: Q90, country_wikidata: Q142, language: fr}
+  prague: {local_name: Praha, country: CZ, osm_relation: 435514, osm_version: 134, osm_extract: europe/czech-republic/stredocesky, context_extracts: [europe/czech-republic/ustecky, europe/czech-republic/plzensky], places: {tier1: place=suburb, tier2: place=neighbourhood}, wikidata: Q1085, country_wikidata: Q213, language: cs}
+  riga: {local_name: Rīga, country: LV, osm_relation: 13048688, osm_version: 47, osm_extract: europe/latvia, wikidata: Q1773, country_wikidata: Q211, language: lv}
+  rome: {local_name: Roma, country: IT, osm_relation: 41485, osm_version: 171, osm_extract: europe/italy/centro, context_extracts: [europe/italy/sud], places: {tier1: place=quarter, tier2: place=neighbourhood}, wikidata: Q220, country_wikidata: Q38, language: it}
+  sofia: {local_name: София, country: BG, osm_relation: 7276261, osm_version: 54, osm_extract: europe/bulgaria, context_extracts: [europe/serbia, europe/macedonia], wikidata: Q472, country_wikidata: Q219, language: bg}
+  tallinn: {local_name: Tallinn, country: EE, osm_relation: 350902, osm_version: 71, osm_extract: europe/estonia, context_extracts: [europe/finland], wikidata: Q1770, country_wikidata: Q191, language: et}
+  valletta: {local_name: Il-Belt Valletta, country: MT, osm_relation: 7510580, osm_version: 11, osm_extract: europe/malta, wikidata: Q23800, country_wikidata: Q233, language: mt}
+  vienna: {local_name: Wien, country: AT, osm_relation: 109166, osm_version: 147, osm_extract: europe/austria, context_extracts: [europe/slovakia], places: {tier1: admin_level=9, tier2: place=suburb}, wikidata: Q1741, country_wikidata: Q40, language: de}
+  vilnius: {local_name: Vilnius, country: LT, osm_relation: 968952, osm_version: 161, osm_extract: europe/lithuania, context_extracts: [europe/belarus], places: {tier1: place=suburb, tier2: place=quarter}, wikidata: Q216, country_wikidata: Q37, language: lt}
+  warsaw: {local_name: Warszawa, country: PL, osm_relation: 2907540, osm_version: 115, osm_extract: europe/poland/mazowieckie, context_extracts: [europe/poland/lodzkie], wikidata: Q270, country_wikidata: Q36, language: pl}
+  zagreb: {local_name: Zagreb, country: HR, osm_relation: 226224, osm_version: 144, osm_extract: europe/croatia, context_extracts: [europe/slovenia, europe/hungary, europe/bosnia-herzegovina], places: {tier1: place=suburb, tier2: place=neighbourhood}, wikidata: Q1435, country_wikidata: Q224, language: hr}

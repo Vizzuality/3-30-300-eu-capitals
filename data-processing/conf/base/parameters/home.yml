@@ -1,0 +1,54 @@
+# The Home map: europe.pmtiles (Natural Earth 1:50m countries) and the capitals' places on it
+# (capitals.json › scale, display, leader).
+home:
+  frame: [-32, 24, 50, 73]      # west, south, east, north (degrees): the area of the map
+  minzoom: 0
+  maxzoom: 7
+  graticule_deg: 10
+  # Natural Earth countries drawn as part of another (code: ISO 3166-1 alpha-2, else ADM0_A3):
+  # Northern Cyprus as Cyprus, an EU member state in full (EU law is suspended in the north)
+  merge_into: {CYN: CY}
+  ripples_m: [14000, 32000]     # two ripple lines at sea, off the coast
+  border_coast_gap_m: 3000      # borders stop this far from the coast (the coast is drawn)
+  # Islands too small to see at a zoom are left out of its tiles: each piece of land appears from
+  # the first zoom at which it covers min_area_px2 pixels of the client's 512 px tiles (the
+  # smallest islands of the Aegean, the Adriatic and the Baltic from zoom 4, Home's desktop view,
+  # or later); the largest piece of each country of the release shows at every zoom (Malta). The
+  # sea, the coast, the ripples and the hatch marks of each zoom follow the land it shows.
+  islands:
+    min_area_px2: 4             # 2 × 2 px, as the capitals' outlines (capitals.json)
+    tile_px: 512
+  marks:                        # hatch marks on the open sea (Web Mercator metres)
+    min_shore_m: 48000          # only this far from land (true metres)
+    spacing_m: [120000, 63000]  # staggered grid, along the map's rows
+    length_m: 57000
+  # --simplification=8: lines within 8 tile units (1 px of a 512 px tile, which Home draws at
+  # 0.7–1.4 times its size) of their place, at zooms 0–6; zoom 7, overzoomed when the map is
+  # zoomed in, keeps the standard tolerance (1 unit)
+  tippecanoe_flags: ["-Z0", "-z7", "-r1", "--no-feature-limit", "--no-tile-size-limit",
+                     "--detect-shared-borders", "--buffer=8", "--simplification=8",
+                     "--simplification-at-maximum-zoom=1"]
+
+  # Capitals on the Home map. Each outline is enlarged so that, at the reference scale, its size
+  # (the square root of its area) is `size_px` × km ^ `size_exponent` pixels: the smaller the city,
+  # the more it is enlarged. Outlines that would overlap (closer than `gap_px`) are nudged apart,
+  # the smaller one moving more; one nudged so far that it no longer covers its true centre gets
+  # a leader line from that centre to its outline.
+  layout:
+    reference_m_per_px: 6000    # Web Mercator metres per screen pixel at the Home view
+    size_px: 12.5
+    size_exponent: 0.4
+    gap_px: 3
+    leader_min_px: 4
+    max_iterations: 2000
+
+  # The outlines Home draws (capitals.json › outline), made for that size: in pixels of the
+  # enlarged outline at the reference scale (Home's desktop view, about zoom 3.7; phones show
+  # zoom 3, smaller still). The ranking rows draw the same outline in a 24 px box, smaller still.
+  # Every figure (area, residents, shares) comes from the full-detail city, never from these.
+  outline:
+    merge_gap_px: 0.2           # channels narrower than this are closed (Copenhagen's canals,
+                                # Suomenlinna's straits): invisible below 1 px up to zoom 6
+    min_area_px2: 4             # parts and holes under 2 × 2 px are dropped (Helsinki's islets):
+                                # the 1.1 px edge alone would cover them
+    tolerance_px: 0.5           # Douglas-Peucker: half the 1.1 px edge, 1 px a zoom closer

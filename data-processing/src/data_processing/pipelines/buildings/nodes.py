@@ -36,6 +36,11 @@ from data_processing.pipelines.rule300.nodes import WATER_MARGIN_M, points_for
 
 log = logging.getLogger(__name__)
 
+# Shares closer than this to a threshold count as equal to it (floating-point noise of sums). The
+# evidence tiles round share3 up with the same tolerance (export, 1e-9 thousandths), so that the
+# share shown is above one half exactly when the rule is met.
+SHARE_TOLERANCE = 1e-12
+
 
 # ------------------------------------------------------------------ 1–2. facades
 def make_facades(buildings: gpd.GeoDataFrame, method: dict) -> tuple:
@@ -332,6 +337,17 @@ def _to_park(line: list, park) -> None:
 
 
 # ------------------------------------------------------------------ 4–7. rules per building
+def building_rule3(facades: pd.DataFrame, ids, threshold: float) -> tuple:
+    """Share of each building's facade length (= its residents) behind facades that see 3 trees,
+    and whether it is more than ``threshold``. A share equal to the threshold up to the rounding
+    noise of the length sums (two facades of the same length, one passing) is not more than it, as
+    the evidence tiles show it."""
+    tot = facades.groupby("b")["length"].sum()
+    ok = facades[facades["ok"] == 1].groupby("b")["length"].sum()
+    share = (ok.reindex(ids).fillna(0) / tot.reindex(ids)).fillna(0.0).values
+    return share, share > threshold + SHARE_TOLERANCE
+
+
 def building_rules(
     buildings: gpd.GeoDataFrame,
     building_residents: pd.DataFrame,
@@ -355,11 +371,9 @@ def building_rules(
         }
     )
     # 3 trees: share of facade length (= residents) behind passing facades
-    tot = facades.groupby("b")["length"].sum()
-    ok = facades[facades["ok"] == 1].groupby("b")["length"].sum()
-    share3 = (ok.reindex(out["id"]).fillna(0) / tot.reindex(out["id"])).fillna(0.0).values
+    share3, r3 = building_rule3(facades, out["id"], method["facades"]["building_share"])
     out["share3"] = np.where(out["scored"], share3, 0.0)
-    out["r3"] = (out["share3"] > method["facades"]["building_share"]) & out["scored"]
+    out["r3"] = r3 & out["scored"]
     out["facades"] = facades.groupby("b").size().reindex(out["id"]).fillna(0).astype(int).values
 
     # 30 % canopy within 500 m of the building's centre

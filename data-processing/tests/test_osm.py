@@ -1,12 +1,18 @@
 """Reading OpenStreetMap extracts: relations assembled by libosmium, selections, ways."""
 
 import geopandas as gpd
+import pytest
 import shapely
 
 from data_processing.config import parameters
 from data_processing.core import osm
 from data_processing.core.geo import reproject
-from data_processing.pipelines.boundaries.nodes import osm_polygons, read_osm
+from data_processing.pipelines.boundaries.nodes import (
+    compose_territory,
+    osm_polygons,
+    read_boundary,
+    read_osm,
+)
 
 GREEN = parameters()["method"]["rule300"]["green_tags"]
 
@@ -113,7 +119,8 @@ def test_read_osm_keeps_selected_relations(tmp_path):
     area = reproject(shapely.box(10.0, 50.0, 10.3, 50.1), "EPSG:4326", "EPSG:3035")
     boundaries = gpd.GeoDataFrame({"name": ["analysis"]}, geometry=[area], crs="EPSG:3035")
     extract = {"file": opl(tmp_path), "sha256": "test", "timestamp": "2026-10-11T00:00:00Z"}
-    f = read_osm(extract, boundaries, method, {"intermediate": str(tmp_path / "cap")})
+    paths = {"intermediate": str(tmp_path / "cap")}
+    f = read_osm({"extracts": [extract]}, boundaries, method, paths)
     water = osm_polygons(f["water"], "EPSG:3035")
     green = osm_polygons(f["green"], "EPSG:3035")
     assert set(zip(water.osm_type, water.osm_id, strict=True)) == {("relation", 1), ("way", 5)}
@@ -121,3 +128,52 @@ def test_read_osm_keeps_selected_relations(tmp_path):
     lake = water[water.osm_id == 1].iloc[0]
     assert lake["tags"]["type"] == "multipolygon"  # the relation's own tags
     assert f["counts"]["highway_ways"] == 1
+
+
+def test_territory_minus_a_relation():
+    # Nicosia: the merged municipality minus the UN buffer zone that crosses it
+    municipality = shapely.box(0, 0, 10, 10)
+    buffer_zone = shapely.box(-5, 6, 15, 7)  # a band across the whole territory
+    t = compose_territory(municipality, [buffer_zone])
+    assert t.area == pytest.approx(90)
+    assert len(shapely.get_parts(t)) == 2  # south and north of the band
+    assert compose_territory(municipality).equals(municipality)
+
+
+def test_read_boundary_cuts_out_and_pins_subtracted_relations(tmp_path):
+    # r1 (the lake polygon, as a stand-in territory) minus r2 (the reserve, disjoint) and the
+    # pins of both are checked
+    extract = {"extracts": [{"file": opl(tmp_path), "sha256": "t", "timestamp": "x"}]}
+    caps = {"x": {"osm_relation": 1, "osm_version": 7, "osm_subtract": []}}
+    paths = {"intermediate": str(tmp_path / "x")}
+    b = read_boundary(extract, "x", caps, paths)
+    assert b["version"] == 7 and b["subtracted"] == []
+    caps["x"]["osm_subtract"] = [{"relation": 2, "version": 2}]
+    b = read_boundary(extract, "x", caps, paths)
+    assert [s["relation"] for s in b["subtracted"]] == [2]
+    caps["x"]["osm_subtract"] = [{"relation": 2, "version": 3}]
+    with pytest.raises(ValueError, match="relation 2 is at version 2"):
+        read_boundary(extract, "x", caps, paths)
+
+
+def test_features_from_several_extracts_are_kept_once():
+    poly = shapely.box(0, 0, 1, 1)
+    a = {
+        "ways": [{"id": 1}, {"id": 2}],
+        "closed": [(5, {}, poly)],
+        "areas": [(9, {}, poly)],
+        "areas_invalid": 1,
+        "invalid_ids": [8],
+    }
+    b = {
+        "ways": [{"id": 2}, {"id": 3}],
+        "closed": [(5, {}, poly), (6, {}, poly)],
+        "areas": [(8, {}, poly), (9, {}, poly)],
+        "areas_invalid": 0,
+        "invalid_ids": [],
+    }
+    m = osm.merge_features([a, b])
+    assert [w["id"] for w in m["ways"]] == [1, 2, 3]
+    assert [c[0] for c in m["closed"]] == [5, 6]
+    assert [x[0] for x in m["areas"]] == [9, 8]
+    assert m["areas_invalid"] == 0  # 8 could not be assembled in a, but was in b

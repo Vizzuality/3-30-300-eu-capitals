@@ -9,10 +9,9 @@ building, and the shares of residents meeting 0, 1, 2 or 3 rules are written for
 Python with [uv](https://docs.astral.sh/uv/), [Kedro](https://kedro.org/) for the pipelines,
 [just](https://just.systems/) for the commands, ruff and pytest.
 
-> **Status.** Only Stockholm is configured and run. `ranking.json`, `capitals.json` and
-> `sources.json` are therefore **partial**: they list the capitals processed so far (one), and
-> the first two say so with `"complete": false`. `europe.pmtiles` (the Home map) is not written
-> yet.
+> **Status.** The 27 capitals are configured and run: the release `2026-10-all` holds all of them,
+> the cross-capital files (`ranking.json`, `capitals.json` with the capitals' places on the Home
+> map, `sources.json`) and the Home map (`europe.pmtiles`). It is not published yet.
 
 ## Setup
 
@@ -32,35 +31,54 @@ Tippecanoe can live elsewhere: `TIPPECANOE_DIR=/path/to/bin just run stockholm`.
 
 | Command | What it does |
 | ------- | ------------ |
-| `just run <capital>` | Runs every pipeline for one capital and writes its folder of the release, then rebuilds `ranking.json`, `capitals.json` and `sources.json` from the capitals processed so far |
+| `just run <capital>` | Runs every pipeline for one capital, each in its own process (so the memory of one step is released before the next), and writes its folder of the release, then rebuilds `ranking.json`, `capitals.json` and `sources.json` from the capitals processed so far |
 | `just run-pipeline <pipeline> <capital>` | Runs one pipeline (e.g. `rule300`), reusing the saved outputs of the others |
-| `just run-all` | Runs every capital whose boundary is pinned in `conf/base/parameters/capitals.yml`, then the cross-capital files (written, not run yet) |
-| `just check [release]` | Checks a release folder: every file present, schemas and attributes, known values for Stockholm (failures); tile sizes over the budgets (warnings) |
+| `just run-all` | Runs every capital whose boundary is pinned in `conf/base/parameters/capitals.yml`, then the cross-capital files and the Home map |
+| `just home` | Writes the Home map, `europe.pmtiles` (Natural Earth 1:50m), into the release; it depends on no capital, so `just run` leaves it out |
+| `just check [release]` | Checks a release folder: every file present, schemas and attributes, the Home map, known values per capital (failures); tile sizes over the budgets (warnings) |
 | `just inspect-evidence <capital> <z> <x> <y> [building]` | Prints an evidence tile, or one building of it |
 | `just test`, `just lint` | pytest; ruff check and format check (as in CI) |
 
-The release name defaults to `2026-10-stockholm`; set another with
-`just release=2026-11-01 run stockholm`. Kedro can also be run directly:
-`uv run kedro run --params capital=stockholm,release=2026-10-stockholm`.
+A release is named `<year>-<month>-<what it holds>`: `2026-10-stockholm` held Stockholm alone (the
+first run), `2026-10-all` holds the 27 capitals computed from the October 2026 data (OpenStreetMap
+of 2026-10-11, Overture 2026-09-23.1); a corrected release gets a new name, never the same one. The
+release name defaults to `2026-10-all`; set another with `just release=2026-11-all run stockholm`.
+Kedro can also be run directly:
+`uv run kedro run --params capital=stockholm,release=2026-10-all`.
 
-Downloads are kept, with a manifest (URL, date, size, sha256, and for the OpenStreetMap extract
-its md5 and header timestamp), under `data/01_raw/<source>/`; a second run reuses them and never
+Downloads are kept, with a manifest (URL, date, size, sha256, and for the OpenStreetMap extracts
+their md5 and header timestamp), under `data/01_raw/<source>/`; a second run reuses them and never
 downloads them again. Delete a source's folder to download it again. Reading the OpenStreetMap
 extract (about 3 minutes for Sweden) is also kept, in `data/02_intermediate/<capital>/osm/`, and
-redone only when the extract, the area or the selection changes.
+redone only when the extract, the area or the selection changes. The Tippecanoe inputs
+(`data/02_intermediate/<capital>/tiles/`) are gzipped: plain, they would take six times the space.
 
-### Run times and volumes (Stockholm, laptop with 16 threads and 30 GB of memory)
+### Run times, memory and volumes (laptop with 16 threads and 30 GB of memory)
 
-A run with every download and the OpenStreetMap read already kept takes about 7 minutes
-(`just run stockholm`); the longest steps are the evidence archive (1.5 min), the canopy shapes
-and the tree tops (under 1 min each), the facades and the grid archive (about 35 s each). The first
-run of a capital adds the downloads and the reading of the extract: the Sweden extract (0.9 GB,
-about 1 min), reading its boundary (45 s) and its features (3 min), the land polygons (0.9 GB,
-about 2 min, shared by every capital), the canopy height (2–3 min, read by window), Overture
-(about 1 min) and GHS-POP (seconds): about 11 minutes with the land polygons and the canopy
-height already there. `data/01_raw` takes 1.9 GB (0.9 GB the Sweden extract, 0.9 GB the land
-polygons), `data/02_intermediate/stockholm` 0.6 GB, and the release 95 MB (`city.pmtiles`
-86 MB, `evidence.pmtiles` 11 MB, `grid.pmtiles` 2 MB).
+Measured on the runs of `2026-10-all` (times are approximate: the canopy height downloads vary
+from day to day). A first run of a capital, downloads included, takes 4 minutes (Luxembourg) to an
+hour (Sofia); most of it is the canopy height, read by window from AWS (2 to 35 minutes, depending
+on the area and the day), then the evidence archive and the facades. With one process per pipeline (`just run`)
+the largest step needs up to 13 GB of memory (Sofia's tree tops; 11 GB for Berlin's evidence
+archive); in one process, the steps' memory added up (13 GB for Vilnius) and two capitals run side
+by side once exhausted the machine's memory. Run one capital at a time.
+
+| Capital | Run | Largest step | Release | Canopy height | Intermediate |
+| ------- | --- | ------------ | ------- | ------------- | ------------ |
+| Rome (1,286 km²) | 29 min | 7.9 GB | 194 MB | 352 MB | 749 MB |
+| Sofia (1,342 km²) | 61 min | 12.6 GB | 234 MB | 518 MB | 558 MB |
+| Berlin (891 km²) | 36 min | 11.2 GB | 384 MB | 365 MB | 1.3 GB |
+| Madrid (604 km²) | 17 min | 6.6 GB | 164 MB | 278 MB | 571 MB |
+| Stockholm (209 km²), downloads kept | 10 min | 4.6 GB | 95 MB | 106 MB | 307 MB |
+| Luxembourg (52 km²) | 4 min | 6.3 GB (one process) | 19 MB | 67 MB | 59 MB |
+
+The release `2026-10-all` takes 3.0 GB (`europe.pmtiles` 0.8 MB). `data/01_raw` takes 15.2 GB: the
+OpenStreetMap extracts 8.6 GB (one to three regions per capital, 9 MB to 845 MB each), the canopy
+height 4.5 GB, the land polygons 0.9 GB, Overture 0.8 GB and GHS-POP 0.4 GB.
+`data/02_intermediate/<capital>` takes 60 MB to 1.3 GB per capital (about 10 GB for the 27). None
+of it is needed once the capital's folder of the release is written (the cross-capital files read
+only `release_record.json`), and a run rebuilds all of it, so it can be removed to save space
+(keep `release_record.json`).
 
 ### Publishing a release
 
@@ -74,14 +92,15 @@ data-processing/
 ├─ conf/
 │  ├─ base/catalog/*.yml       inputs and outputs of every node, per pipeline
 │  ├─ base/parameters/         run.yml (capital, release, paths), capitals.yml, sources.yml,
-│  │                           method.yml (the numbers of the method), tiles.yml, check.yml
+│  │                           method.yml (the numbers of the method), tiles.yml, home.yml
+│  │                           (the Home map and the capitals' places on it), check.yml
 │  ├─ logging.yml              plain console logging (the justfile points Kedro to it)
 │  └─ local/                   personal settings and credentials (not committed)
 ├─ data/                       not committed
 │  ├─ 01_raw/<source>/         downloads, each with its manifest.json
 │  ├─ 02_intermediate/<capital>/  working files: masks and rules on the grid (grid/*.tif),
 │  │                           buildings, facades, trees, parks, network, stats/*.json,
-│  │                           tiles/*.geojsonseq (Tippecanoe input)
+│  │                           tiles/*.geojsonseq.gz (Tippecanoe input); europe/ (the Home map)
 │  └─ 03_primary/releases/<release>/  the release, laid out exactly as the bucket
 ├─ docs/release-format.md      the format of every file of a release (for the client's schemas)
 ├─ src/data_processing/
@@ -105,10 +124,12 @@ data-processing/
 | `rule30` | 30 % canopy within 500 m | `grid/canopy_px.tif`, `grid/land_px.tif`, `grid/canopy_share.tif`, `grid/rule30.tif` |
 | `rule300` | 300 m walk to a green space | `parks.parquet`, `walk_network.npz`, `walk.npz`, `grid/walk_distance.tif`, `grid/rule300.tif` |
 | `buildings` | Results per building and per facade | `facades.parquet`, `facade_seen.parquet`, `building_results.parquet`, `building_routes.parquet` |
-| `context` | What the map draws | `tiles/*.geojsonseq`: water, shore and hatch marks, parks, streets and street-name candidates, canopy, trees, buildings and facades |
+| `context` | What the map draws | `tiles/*.geojsonseq.gz`: water, shore and hatch marks, parks, streets and street-name candidates, canopy, trees, buildings and facades |
 | `combined` | Rules met per square; shares of residents | `grid/met.tif`, `grid/grid_values.tif`, `stats/summary.json` (shares of residents, suggested place) |
-| `export` | The capital's folder of the release | `capitals/<slug>/{grid,city,evidence}.pmtiles`, `summary.json` in the release |
-| `release` | Cross-capital files | `ranking.json`, `capitals.json`, `sources.json` in the release (from every capital processed for that release) |
+| `export` | The capital's folder of the release | `capitals/<slug>/{grid,city,evidence}.pmtiles`, `outline.json` (the city limits for its page), `summary.json` in the release |
+| `overview` | The water, main roads and district names around the city for its page's overview | `capitals/<slug>/context.pmtiles` in the release: the sea, lakes and rivers, the main roads (motorway to tertiary, by class, each dual carriageway as one line) and the district names of the context rectangle (`summary.json › context`), from the land polygons and the Geofabrik extracts on disk (`context_extracts` in `capitals.yml`; missing ones are listed, never downloaded) |
+| `release` | Cross-capital files | `ranking.json`, `capitals.json` (with each capital's enlargement and place on the Home map), `sources.json` in the release (from every capital processed for that release) |
+| `home` | The Home map (not in the default pipeline) | `europe.pmtiles` in the release, from Natural Earth 1:50m (`data/02_intermediate/europe/`) |
 
 `stats/*.json` records, for every step, its counts and run time.
 
@@ -127,11 +148,20 @@ square by its residents. The details below are the ones a reader cannot guess; e
 parameter in `conf/base/parameters/method.yml` or stated in the code's docstrings.
 
 - **City:** the OSM relation (pinned id and version) minus the sea (OSM land polygons). Lakes stay:
-  Mälaren is a lake in OSM, not sea. The 1 km buffer is drawn around the city after the sea is cut.
-- **OpenStreetMap:** one dated Geofabrik extract per country (`extract_date` in
-  `sources.yml`, the region in `capitals.yml`), read with pyosmium. Multipolygon and boundary
-  relations are assembled by libosmium's area assembler; closed ways become polygons directly.
-  Everything whose bounding box meets the analysis area's (plus 0.005°) is read.
+  Mälaren is a lake in OSM, not sea, and so are the IJ, IJmeer and Markermeer at Amsterdam. The
+  1 km buffer is drawn around the city after the sea is cut. Where the relation is larger than the
+  territory, the relations listed in `osm_subtract` (also pinned) are cut out of it: Nicosia is the
+  merged municipality (relation 17716182) minus the United Nations Buffer Zone (3263909), which
+  the municipality does not govern. Each capital's territory and the reasons for it are noted in
+  `capitals.yml`.
+- **OpenStreetMap:** one dated Geofabrik extract per capital (`extract_date` in `sources.yml`, the
+  region in `capitals.yml`: the smallest that holds the city, its 1 km buffer and the 200 m margin
+  kept around green spaces, e.g. `europe/germany/brandenburg` for Berlin, `europe/italy/centro` for
+  Rome), read with pyosmium. Where no single region holds them, several are read and every object
+  is kept once: Amsterdam (Noord-Holland, Utrecht, Flevoland) and Bratislava (Slovakia, Austria,
+  Hungary). Multipolygon and boundary relations are assembled by libosmium's area assembler;
+  closed ways become polygons directly. Everything whose bounding box meets the analysis area's
+  (plus 0.005°) is read.
 - **Water:** OSM `natural=water`, `waterway=riverbank`, `landuse=reservoir`, plus the sea.
 - **Canopy height:** the source's ~0.6 m Web Mercator pixels are averaged into 1 m EPSG:3035
   pixels. Tree tops on building footprints are kept.
@@ -176,12 +206,13 @@ licences and attributions, in `sources.json`.
 
 | Source | How it is read |
 | ------ | -------------- |
-| OpenStreetMap: boundary relation, water, green spaces, every way with a `highway` tag | A dated Geofabrik extract of the country (`sweden-261011.osm.pbf` for Stockholm), read with pyosmium; its md5 is checked and its header timestamp kept; the boundary relation must have the version pinned in `capitals.yml` |
+| OpenStreetMap: boundary relation, water, green spaces, every way with a `highway` tag | Dated Geofabrik extracts of the region (`sweden-261011.osm.pbf` for Stockholm), read with pyosmium; their md5 is checked and their header timestamp kept; the boundary relation must have the version pinned in `capitals.yml` |
 | OpenStreetMap land polygons (coastline) | `land-polygons-split-4326.zip` from osmdata.openstreetmap.de (its Last-Modified date is recorded) |
 | Overture Maps buildings, release 2026-09-23.1 | GeoParquet on Overture's public S3 bucket, filtered by bounding box (pyarrow) |
 | Meta & WRI High Resolution Canopy Height Map v1 | Its cloud-optimised GeoTIFFs on AWS, read by window and averaged onto the capital's 1 m grid (EPSG:3035) |
 | JRC GHS-POP R2023A, epoch 2020, 100 m | The 1000 km tiles (Mollweide) from the JRC |
-| Wikidata | Labels of the capital and its country (`wbgetentities`) |
+| Wikidata | Labels of the capital and its country (`wbgetentities`): the city's, not a region's (Brussels: Q239, the item of its OpenStreetMap place node), with the plain name from the node's `name:<locale>` where a label reads "City of …" (`name_wikidata`, `name_overrides` in `capitals.yml`) |
+| Natural Earth 1:50m countries, version 5.1.1 (public domain) | The Home map (`europe.pmtiles`): `ne_50m_admin_0_countries.zip` from naciscdn.org, its version read from the archive and checked against `sources.yml` |
 | Figtree, Noto Sans (SIL OFL) | From google/fonts, only to measure the width of street names |
 
 ## Licences
@@ -191,7 +222,8 @@ The data in `data/` is never committed. A release is derived from OpenStreetMap 
 buildings (ODbL), so it is published as open data under the ODbL, with these attributions (also
 in every release's `sources.json`): Meta and WRI 2024, High Resolution Canopy Height Maps, source
 imagery © 2016 Maxar; © OpenStreetMap contributors; Overture Maps Foundation; European
-Commission, Joint Research Centre: GHS-POP R2023A.
+Commission, Joint Research Centre: GHS-POP R2023A. The Home map's countries and coastline come from
+Natural Earth (public domain; credited as "Made with Natural Earth").
 
 ## Tests and CI
 
@@ -201,8 +233,18 @@ break: geometry edge cases (lines of sight, courtyards, own building, walls and 
 boundaries (30 % canopy tested on whole pixel counts, 30 m inclusive, 300 m), the population
 spreading, distances along the network and the water tests, the evidence coordinate frame, the
 OpenStreetMap reader (a multipolygon with a split outer ring and an island, a nature reserve as a
-boundary relation, the tag selections, the bounding box), the sources document, and the pinned
-values (boundary relation and version, method numbers, source versions).
+boundary relation, the tag selections, the bounding box, features read from several extracts kept
+once, a territory with a relation cut out of it and the pins of both), the sources document (a
+capital read from several extracts, Natural Earth for the release), the capitals' names (the
+city's item, overrides, fallbacks), the Home map (enlargement, nudging overlapping outlines apart,
+leader lines, the outlines drawn: narrow channels closed, small parts and holes dropped,
+simplification; the zoom each island shows from; no land layer; country tints, graticule), the
+city limits of a capital's page (the city, its islands and holes, the tolerance at zoom 15), the
+overview's context rectangle (the fitted camera, the least zoom, both layouts), its water
+(narrow and small water left out away from the city, kept near it), its roads (the class
+rule, dual carriageways as one line) and its district levels, the
+archives' metadata (Tippecanoe's command line removed, every section kept), and the pinned values
+(the 27 boundary relations and versions, method numbers, source versions).
 
 Pre-commit hooks (ruff, YAML, whitespace), from the repository root:
 `uv run --project data-processing pre-commit install --config data-processing/.pre-commit-config.yaml`.

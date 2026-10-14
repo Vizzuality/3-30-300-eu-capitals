@@ -1,0 +1,16 @@
+# The Home map (europe.pmtiles), for the whole release: it depends on no capital.
+natural_earth_source:  # the Natural Earth archive: file, version, Last-Modified, sha256
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/europe/sources/natural_earth.json
+europe_tiles:          # Tippecanoe input (newline-delimited GeoJSON, EPSG:4326, gzipped)
+  type: data_processing.datasets.PathDataset
+  filepath: data/02_intermediate/europe/tiles/europe.geojsonseq.gz
+europe_tiles_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/europe/stats/europe_tiles.json
+europe_pmtiles:
+  type: data_processing.datasets.PathDataset
+  filepath: data/03_primary/releases/${runtime_params:release, 2026-10-all}/europe.pmtiles
+europe_pmtiles_stats:
+  type: data_processing.datasets.JSONDataset
+  filepath: data/02_intermediate/europe/stats/europe_pmtiles.json

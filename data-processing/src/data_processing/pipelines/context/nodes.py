@@ -1,13 +1,14 @@
 """Contextual layers, the things behind a result drawn on the map (water, parks, streets and
 their names, canopy, trees, buildings and facades), as Tippecanoe input.
 
-Each node writes newline-delimited GeoJSON (EPSG:4326) where every feature carries its
+Each node writes newline-delimited GeoJSON (EPSG:4326), gzipped, where every feature carries its
 ``tippecanoe`` layer and zoom range; the export pipeline turns them into ``city.pmtiles``.
 Layers and attributes are documented in docs/release-format.md.
 """
 
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 import time
@@ -46,11 +47,17 @@ PATHS = {"footway", "path", "cycleway"}
 PATH_RANK = 8
 
 
+def _open_gz(path: Path):
+    """Tippecanoe input, gzipped (Tippecanoe reads ``.gz`` files; the plain text is about six
+    times larger)."""
+    return gzip.open(path, "wt", encoding="utf-8", compresslevel=3)
+
+
 def _write(path: Path, features) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     n = 0
     tmp = path.with_suffix(".tmp")
-    with tmp.open("w", encoding="utf-8") as fh:
+    with _open_gz(tmp) as fh:
         for f in features:
             fh.write(json.dumps(f, ensure_ascii=False, separators=(",", ":")) + "\n")
             n += 1
@@ -101,7 +108,7 @@ def water_features(
         ml = _ll(shapely.MultiLineString(marks), crs)
         for m in shapely.get_parts(ml):
             feats.append(feature(m, {}, "water_marks", z["water_marks"]))
-    out = Path(paths["intermediate"]) / "tiles" / "water.geojsonseq"
+    out = Path(paths["intermediate"]) / "tiles" / "water.geojsonseq.gz"
     n = _write(out, feats)
     stats = {"features": n, "water_km2": round(wet.area / 1e6, 3), "hatch_marks": len(marks)}
     log.info("water layers: %d features, %d hatch marks", n, len(marks))
@@ -125,7 +132,7 @@ def park_features(
             "name": row.name if isinstance(row.name, str) else "",
         }
         feats.append(feature(_ll(g, method["crs"]), props, "parks", tiles["layers"]["parks"]))
-    out = Path(paths["intermediate"]) / "tiles" / "parks.geojsonseq"
+    out = Path(paths["intermediate"]) / "tiles" / "parks.geojsonseq.gz"
     _write(out, feats)
     return str(out)
 
@@ -188,7 +195,7 @@ def street_features(
     labels, widths = label_candidates(
         ways, area_merc, Measure(fonts["figtree"], fonts["noto_sans"])
     )
-    out = Path(paths["intermediate"]) / "tiles" / "streets.geojsonseq"
+    out = Path(paths["intermediate"]) / "tiles" / "streets.geojsonseq.gz"
     _write(out, feats + labels)
     names = "".join(widths) + "".join(n_ for n_ in parks["name"].dropna())
     stats = {
@@ -224,10 +231,10 @@ def canopy_features(
     tol = tiles["canopy_simplify_m"]
     min_area = tiles["canopy_min_area_m2"]
     shapely.prepare(area)
-    out = Path(paths["intermediate"]) / "tiles" / "canopy.geojsonseq"
+    out = Path(paths["intermediate"]) / "tiles" / "canopy.geojsonseq.gz"
     out.parent.mkdir(parents=True, exist_ok=True)
     n = 0
-    with rasterio.open(canopy_height_source["file"]) as src, out.open("w") as fh:
+    with rasterio.open(canopy_height_source["file"]) as src, _open_gz(out) as fh:
         for r in range(0, src.height, band_rows):
             h = min(band_rows, src.height - r)
             a = src.read(1, window=Window(0, r, src.width, h))
@@ -280,7 +287,7 @@ def tree_features(
         }
         for (x, y), i, h in zip(xy, t["tree"].values, t["height"].values, strict=True)
     )
-    out = Path(paths["intermediate"]) / "tiles" / "trees.geojsonseq"
+    out = Path(paths["intermediate"]) / "tiles" / "trees.geojsonseq.gz"
     _write(out, feats)
     return str(out)
 
@@ -338,6 +345,6 @@ def building_features(
             "res": round(float(r_), 1),
         }
         feats.append(feature(g, props, "facades", z["facades"]))
-    out = Path(paths["intermediate"]) / "tiles" / "buildings.geojsonseq"
+    out = Path(paths["intermediate"]) / "tiles" / "buildings.geojsonseq.gz"
     _write(out, feats)
     return str(out), pd.DataFrame({"id": b["id"].values, "lon": lon, "lat": lat})

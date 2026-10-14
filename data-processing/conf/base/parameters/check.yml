@@ -1,12 +1,18 @@
-# Known values checked by `just check` (ranges: [min, max]). They pin the Stockholm results of the
-# first full run (2026-10-12, release 2026-10-stockholm) with a small tolerance (shares ± 0.005,
-# residents ± 0.5 %): a change of source or method that moves them must update this file.
+# Known values checked by `just check` (ranges: [min, max]). Stockholm's pin the results of the
+# first full run (2026-10-12, release 2026-10-stockholm, unchanged in 2026-10-all) with a small
+# tolerance (shares ± 0.005, residents ± 0.5 %). For the other capitals: the boundary relation and
+# its version, the English name, the area (± 0.5 %) and the residents (± 0.5 %) of the release
+# 2026-10-all. A change of boundary, source or method that moves them must update this file.
 check:
-  # Sizes are warnings, never failures: tiles over these sizes are listed by `just check`.
+  # Sizes are warnings, never failures: tiles over these sizes are listed by `just check`. The
+  # one exception is outline.json, loaded first on a capital's page: over its limit it fails.
   budgets:
     vector_tile_warn_bytes: 500000         # a vector tile of city.pmtiles (or a grid tile)
     vector_tile_aim_bytes: 200000          # listed as a note
     evidence_tile_gzip_warn_bytes: 250000  # an evidence tile, gzipped as it is stored and sent
+    outline_json_warn_bytes: 150000        # capitals/<slug>/outline.json, as written: a warning
+    outline_json_max_bytes: 1000000        # …and a failure (Helsinki, 730 islands: 814 kB)
+    context_pmtiles_warn_bytes: 1500000    # capitals/<slug>/context.pmtiles, all its tiles
   known:
     stockholm:
       osm_relation: 398021
@@ -27,3 +33,159 @@ check:
       # Hornstull/Långholmen; Södermalm's densest squares are more than 2 km from it.
       suggested_name: Kungsholmen
       suggested_within: [18.015, 59.328, 18.040, 59.340]
+    amsterdam:
+      osm_relation: 47811
+      osm_version: 77
+      name_en: Amsterdam
+      area_km2: [242.45, 244.89]   # 243.667 km²
+      residents: [857052, 865666]   # 861,359 (GHS-POP 2020)
+    athens:
+      osm_relation: 1370736
+      osm_version: 190
+      name_en: Athens
+      area_km2: [37.89, 38.27]   # 38.078 km²
+      residents: [636475, 642873]   # 639,674 (GHS-POP 2020)
+    berlin:
+      osm_relation: 62422
+      osm_version: 451
+      name_en: Berlin
+      area_km2: [886.69, 895.6]   # 891.142 km²
+      residents: [3577576, 3613532]   # 3,595,554 (GHS-POP 2020)
+    bratislava:
+      osm_relation: 1702499
+      osm_version: 54
+      name_en: Bratislava
+      area_km2: [365.76, 369.44]   # 367.601 km²
+      residents: [405752, 409830]   # 407,791 (GHS-POP 2020)
+    brussels:
+      osm_relation: 54094
+      osm_version: 177
+      name_en: Brussels
+      area_km2: [161.62, 163.25]   # 162.436 km²
+      residents: [1236019, 1248443]   # 1,242,231 (GHS-POP 2020)
+    bucharest:
+      osm_relation: 377733
+      osm_version: 32
+      name_en: Bucharest
+      area_km2: [237.85, 240.24]   # 239.047 km²
+      residents: [1857071, 1875737]   # 1,866,404 (GHS-POP 2020)
+    budapest:
+      osm_relation: 1244004
+      osm_version: 162
+      name_en: Budapest
+      area_km2: [523.29, 528.55]   # 525.916 km²
+      residents: [1771626, 1789432]   # 1,780,529 (GHS-POP 2020)
+    copenhagen:
+      osm_relation: 2192363
+      osm_version: 160
+      name_en: Copenhagen
+      area_km2: [93.93, 94.88]   # 94.403 km²
+      residents: [636547, 642945]   # 639,746 (GHS-POP 2020)
+    dublin:
+      osm_relation: 1109531
+      osm_version: 218
+      name_en: Dublin
+      area_km2: [118.03, 119.22]   # 118.622 km²
+      residents: [554988, 560566]   # 557,777 (GHS-POP 2020)
+    helsinki:
+      osm_relation: 34914
+      osm_version: 95
+      name_en: Helsinki
+      area_km2: [213.6, 215.75]   # 214.672 km²
+      residents: [639488, 645916]   # 642,702 (GHS-POP 2020)
+    lisbon:
+      osm_relation: 5400890
+      osm_version: 31
+      name_en: Lisbon
+      area_km2: [85.62, 86.48]   # 86.053 km²
+      residents: [568538, 574252]   # 571,395 (GHS-POP 2020)
+    ljubljana:
+      osm_relation: 1675898
+      osm_version: 34
+      name_en: Ljubljana
+      area_km2: [273.66, 276.41]   # 275.036 km²
+      residents: [302950, 305996]   # 304,473 (GHS-POP 2020)
+    luxembourg:
+      osm_relation: 407489
+      osm_version: 46
+      name_en: Luxembourg
+      area_km2: [51.48, 51.99]   # 51.736 km²
+      residents: [129407, 130709]   # 130,058 (GHS-POP 2020)
+    madrid:
+      osm_relation: 5326784
+      osm_version: 64
+      name_en: Madrid
+      area_km2: [601.31, 607.35]   # 604.333 km²
+      residents: [3666377, 3703227]   # 3,684,802 (GHS-POP 2020)
+    nicosia:
+      osm_relation: 17716182
+      osm_version: 16
+      name_en: Nicosia
+      area_km2: [41.09, 41.5]   # 41.292 km²
+      residents: [101996, 103022]   # 102,509 (GHS-POP 2020)
+    paris:
+      osm_relation: 7444
+      osm_version: 204
+      name_en: Paris
+      area_km2: [104.86, 105.92]   # 105.391 km²
+      residents: [2218834, 2241134]   # 2,229,984 (GHS-POP 2020)
+    prague:
+      osm_relation: 435514
+      osm_version: 134
+      name_en: Prague
+      area_km2: [493.79, 498.75]   # 496.268 km²
+      residents: [1330524, 1343898]   # 1,337,211 (GHS-POP 2020)
+    riga:
+      osm_relation: 13048688
+      osm_version: 47
+      name_en: Riga
+      area_km2: [302.08, 305.12]   # 303.601 km²
+      residents: [612775, 618935]   # 615,855 (GHS-POP 2020)
+    rome:
+      osm_relation: 41485
+      osm_version: 171
+      name_en: Rome
+      area_km2: [1279.15, 1292.0]   # 1285.573 km²
+      residents: [2746552, 2774156]   # 2,760,354 (GHS-POP 2020)
+    sofia:
+      osm_relation: 7276261
+      osm_version: 54
+      name_en: Sofia
+      area_km2: [1334.82, 1348.24]   # 1341.532 km²
+      residents: [1385722, 1399650]   # 1,392,686 (GHS-POP 2020)
+    tallinn:
+      osm_relation: 350902
+      osm_version: 71
+      name_en: Tallinn
+      area_km2: [158.68, 160.28]   # 159.479 km²
+      residents: [465266, 469944]   # 467,605 (GHS-POP 2020)
+    valletta:
+      osm_relation: 7510580
+      osm_version: 11
+      name_en: Valletta
+      area_km2: [0.835, 0.845]   # 0.84 km²
+      residents: [6671, 6739]   # 6,705 (GHS-POP 2020)
+    vienna:
+      osm_relation: 109166
+      osm_version: 147
+      name_en: Vienna
+      area_km2: [412.79, 416.94]   # 414.862 km²
+      residents: [1929168, 1948558]   # 1,938,863 (GHS-POP 2020)
+    vilnius:
+      osm_relation: 968952
+      osm_version: 161
+      name_en: Vilnius
+      area_km2: [398.55, 402.55]   # 400.548 km²
+      residents: [555838, 561426]   # 558,632 (GHS-POP 2020)
+    warsaw:
+      osm_relation: 2907540
+      osm_version: 115
+      name_en: Warsaw
+      area_km2: [514.6, 519.78]   # 517.19 km²
+      residents: [1776213, 1794065]   # 1,785,139 (GHS-POP 2020)
+    zagreb:
+      osm_relation: 226224
+      osm_version: 144
+      name_en: Zagreb
+      area_km2: [638.03, 644.44]   # 641.235 km²
+      residents: [784032, 791912]   # 787,972 (GHS-POP 2020)

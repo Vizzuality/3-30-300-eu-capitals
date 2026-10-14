@@ -6,7 +6,7 @@
 export KEDRO_DISABLE_TELEMETRY := "true"
 export KEDRO_LOGGING_CONFIG := "conf/logging.yml"
 
-release := "2026-10-stockholm"
+release := "2026-10-all"
 tippecanoe_dir := env("TIPPECANOE_DIR", ".tools/bin")
 bucket := env("BUCKET", "")
 s3_endpoint := env("S3_ENDPOINT", "https://t3.storageapi.dev")
@@ -15,17 +15,25 @@ aws_profile := env("AWS_PROFILE_NAME", "3-30-300")
 default:
     @just --list
 
+# The pipelines of one capital, in the order of their inputs. `just run` gives each its own process,
+# so the memory of one step is released before the next (a capital in one process peaked at 13 GB).
+steps := "boundaries grid residents rule3 rule30 rule300 buildings combined context export overview release"
+
 # Run every pipeline for one capital: `just run stockholm` (writes data/03_primary/releases/<release>/)
 [group('run')]
 run capital:
-    uv run kedro run --params "capital={{ capital }},release={{ release }},tippecanoe_dir={{ tippecanoe_dir }}"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for p in {{ steps }}; do
+        uv run kedro run --pipeline "$p" --params "capital={{ capital }},release={{ release }},tippecanoe_dir={{ tippecanoe_dir }}"
+    done
 
 # Run one pipeline for one capital: `just run-pipeline rule300 stockholm`
 [group('run')]
 run-pipeline pipeline capital:
     uv run kedro run --pipeline {{ pipeline }} --params "capital={{ capital }},release={{ release }},tippecanoe_dir={{ tippecanoe_dir }}"
 
-# Run every capital whose boundary is pinned in conf/base/parameters/capitals.yml, then the cross-capital files
+# Run every capital whose boundary is pinned in conf/base/parameters/capitals.yml, then the cross-capital files and the Home map
 [group('run')]
 run-all:
     #!/usr/bin/env bash
@@ -37,8 +45,14 @@ run-all:
     done
     last=$(echo "$capitals" | tail -n 1)
     uv run kedro run --pipeline release --params "capital=$last,release={{ release }}"
+    just release={{ release }} home
 
-# Check a release folder: files, tile sizes against the budgets, attributes, known values for Stockholm
+# Write the Home map, europe.pmtiles (Natural Earth 1:50m), into the release
+[group('run')]
+home:
+    uv run kedro run --pipeline home --params "release={{ release }},tippecanoe_dir={{ tippecanoe_dir }}"
+
+# Check a release folder: files, tile sizes against the budgets, attributes, known values per capital
 [group('release')]
 check rel=release:
     uv run python -m data_processing.check {{ rel }}

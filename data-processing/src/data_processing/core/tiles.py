@@ -4,12 +4,20 @@ from __future__ import annotations
 
 import gzip
 import io
+import json
 import math
+import re
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
-from pmtiles.tile import Compression, TileType, zxy_to_tileid
+from pmtiles.tile import (
+    Compression,
+    TileType,
+    deserialize_header,
+    serialize_header,
+    zxy_to_tileid,
+)
 from pmtiles.writer import Writer
 
 from data_processing.core.geo import transformer
@@ -127,6 +135,78 @@ class TileFrame:
 
 def gzip_bytes(data: bytes) -> bytes:
     return gzip.compress(data, mtime=0)
+
+
+# ------------------------------------------------------------------ archive metadata
+HEADER_BYTES = 127
+# Tippecanoe records its command line, with the absolute paths of this machine, in its metadata
+LOCAL_METADATA = ("generator_options",)
+# an absolute path: "/" or "~/" or "C:\" after a quote, a space or "=", then a path segment
+ABSOLUTE_PATH = re.compile(r"""(?:^|[\s'"=])(?:/|~/|[A-Za-z]:[\\/])[\w.+~-]+""")
+
+
+def absolute_paths(value) -> list[str]:
+    """Every string in ``value`` (nested dicts and lists) that holds an absolute path."""
+    if isinstance(value, dict):
+        return [p for v in value.values() for p in absolute_paths(v)]
+    if isinstance(value, list):
+        return [p for v in value for p in absolute_paths(v)]
+    return [value] if isinstance(value, str) and ABSOLUTE_PATH.search(value) else []
+
+
+def _read_metadata(f, header) -> dict:
+    f.seek(header["metadata_offset"])
+    raw = f.read(header["metadata_length"])
+    compression = header["internal_compression"]
+    if compression == Compression.GZIP:
+        raw = gzip.decompress(raw)
+    elif compression != Compression.NONE:
+        raise ValueError(f"metadata compression {compression} is not supported")
+    return json.loads(raw)
+
+
+def drop_metadata(path: Path, keys=LOCAL_METADATA) -> list[str]:
+    """Remove ``keys`` from a PMTiles v3 archive's metadata, in place; returns those removed.
+    The header and root directory are rewritten and the leaf directories and tile data copied as
+    they are: their offsets are relative to their own sections (PMTiles v3, §4.1)."""
+    path = Path(path)
+    with path.open("rb") as f:
+        header = deserialize_header(f.read(HEADER_BYTES))
+        meta = _read_metadata(f, header)
+        removed = [k for k in keys if k in meta]
+        if not removed:
+            return []
+        data = json.dumps(
+            {k: v for k, v in meta.items() if k not in removed},
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode()
+        if header["internal_compression"] == Compression.GZIP:
+            data = gzip_bytes(data)
+        f.seek(header["root_offset"])
+        root = f.read(header["root_length"])
+        new = dict(header)
+        new["root_offset"] = HEADER_BYTES
+        new["metadata_offset"] = HEADER_BYTES + len(root)
+        new["metadata_length"] = len(data)
+        new["leaf_directory_offset"] = new["metadata_offset"] + len(data)
+        new["tile_data_offset"] = new["leaf_directory_offset"] + header["leaf_directory_length"]
+        tmp = path.with_suffix(".tmp")
+        with tmp.open("wb") as out:
+            out.write(serialize_header(new))
+            out.write(root)
+            out.write(data)
+            for section in ("leaf_directory", "tile_data"):
+                f.seek(header[f"{section}_offset"])
+                left = header[f"{section}_length"]
+                while left > 0:
+                    chunk = f.read(min(left, 1 << 24))
+                    if not chunk:
+                        raise ValueError(f"{path}: truncated archive")
+                    out.write(chunk)
+                    left -= len(chunk)
+    tmp.replace(path)
+    return removed
 
 
 __all__ = ["Compression", "TileType"]

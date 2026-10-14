@@ -31,3 +31,13 @@ tiles:
     no_colour: 4         # pixel value for water and outside the city
   evidence:
     zoom: 15
+  # capitals/<slug>/outline.json: the city limits drawn on the capital's page over city.pmtiles
+  # (zooms 10–16, overzoomed to 18), a line of about 1.5 px. Simplified so that it stays within
+  # tolerance_px of its place at `zoom`, where the buildings' evidence is read: half the line's
+  # width there, a line's width at zoom 16, under half a pixel at 14 and below. In metres, at the
+  # city's latitude: 0.75 × 2.39 m × cos(lat) (0.89 m in Helsinki, 1.45 m in Valletta).
+  outline:
+    zoom: 15
+    tolerance_px: 0.75
+    tile_px: 512
+    decimals: 6                 # 0.11 m north–south, 0.06–0.09 m east–west: under the tolerance

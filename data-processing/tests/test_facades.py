@@ -1,7 +1,9 @@
 import numpy as np
+import pandas as pd
 import shapely
 
 from data_processing.core.facades import polygon_walls, wall_samples
+from data_processing.pipelines.buildings.nodes import building_rule3
 
 ARGS = dict(simplify=0.5, corner_deg=25, min_length=3, round_piece=15)
 
@@ -59,3 +61,18 @@ def test_sample_spacing():
     assert length == 12 and len(pts) == 2  # round(12 / 5)
     assert np.allclose(pts, [[3, -1], [9, -1]])
     assert outward[1] < 0  # walking east, the right is south
+
+
+def test_building_rule3_needs_more_than_half_of_the_facade_length():
+    # building 1: two facades of the same length, up to the rounding noise of the length sums
+    facades = pd.DataFrame(
+        {
+            "b": [1, 1, 2, 2, 3, 3],
+            "length": [1.0 + 1e-12, 1.0, 10.0, 9.0, 4.0, 4.0],
+            "ok": [1, 0, 1, 0, 0, 0],
+        }
+    )
+    share, passes = building_rule3(facades, [1, 2, 3, 4], 0.5)
+    assert share[0] > 0.5 and not passes[0]  # half, up to noise: not more than half
+    assert passes[1] and not passes[2]
+    assert share[3] == 0 and not passes[3]  # no facade

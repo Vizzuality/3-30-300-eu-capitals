@@ -34,6 +34,10 @@ sources:
     tile_size: 1000000.0
   wikidata:
     api_url: https://www.wikidata.org/w/api.php
+  natural_earth:
+    # The Home map's countries and coastline (europe.pmtiles): Natural Earth 1:50m, public domain.
+    url: https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_0_countries.zip
+    version: 5.1.1
   fonts:
     # Used only to measure the width of street names; SIL Open Font License.
     figtree: https://raw.githubusercontent.com/google/fonts/main/ofl/figtree/Figtree%5Bwght%5D.ttf
@@ -78,3 +82,9 @@ sources:
       licence_url: https://creativecommons.org/publicdomain/zero/1.0/
       attribution: Wikidata
       url: https://www.wikidata.org/
+    natural_earth:  # the Home map only, so not listed per capital
+      name: Natural Earth
+      licence: Public domain
+      licence_url: https://www.naturalearthdata.com/about/terms-of-use/
+      attribution: Made with Natural Earth
+      url: https://www.naturalearthdata.com/

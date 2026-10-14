@@ -1,0 +1,52 @@
+# The capital page's overview: the context rectangle the camera stays in (summary.json › context)
+# and the water drawn in it (capitals/<slug>/context.pmtiles).
+overview:
+  # The overview's map as the client lays it out: width, height and padding (top, right,
+  # bottom, left) in px
+  frames:
+    desktop: {width: 960, height: 900, padding: [72, 72, 42, 28]}
+    phone: {width: 412, height: 386, padding: [72, 16, 80, 16]}
+  max_zoom: 18                  # the fit's greatest zoom (the client's); it has no least: a
+                                # whole city is shown, below the page's usual 9 if need be
+  zoom_out: 1                   # how far below its fitted zoom the camera may go
+  # context.pmtiles: every water (sea, lakes, rivers) in the rectangle, at zooms minzoom–maxzoom,
+  # from further out where a least zoom is lower (Rome, Sofia: from 7) and further in where the
+  # fitted view loads finer tiles (Valletta: to 15). Away from the city and its
+  # 1 km band it is slimmed for the overview: water narrower than min_width_px and pieces under
+  # min_piece_px × min_piece_px at slim_zoom are left out. Everything is then simplified to
+  # tolerance_px at tolerance_zoom (or the archive's last zoom, if later).
+  water:
+    minzoom: 9
+    maxzoom: 12
+    slim_zoom: 11
+    min_width_px: 2
+    min_piece_px: 3
+    tolerance_zoom: 12
+    tolerance_px: 0.75
+  # Reference roads (layer `roads`): every way of class motorway, trunk, primary, secondary or
+  # tertiary, as OpenStreetMap's own maps choose roads at these zooms, the same over the whole
+  # context rectangle: no ramps (*_link), no minor street, no area. Each dual carriageway is
+  # drawn as one line.
+  roads:
+    main_minzoom: 7             # motorway, trunk, primary
+    minzoom: 10                 # secondary, tertiary
+    merge_max_m: 60             # dual carriageways drawn as one line: this far apart at most,
+    merge_min_m: 100            # side by side over this length at least,
+    merge_step_m: 10            # measured every 10 m
+    stub_max_m: 120             # then a one-way stub of a merged road, both ends on its
+                                # centreline, shorter than this, is dropped (2 × merge_max_m)
+    edge_m: 50                  # a line end this close to the context's edge is not counted
+    tolerance_zoom: 12          # lines simplified to tolerance_px at this zoom
+    tolerance_px: 0.75
+  # District names (layer `places`): two tiers, one rule for all (capitals.yml › places
+  # overrides it where it picks wrong).
+  places:
+    min_names: 10               # tier 1: the coarsest admin level with 10–30 areas in the city,
+    max_names: 30               # else place=suburb thinned by spacing to 30
+    min_share_in_city: 0.5      # an area counts when half of it is in the city
+    rank_radius_m: 1000         # rank: GHS-POP residents within 1 km
+    same_name_m: 2000           # a tier-2 name this close to the same tier-1 name is left out
+  # Tippecanoe, after -Z and -z (summary.json › zooms.context): every feature kept at every zoom
+  # (-r1), every polygon kept, simplified within 2 tile units (0.25 px), as city.pmtiles
+  tippecanoe_flags: ["-r1", "--no-feature-limit", "--no-tile-size-limit",
+                     "--no-tiny-polygon-reduction", "--simplification=2", "--buffer=8"]
