@@ -24,6 +24,17 @@
         "canopy": "<figure>{canopy, number, percent}</figure> <label>canopy around</label>",
         "park": "<figure>{distance, number, ::unit/meter}</figure> <label>to a park</label>"
       }
+    },
+    "tabs": {
+      "ranking": "Ranking",
+      "az": "A–Z list"
+    },
+    "az": {
+      "search": "Find a capital or a country",
+      "clear": "Clear the search",
+      "noMatch": "No capital or country matches “{search}”",
+      "found": "{count, plural, one {# capital found} other {# capitals found}}",
+      "row": "{capital}, {country}"
     }
   },
   "ranking": {

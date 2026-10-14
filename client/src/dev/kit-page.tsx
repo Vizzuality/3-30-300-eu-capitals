@@ -14,6 +14,7 @@ import {
   type TypeStyle,
 } from "@/design/tokens"
 import { cn } from "@/lib/utils"
+import { AzKit } from "./kit-az"
 import { ComponentsKit } from "./kit-components"
 import { GuideKit } from "./kit-guide"
 import { MotionKit } from "./kit-motion"
@@ -98,6 +99,8 @@ const typeClasses: Record<keyof typeof typeScale, string> = {
   guide: "font-sans text-guide",
   guideStep: "font-sans text-guide-step uppercase",
   control: "font-sans text-control",
+  field: "font-sans text-field",
+  listName: "font-sans text-list-name",
   figure: "font-serif text-figure",
   figureUnit: "font-sans text-figure-unit text-ink-2",
   status: "font-sans text-status",
@@ -115,6 +118,8 @@ const typeNames: Record<keyof typeof typeScale, string> = {
   guide: "Guide",
   guideStep: "Guide step",
   control: "Control",
+  field: "Field",
+  listName: "List name",
   figure: "Figure",
   figureUnit: "Figure unit",
   status: "Status",
@@ -144,6 +149,8 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
   ],
   ["guideStep", "Next · 2 of 3", "The Next step guide's step label"],
   ["control", "Methodology", "Top bar links, tabs, rows, buttons"],
+  ["field", "Kobenhavn", "What is typed in a field (the A–Z search)"],
+  ["listName", "Copenhagen", "A capital's name in the A–Z list"],
   [
     "figure",
     "300 m",
@@ -419,13 +426,15 @@ export function KitPage() {
         <p className="max-w-190 text-small text-ink-2">
           The blocks of the panel, built from the components, to compare with
           the reference&apos;s UI kit: the next step guide (its Next step guide
-          page) and the ranking (&ldquo;Ranking · Home&rdquo; on its Components
-          page).
+          page), the ranking (&ldquo;Ranking · Home&rdquo; on its Components
+          page) and the A–Z list (&ldquo;Tabs · search&rdquo; and &ldquo;A–Z
+          row&rdquo; on its Components page).
         </p>
       </div>
 
       <GuideKit />
       <RankingKit />
+      <AzKit />
     </main>
   )
 }

@@ -96,3 +96,122 @@ test("changing only the language keeps focus where it is", async ({ page }) => {
     instance
   )
 })
+
+/*
+ * Leaving a page and coming straight back, or going on again, while the
+ * leaving content still fades out: the page is shown once, in full, and its
+ * name is announced once. The fades play ten times slower, so the second
+ * move always lands during the first fade.
+ */
+
+async function slowFades(page: Page) {
+  const devtools = await page.context().newCDPSession(page)
+  await devtools.send("Animation.enable")
+  await devtools.send("Animation.setPlaybackRate", { playbackRate: 0.1 })
+  return async () => {
+    await devtools.send("Animation.setPlaybackRate", { playbackRate: 1 })
+  }
+}
+
+async function openStockholm(page: Page, isMobile: boolean) {
+  const row = page.getByRole("link", { name: /^Stockholm, rank 17:/ })
+  await row.scrollIntoViewIfNeeded()
+  if (isMobile) {
+    await row.tap()
+  } else {
+    await row.click()
+  }
+  await expect(page).toHaveURL("/en/capitals/stockholm")
+}
+
+/**
+ * The page has changed: the new page is in place and the content left
+ * behind is fading out. The address changes before the new page is rendered,
+ * and a move made before that only cancels the first.
+ */
+async function fadingTo(page: Page, heading: string) {
+  await expect(page.locator("main [inert]").first()).toBeAttached()
+  await expect(
+    page.locator("main h1:not([inert] *)", { hasText: heading })
+  ).toBeAttached()
+}
+
+/**
+ * Every leaving copy has gone, and the page's parts (each part of the panel,
+ * and what floats in within it) are shown in full
+ */
+async function settled(page: Page) {
+  await expect(page.locator("main [inert]")).toHaveCount(0)
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        [
+          ...document.querySelectorAll(
+            "main > div > div, main > div > div > *"
+          ),
+        ].every((element) => getComputedStyle(element).opacity === "1")
+      )
+    )
+    .toBe(true)
+}
+
+test(
+  "going back while the leaving page fades out shows the page once",
+  { tag: "@motion" },
+  async ({ page, isMobile }) => {
+    await page.goto("/en")
+    await mapAreaInstance(page)
+    const normalSpeed = await slowFades(page)
+
+    await openStockholm(page, isMobile)
+    await fadingTo(page, "Stockholm")
+    await page.goBack()
+    await expect(page).toHaveURL("/en")
+    await normalSpeed()
+    await settled(page)
+
+    // Home once, whole, and the capital gone
+    await expect(page.locator("main [role='tablist']")).toHaveCount(1)
+    await expect(page.locator("main h1")).toHaveCount(1)
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: "How green is your capital?",
+      })
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "Helsinki leads the way." })
+    ).toBeVisible()
+    await expect(announcer(page)).toHaveText(/^How green is your capital\?/)
+
+    // Its rows still open their capital
+    await openStockholm(page, isMobile)
+    await settled(page)
+    await expect(page.locator("main h1")).toHaveText("Stockholm")
+  }
+)
+
+test(
+  "back then forward during the fades ends on the last page",
+  { tag: "@motion" },
+  async ({ page, isMobile }) => {
+    await page.goto("/en")
+    await mapAreaInstance(page)
+    const normalSpeed = await slowFades(page)
+
+    await openStockholm(page, isMobile)
+    await fadingTo(page, "Stockholm")
+    await page.goBack()
+    await expect(page).toHaveURL("/en")
+    await fadingTo(page, "How green is your capital?")
+    await page.goForward()
+    await expect(page).toHaveURL("/en/capitals/stockholm")
+    await normalSpeed()
+    await settled(page)
+
+    await expect(page.locator("main h1")).toHaveCount(1)
+    await expect(page.locator("main h1")).toHaveText("Stockholm")
+    await expect(page.locator("main [role='tablist']")).toHaveCount(0)
+    await expect(announcer(page)).toHaveText(/^Stockholm/)
+  }
+)

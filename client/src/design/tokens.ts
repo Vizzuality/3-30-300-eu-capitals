@@ -136,6 +136,10 @@ export const typeScale = {
   },
   // Top bar links, tabs, rows, buttons
   control: { font: "sans", size: 14, lineHeight: 20, weight: 500 },
+  // What is typed in a field (the A–Z list's search)
+  field: { font: "sans", size: 15, lineHeight: 20, weight: 400 },
+  // A capital's name in the A–Z list, above its country
+  listName: { font: "sans", size: 15, lineHeight: 20, weight: 600 },
   // Notes, legends, ranking, footer
   small: { font: "sans", size: 13, lineHeight: 18, weight: 400 },
   // The figures of the rule cards and of the rule switcher's chips ("3",

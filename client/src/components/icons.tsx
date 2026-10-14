@@ -2,10 +2,12 @@ import type { IconBaseProps, IconType } from "react-icons"
 import {
   LuCheck,
   LuChevronLeft,
+  LuChevronRight,
   LuMaximize,
   LuMinus,
   LuMousePointer,
   LuPlus,
+  LuSearch,
   LuX,
 } from "react-icons/lu"
 
@@ -36,6 +38,15 @@ function sized(
 
 /** Back ("All capitals", "Back to the map") */
 export const ChevronLeftIcon = sized(LuChevronLeft, 18, 2.25)
+
+/** Forward (an A–Z row, opening its capital) */
+export const ChevronRightIcon = sized(LuChevronRight, 16, 2.25)
+
+/** Search (the A–Z list's field) */
+export const SearchIcon = sized(LuSearch, 18, 2.1)
+
+/** Clear (what is typed in a field) */
+export const ClearIcon = sized(LuX, 16, 2.25)
 
 /** Close (a selected building) */
 export const CloseIcon = sized(LuX, 16, 2.5)

@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils"
 /*
  * Round buttons holding only an icon. In the panel, a hairline circle of
  * 40 px (close); on the map, a 44 px circle floating with the soft lift (zoom
- * in and out). On phones the panel's circle is still drawn at 40 px, but its
- * hit area grows to 44 px.
+ * in and out); inside a field, a quiet 28 px circle (clear). On phones the
+ * panel's circle is still drawn at 40 px, but its hit area grows to 44 px.
  */
 const iconButtonVariants = cva(
   [
@@ -22,6 +22,9 @@ const iconButtonVariants = cva(
       variant: {
         panel: "size-target border border-line hover:bg-surface-2",
         map: "size-target-phone shadow-lift hover:bg-surface-2",
+        // Small and quiet, inside a field (clearing a search); its hit area
+        // is still a full touch target
+        field: "size-7 bg-transparent text-ink-2 hover:bg-line hover:text-ink",
       },
     },
     defaultVariants: {
