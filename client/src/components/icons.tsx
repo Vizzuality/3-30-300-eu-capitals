@@ -3,6 +3,7 @@ import {
   LuCheck,
   LuChevronLeft,
   LuChevronRight,
+  LuHand,
   LuMaximize,
   LuMinus,
   LuMousePointer,
@@ -70,3 +71,6 @@ export const DashIcon = sized(LuMinus, 8, 4.5)
 export const PointerIcon = sized(LuMousePointer, 18, 2, {
   fill: "currentColor",
 })
+
+/** The phone's "Use two fingers" hint: a raised hand */
+export const HandIcon = sized(LuHand, 18, 2)

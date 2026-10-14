@@ -7,6 +7,7 @@ import {
   guideStates,
   guideText,
   pathDots,
+  pulseOf,
   type GuideState,
 } from "@/lib/guide"
 
@@ -129,5 +130,18 @@ describe("the guide's text and path", () => {
 
     expect(guideText(state, t)).toEqual({ label, sentence: { click, tap } })
     expect(pathDots(state)).toEqual(dots)
+  })
+})
+
+describe("the guide's pulse on the map", () => {
+  test("only where the next step is on the map itself", () => {
+    expect(guideStates.map((state) => pulseOf(state))).toEqual([
+      undefined,
+      "overview",
+      "street",
+      undefined,
+      undefined,
+      undefined,
+    ])
   })
 })

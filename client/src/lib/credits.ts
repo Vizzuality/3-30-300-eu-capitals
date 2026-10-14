@@ -15,7 +15,15 @@ export type Credit = {
   licence: { name: string; url: string }
 }
 
-type Source = Sources["sources"][number]
+export type Source = NonNullable<Sources["sources"][number]>
+
+/**
+ * What makes two sources one credit: the same attribution under the same
+ * licence
+ */
+export function creditKey(source: Source) {
+  return `${source.attribution}\n${source.licence}\n${source.licence_url}`
+}
 
 export function creditsOf(sources: ReadonlyArray<Source | undefined>) {
   const credits: Array<Credit & { key: string }> = []
@@ -24,7 +32,7 @@ export function creditsOf(sources: ReadonlyArray<Source | undefined>) {
     if (!source) {
       continue
     }
-    const key = `${source.attribution}\n${source.licence}\n${source.licence_url}`
+    const key = creditKey(source)
     const named = { name: source.name, url: source.url }
     const credit = credits.find((item) => item.key === key)
     if (credit) {

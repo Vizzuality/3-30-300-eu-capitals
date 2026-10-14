@@ -111,6 +111,17 @@ export function pathDots(state: GuideState): Array<PathDot> {
   })
 }
 
+/**
+ * The views where the guide has a pulse on the map, whose tag says what to
+ * do there: zoom in on the city overview, choose a building on the street
+ */
+export type PulseState = Extract<GuideState, "overview" | "street">
+
+/** The pulse of the guide's state; Home and a selected building have none */
+export function pulseOf(state: GuideState): PulseState | undefined {
+  return state === "overview" || state === "street" ? state : undefined
+}
+
 /** How the visitor points: with a mouse ("Click") or a finger ("Tap") */
 export type PointerKind = "click" | "tap"
 

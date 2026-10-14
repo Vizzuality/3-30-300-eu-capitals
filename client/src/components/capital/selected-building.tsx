@@ -13,7 +13,13 @@ import {
 } from "@/components/ui/chip"
 import { IconButton } from "@/components/ui/icon-button"
 import type { FacadeResult, SelectedBuilding } from "@/lib/building"
-import { rules, ruleThresholds, type Rule } from "@/lib/rules"
+import {
+  canopyRadius,
+  parkArea,
+  rules,
+  ruleThresholds,
+  type Rule,
+} from "@/lib/rules"
 
 /*
  * A selected building in the panel: its residents and a close button, the
@@ -26,10 +32,6 @@ import { rules, ruleThresholds, type Rule } from "@/lib/rules"
  * rule or the facade changes, the card swaps in place (see `Swap`).
  */
 
-/** The radius of the area whose canopy counts for rule 30, in metres */
-const CANOPY_RADIUS = 500
-/** The smallest green space that counts for rule 300, in hectares */
-const PARK_AREA = 1
 /** How far a path is looked for around a building, in metres */
 const PATH_REACH = 100
 
@@ -196,7 +198,7 @@ export function RuleResultCard({
   if (rule === 30) {
     return (
       <ResultCard
-        context={t("canopy.context", { radius: CANOPY_RADIUS })}
+        context={t("canopy.context", { radius: canopyRadius })}
         result={t("canopy.result", { canopy: building.canopy.percent / 100 })}
         met={met}
         verdict={t.rich("canopy.status", {
@@ -210,7 +212,7 @@ export function RuleResultCard({
   const { kind, metres, park } = building.walk
   return (
     <ResultCard
-      context={t("park.context", { area: PARK_AREA })}
+      context={t("park.context", { area: parkArea })}
       result={t.rich("park.result", {
         kind,
         walk: metres,

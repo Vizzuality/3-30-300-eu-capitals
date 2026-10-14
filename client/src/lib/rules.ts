@@ -13,6 +13,12 @@ export const ruleThresholds = {
   parkDistance: 300,
 } as const
 
+/** The radius of the area whose canopy counts for rule 30, in metres */
+export const canopyRadius = 500
+
+/** The smallest green space that counts for rule 300, in hectares */
+export const parkArea = 1
+
 /**
  * The three rules, by the figure that names them in the switcher
  * (3 · 30 · 300). A selected building shows the evidence of one at a time,

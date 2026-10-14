@@ -483,7 +483,7 @@ function PopCard() {
               ref={(element) => {
                 squares.current[index] = element
               }}
-              className="size-7 rounded-swatch bg-result-2"
+              className="size-7 rounded-bar bg-result-2"
             />
           ))}
         </div>
@@ -599,9 +599,9 @@ function FloatCard() {
       name="float"
       sample={
         <div ref={content} className="flex w-48 flex-col gap-2">
-          <div className="h-5 w-32 rounded-swatch bg-ink" />
-          <div className="h-3 w-full rounded-swatch bg-ink-2/40" />
-          <div className="h-3 w-40 rounded-swatch bg-ink-2/40" />
+          <div className="h-5 w-32 rounded-bar bg-ink" />
+          <div className="h-3 w-full rounded-bar bg-ink-2/40" />
+          <div className="h-3 w-40 rounded-bar bg-ink-2/40" />
         </div>
       }
       play={(reduced) => {

@@ -183,7 +183,57 @@
   "map": {
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
-    "wholeCity": "Whole city"
+    "wholeCity": "Whole city",
+    "legend": {
+      "title": "Legend",
+      "resultsPerSquare": "Rules met per {cell, number, ::unit/meter} square",
+      "resultsPerBuilding": "Rules met per building",
+      "trees": "Trees",
+      "canopy": "Tree canopy (ground under tree crowns)",
+      "parks": "Parks and forests ({area, number, ::unit/hectare} or more)",
+      "facades": "Facades that see {trees, number} trees or more",
+      "facadesTrees": "Trees seen from these facades",
+      "facade": "This facade",
+      "facadeTrees": "Trees seen from this facade",
+      "circle": "{radius, number, ::unit/meter} around the building",
+      "route": "Walking route",
+      "park": "Nearest park or forest ({area, number, ::unit/hectare} or more)"
+    },
+    "scale": "{unit, select, kilometer {{value, number, ::unit/kilometer}} other {{value, number, ::unit/meter}}}",
+    "attribution": {
+      "label": "Map data",
+      "sources": {
+        "osm": "© OpenStreetMap",
+        "osm_land_polygons": "© OpenStreetMap",
+        "overture_buildings": "Overture",
+        "canopy_height": "Meta & WRI",
+        "ghs_pop": "JRC",
+        "wikidata": "Wikidata",
+        "natural_earth": "Natural Earth"
+      }
+    },
+    "hoverLabel": {
+      "share": "<b>{share, number, percent}</b> meet all three rules"
+    },
+    "pulse": {
+      "overview": {
+        "click": "Click to zoom in",
+        "tap": "Tap to zoom in"
+      },
+      "street": {
+        "click": "Click a building",
+        "tap": "Tap a building"
+      }
+    },
+    "keyHint": {
+      "home": "<key>Arrow keys</key> move · <key>+</key> <key>−</key> zoom · <key>Tab</key> next capital · <key>Enter</key> open it",
+      "overview": "<key>Arrow keys</key> move · <key>+</key> <key>−</key> zoom · <key>Enter</key> zoom in at the centre",
+      "street": "<key>Arrow keys</key> move · <key>+</key> <key>−</key> zoom · <key>Tab</key> next building · <key>Enter</key> select it",
+      "building": "<key>←</key> <key>→</key> switch rules · <key>Tab</key> next facade · <key>Enter</key> select it · <key>Esc</key> close",
+      "facade": "<key>Enter</key> whole building · <key>←</key> <key>→</key> switch rules · <key>Esc</key> close",
+      "explore": "<key>←</key> <key>→</key> switch rules · <key>↑</key> <key>↓</key> move · <key>+</key> <key>−</key> zoom · <key>Esc</key> close"
+    },
+    "twoFingers": "Use two fingers to move the map"
   },
   "notFound": {
     "meta": {

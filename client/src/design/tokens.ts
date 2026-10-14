@@ -36,6 +36,14 @@ export const colors = {
   resultMuted2: { light: "#8f7971", dark: "#978178" },
   resultMuted3: { light: "#766159", dark: "#ae978f" },
 
+  // The figures (0 to 3) written on the result colours, in the legend's
+  // chips: Ink or Surface, whichever reads best, and darker still on Results
+  // 1, a mid-tone that neither reaches 4.5:1 against
+  onResult0: { light: "#2e2a25", dark: "#f3eee6" },
+  onResult1: { light: "#191714", dark: "#000000" },
+  onResult2: { light: "#fffcf5", dark: "#22201c" },
+  onResult3: { light: "#fffcf5", dark: "#22201c" },
+
   // Greenery, water and facades
   tree: { light: "#66b98b", dark: "#4fa879" },
   park: { light: "#dae3c2", dark: "#313925" },
@@ -153,6 +161,18 @@ export const typeScale = {
   cardStatus: { font: "sans", size: 14, lineHeight: 20, weight: 400 },
   // A capital's rank, in its round badge in the ranking
   rank: { font: "sans", size: 11, lineHeight: 14, weight: 600 },
+  // A capital's name in its label on the Home map
+  mapLabel: { font: "serif", size: 18, lineHeight: 22, weight: 600 },
+  // The pulse's tag and the map's hints, in Ink pills
+  tag: { font: "sans", size: 13, lineHeight: 20, weight: 600 },
+  // A key in the map's key hint ("Tab", "Enter")
+  keyCap: { font: "sans", size: 12, lineHeight: 16, weight: 600 },
+  // The figures 0 to 3 in the legend's result chips
+  legendFigure: { font: "sans", size: 10, lineHeight: 10, weight: 700 },
+  // The map's attribution, bottom left
+  attribution: { font: "sans", size: 12, lineHeight: 16, weight: 400 },
+  // The distance of the map's scale bar, bottom right
+  scaleBar: { font: "sans", size: 12, lineHeight: 14, weight: 600 },
   // Section labels such as "Other capitals"
   label: {
     font: "sans",
@@ -168,8 +188,8 @@ export const typeScale = {
 export const radii = {
   key: 3, // swatches of the ranking's key
   bar: 4, // segments of the ranking's bars
-  swatch: 8, // legend swatches
   tab: 11, // the open tab, inside its 4 px track
+  scaleBar: 10, // the map's scale bar
   row: 12, // rows of the ranking and the lists, the quiet button
   control: 14, // buttons, chips, cards, fields, the tab track, the guide
   panel: 22, // panels, menus, map frames

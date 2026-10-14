@@ -19,6 +19,7 @@ import { AzKit } from "./kit-az"
 import { CapitalKit } from "./kit-capital"
 import { ComponentsKit } from "./kit-components"
 import { GuideKit } from "./kit-guide"
+import { MapOverlaysKit } from "./kit-map"
 import { MotionKit } from "./kit-motion"
 import { RankingKit } from "./kit-ranking"
 
@@ -46,6 +47,15 @@ const colorGroups: Array<{
       ["result1", "Results 1"],
       ["result2", "Results 2"],
       ["result3", "Results 3 · all"],
+    ],
+  },
+  {
+    name: "Figures on the results · legend chips",
+    items: [
+      ["onResult0", "On results 0"],
+      ["onResult1", "On results 1", "Darker than Ink: 4.5:1 on a mid-tone"],
+      ["onResult2", "On results 2"],
+      ["onResult3", "On results 3"],
     ],
   },
   {
@@ -109,6 +119,12 @@ const typeClasses: Record<keyof typeof typeScale, string> = {
   cardStatus: "font-sans text-card-status text-ink-2",
   small: "font-sans text-small text-ink-2",
   rank: "font-sans text-rank",
+  mapLabel: "font-serif text-map-label",
+  tag: "font-sans text-tag",
+  keyCap: "font-sans text-key-cap",
+  legendFigure: "font-sans text-legend-figure",
+  attribution: "font-sans text-attribution text-ink-2",
+  scaleBar: "font-sans text-scale-bar text-ink-2",
   label: "font-sans text-label text-ink-2 uppercase",
 }
 
@@ -129,6 +145,12 @@ const typeNames: Record<keyof typeof typeScale, string> = {
   cardStatus: "Card status",
   small: "Small",
   rank: "Rank",
+  mapLabel: "Map label",
+  tag: "Tag",
+  keyCap: "Key",
+  legendFigure: "Legend figure",
+  attribution: "Attribution",
+  scaleBar: "Scale",
   label: "Label",
 }
 
@@ -173,13 +195,23 @@ const typeSamples: Array<[keyof typeof typeScale, string, string]> = [
     "Notes, legends, ranking, footer",
   ],
   ["rank", "17", "A capital's rank, in its round badge in the ranking"],
+  ["mapLabel", "Stockholm", "A capital's name in its label on the Home map"],
+  ["tag", "Click to zoom in", "The pulse's tag and the map's hints"],
+  ["keyCap", "Enter", "A key in the map's key hint"],
+  ["legendFigure", "0 1 2 3", "The figures of the legend's result chips"],
+  [
+    "attribution",
+    "© OpenStreetMap · Overture · Meta & WRI",
+    "The map's attribution",
+  ],
+  ["scaleBar", "50 m", "The map's scale bar"],
   ["label", "Other capitals", "Section labels"],
 ]
 
 const radiusSamples: Array<[string, string, string]> = [
   [`${radii.key} px`, "rounded-key", "Swatches of the ranking's key"],
   [`${radii.bar} px`, "rounded-bar", "Segments of the ranking's bars"],
-  [`${radii.swatch} px`, "rounded-swatch", "Legend swatches"],
+  [`${radii.scaleBar} px`, "rounded-scale-bar", "The map's scale bar"],
   [`${radii.tab} px`, "rounded-tab", "The open tab, inside its track"],
   [`${radii.row} px`, "rounded-row", "Rows of lists, the quiet button"],
   [
@@ -449,6 +481,20 @@ export function KitPage() {
       <AzKit />
       <CapitalKit />
       <AboutKit />
+
+      <div className="flex flex-col gap-1.5">
+        <p className="text-label text-ink-2 uppercase">Map</p>
+        <p className="max-w-190 text-small text-ink-2">
+          What floats on the map, built before the map, on a plain surface
+          standing in for it, to compare with the legends of the
+          reference&apos;s screens and its UI kit (&ldquo;Legend&rdquo;,
+          &ldquo;Map controls&rdquo;, &ldquo;Labels on the map&rdquo; and
+          &ldquo;Touch hint&rdquo; on its Components page, the pulse on its Next
+          step guide page, and its Map page).
+        </p>
+      </div>
+
+      <MapOverlaysKit />
     </main>
   )
 }
