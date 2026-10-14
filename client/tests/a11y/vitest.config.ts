@@ -38,6 +38,10 @@ export default defineConfig({
     name: "a11y",
     include: ["tests/a11y/**/*.test.tsx"],
     setupFiles: ["tests/a11y/matchers.ts", "tests/a11y/setup.ts"],
+    // axe-core checks the whole page: on the kit page's sections, which show
+    // every state twice (light and dark), it takes several seconds, and
+    // longer while the six setups run side by side
+    testTimeout: 60_000,
     browser: {
       enabled: true,
       headless: true,

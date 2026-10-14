@@ -19,9 +19,10 @@ type TouchAnchorProps = Omit<HTMLMotionProps<"a">, "children"> & {
  * An anchor that responds like a button (see `useTouchMotion`): it lifts on
  * hover (unless `lift` is false), squashes and sends out a ring when pressed with the pointer or
  * Enter, and springs back. The router's own handlers (navigation, preloading)
- * are kept alongside ours.
+ * are kept alongside ours. On its own, it is a button-like link that leaves
+ * the site ("Vizzuality" on the About page).
  */
-const TouchAnchor = forwardRef<HTMLAnchorElement, TouchAnchorProps>(
+export const TouchAnchor = forwardRef<HTMLAnchorElement, TouchAnchorProps>(
   function TouchAnchor(
     {
       className,

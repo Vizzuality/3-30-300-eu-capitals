@@ -7,6 +7,7 @@ import { locales } from "@/i18n/locales"
 import { capitalSlugs, type CapitalSlug } from "@/lib/capitals"
 import {
   capitalsSchema,
+  naturalEarthSourceSchema,
   rankingSchema,
   sourcesSchema,
   summarySchema,
@@ -19,7 +20,15 @@ import {
   type Sources,
   type Summary,
 } from "@/data/schemas"
+import naturalEarthFile from "@scripts/stand-in/natural-earth.json" with { type: "json" }
 import { capitalFacts } from "./capitals"
+
+/*
+ * Natural Earth, the source of the Home map's countries, as the first release
+ * with the Home map (2026-10-all) lists it. The stand-in always has the Home
+ * map, so it credits Natural Earth even when built from a release without it.
+ */
+const naturalEarth = naturalEarthSourceSchema.parse(naturalEarthFile)
 
 /**
  * A capital of the reference design: rank, English name, English country
@@ -284,7 +293,25 @@ export function buildStandIn(
       complete,
       capitals,
     }),
-    sources: sourcesSchema.parse({ ...real.sources, release }),
+    sources: sourcesSchema.parse({
+      ...real.sources,
+      release,
+      sources: withNaturalEarth(real.sources.sources),
+    }),
     summaries: summaries.map((summary) => summarySchema.parse(summary)),
   }
+}
+
+/** The sources of a release, with Natural Earth when it does not list it */
+function withNaturalEarth(sources: Sources["sources"]): Sources["sources"] {
+  const [osm, land, buildings, canopy, population, names, countries] = sources
+  return [
+    osm,
+    land,
+    buildings,
+    canopy,
+    population,
+    names,
+    countries ?? naturalEarth,
+  ]
 }

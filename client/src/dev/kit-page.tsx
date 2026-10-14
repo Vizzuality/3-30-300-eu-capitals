@@ -14,6 +14,7 @@ import {
   type TypeStyle,
 } from "@/design/tokens"
 import { cn } from "@/lib/utils"
+import { AboutKit } from "./kit-about"
 import { AzKit } from "./kit-az"
 import { CapitalKit } from "./kit-capital"
 import { ComponentsKit } from "./kit-components"
@@ -438,7 +439,8 @@ export function KitPage() {
           page), the A–Z list (&ldquo;Tabs · search&rdquo; and &ldquo;A–Z
           row&rdquo; on its Components page) and the capital page&apos;s header
           and Other capitals (&ldquo;Other capitals · muted&rdquo; on its
-          Components page, and the capital screens).
+          Components page, and the capital screens), and the About page and the
+          footer (the About screen).
         </p>
       </div>
 
@@ -446,6 +448,7 @@ export function KitPage() {
       <RankingKit />
       <AzKit />
       <CapitalKit />
+      <AboutKit />
     </main>
   )
 }

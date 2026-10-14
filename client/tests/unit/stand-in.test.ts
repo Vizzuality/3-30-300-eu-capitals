@@ -154,6 +154,22 @@ describe("the stand-in release", () => {
     }
   })
 
+  test("Natural Earth is credited, also from a release without it", () => {
+    const real = stockholmRelease()
+    const withoutIt = {
+      ...real,
+      sources: {
+        ...real.sources,
+        sources: real.sources.sources.slice(0, 6) as typeof sources.sources,
+      },
+    }
+    const rebuilt = buildStandIn(withoutIt, reference, "stand-in")
+
+    expect(rebuilt.sources.sources).toHaveLength(7)
+    expect(rebuilt.sources.sources[6]).toEqual(sources.sources[6])
+    expect(sources.sources[6]?.id).toBe("natural_earth")
+  })
+
   test("a real capital is copied as it is, under the stand-in's name", () => {
     const real = stockholmRelease()
     const row = built.ranking.capitals.find(({ slug }) => slug === "stockholm")

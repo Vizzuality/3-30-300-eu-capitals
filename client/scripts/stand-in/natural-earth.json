@@ -1,0 +1,10 @@
+{
+  "id": "natural_earth",
+  "name": "Natural Earth",
+  "version": "5.1.1",
+  "date": "2022-05-13T05:21:46Z",
+  "licence": "Public domain",
+  "licence_url": "https://www.naturalearthdata.com/about/terms-of-use/",
+  "attribution": "Made with Natural Earth",
+  "url": "https://www.naturalearthdata.com/"
+}

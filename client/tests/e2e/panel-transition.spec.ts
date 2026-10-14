@@ -45,7 +45,9 @@ test("a page opened from the top bar with the keyboard starts from the top", asy
     .focus()
   await page.keyboard.press("Enter")
   await expect(page).toHaveURL("/en/about")
-  await expect(announcer(page)).toHaveText("About this site · 3-30-300")
+  await expect(announcer(page)).toHaveText(
+    "About this site: the research and open data behind it · 3-30-300"
+  )
   await expectFocusAtStart(page)
 
   await expect(page.locator("[data-map-area]")).toHaveAttribute(

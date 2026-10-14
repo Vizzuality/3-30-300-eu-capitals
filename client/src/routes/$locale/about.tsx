@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useTranslations } from "use-intl"
 
+import { AboutContent } from "@/components/about/about-content"
 import { NotFoundPage } from "@/components/layout/not-found-page"
+import { sourcesQuery, useSources } from "@/data/queries"
 import { pageHead } from "@/i18n/head"
 import { assertLocale } from "./-guards"
 
 export const Route = createFileRoute("/$locale/about")({
   beforeLoad: ({ params }) => assertLocale(params.locale),
+  // The data credits come from the release's sources, also in the
+  // prerendered HTML
+  loader: async ({ context }) => {
+    await context.queryClient.query({ ...sourcesQuery(), staleTime: "static" })
+  },
   head: (context) =>
     pageHead(context, (t) => ({
       title: t("about.meta.title"),
@@ -19,14 +25,5 @@ export const Route = createFileRoute("/$locale/about")({
 })
 
 function About() {
-  const t = useTranslations("about")
-
-  return (
-    <>
-      <h1 className="font-serif text-title">{t("title")}</h1>
-      <h2 className="font-serif text-heading">{t("basedOn")}</h2>
-      <h2 className="font-serif text-heading">{t("credits")}</h2>
-      <h2 className="font-serif text-heading">{t("links")}</h2>
-    </>
-  )
+  return <AboutContent sources={useSources()} />
 }

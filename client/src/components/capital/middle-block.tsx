@@ -14,7 +14,7 @@ import type { Shares } from "@/data/schemas"
 import type { CapitalView } from "@/lib/capital-view"
 import { wholePercent } from "@/lib/ranking"
 import type { Rule } from "@/lib/rules"
-import { ruleThresholds } from "@/lib/rules"
+import { gridCell, ruleThresholds } from "@/lib/rules"
 
 /*
  * The middle of a capital's page, between the guide and Other capitals,
@@ -28,9 +28,6 @@ import { ruleThresholds } from "@/lib/rules"
  * button, or Escape on the switcher), it moves to the block itself, so the
  * keyboard carries on from there rather than from the start of the page.
  */
-
-/** The side of a square of the city overview's grid, in metres */
-const GRID_CELL = 10
 
 export function MiddleBlock({
   view,
@@ -107,7 +104,7 @@ function OverviewBlock({ shares }: { shares: Shares["rules"] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-body">{t("sentence", { cell: GRID_CELL })}</p>
+      <p className="text-body">{t("sentence", { cell: gridCell })}</p>
       <h2 id={labelId} className="mt-1.5 text-label text-ink-2 uppercase">
         {t("label")}
       </h2>

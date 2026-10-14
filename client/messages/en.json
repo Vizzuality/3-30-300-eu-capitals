@@ -8,7 +8,8 @@
     "about": "About",
     "languageCode": "EN",
     "language": "Language: English",
-    "madeBy": "Made by Vizzuality"
+    "madeBy": "Made by <link>Vizzuality</link>",
+    "code": "Code"
   },
   "home": {
     "meta": {
@@ -155,13 +156,29 @@
   },
   "about": {
     "meta": {
-      "title": "About this site · 3-30-300",
-      "description": "What the 3-30-300 site measures in the 27 EU capitals, the research it builds on, the open data it uses and where its code is published."
+      "title": "About this site: the research and open data behind it · 3-30-300",
+      "description": "The research behind the 3-30-300 maps of the 27 EU capitals, the open data they use with its licences and credits, and who made the site."
     },
+    "back": "{page, select, methodology {Back to Methodology} other {Back to the map}}",
     "title": "About this site",
-    "basedOn": "Based on",
-    "credits": "Data credits",
-    "links": "Links"
+    "intro": "This site shows how well each of the {capitals, number} EU capitals follows the 3-30-300 rule for urban greenery: three trees in view from every home, {canopy, number, percent} tree canopy around it and a park within a {distance, number, ::unit/meter} walk. Every capital is measured with the same open data and the same method.",
+    "basedOn": {
+      "title": "Based on",
+      "text": "The 3-30-300 rule comes from Cecil Konijnendijk, who set it out in the paper below, and a European study has assessed {cities, number} European cities against it. This site is based on both, but its method is its own: it looks at each building and each {cell, number, ::unit/meter} square, and its city limits and data differ, so its figures can differ from the European study.",
+      "papers": {
+        "konijnendijk": "Konijnendijk, C. C. (2023). Evidence-based guidelines for greener, healthier, more resilient neighbourhoods: Introducing the 3–30–300 rule. <journal>Journal of Forestry Research</journal> 34, 821–830.",
+        "bertassello": "Bertassello, L. E., van der Velde, M., Maes, J., Liu, S., Brandt, M. & Feyen, L. (2026). Assessing European cities with the 3-30-300 rule underscores the need for enhanced urban greening efforts. <journal>Nature Communications</journal> 17, 4846."
+      }
+    },
+    "credits": {
+      "title": "Data credits",
+      "terms": "{attribution, select, none {<link>{licence}</link>} other {{text} · <link>{licence}</link>}}"
+    },
+    "links": {
+      "title": "Links",
+      "vizzuality": "Vizzuality",
+      "code": "Code"
+    }
   },
   "map": {
     "zoomIn": "Zoom in",

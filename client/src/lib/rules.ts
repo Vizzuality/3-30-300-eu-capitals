@@ -18,6 +18,9 @@ export const ruleThresholds = {
  * (3 · 30 · 300). A selected building shows the evidence of one at a time,
  * the 3 trees rule first.
  */
+/** The side of a square of the grid every result is computed on, in metres */
+export const gridCell = 10
+
 export const rules = [3, 30, 300] as const
 
 export type Rule = (typeof rules)[number]

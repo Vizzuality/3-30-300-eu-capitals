@@ -1,7 +1,8 @@
-import { useParams } from "@tanstack/react-router"
+import { useLocation, useParams } from "@tanstack/react-router"
 import { useTranslations } from "use-intl"
 
 import { TouchLink } from "@/components/motion/touch-link"
+import { aboutOriginOf, historyEntry } from "@/lib/about-origin"
 import { cn } from "@/lib/utils"
 
 // Methodology and About: the current page's link stays highlighted
@@ -18,6 +19,7 @@ const navLink = cn(
 export function TopBar() {
   const t = useTranslations("frame")
   const { locale } = useParams({ from: "/$locale" })
+  const location = useLocation()
 
   return (
     <header className="flex min-h-top-bar-phone shrink-0 flex-wrap items-center justify-between gap-x-4 pr-3 pl-panel-inset-phone desktop:min-h-top-bar desktop:pr-6 desktop:pl-panel-inset">
@@ -43,9 +45,21 @@ export function TopBar() {
           >
             {t("methodology")}
           </TouchLink>
+          {/*
+           * About remembers the page it is opened from, for its back link;
+           * opened again from About, it keeps the page it came from
+           */}
           <TouchLink
             to="/$locale/about"
             params={{ locale }}
+            state={{
+              aboutFrom:
+                aboutOriginOf({
+                  pathname: location.pathname,
+                  search: location.search,
+                  index: historyEntry(location.state),
+                }) ?? location.state.aboutFrom,
+            }}
             className={navLink}
           >
             {t("about")}

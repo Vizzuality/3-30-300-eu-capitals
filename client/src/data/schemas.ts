@@ -210,10 +210,14 @@ function sourceSchema<Id extends string>(id: Id) {
   })
 }
 
+/** Natural Earth, the source of the Home map's countries */
+export const naturalEarthSourceSchema = sourceSchema("natural_earth")
+
 export const sourcesSchema = z.object({
   schema_version: schemaVersion,
   release: releaseNameSchema,
-  // Always these six, in this order
+  // Always these six, in this order, then Natural Earth (the Home map's
+  // countries) in a release that has the Home map
   sources: z.tuple([
     sourceSchema("osm"),
     sourceSchema("osm_land_polygons"),
@@ -221,6 +225,7 @@ export const sourcesSchema = z.object({
     sourceSchema("canopy_height"),
     sourceSchema("ghs_pop"),
     sourceSchema("wikidata"),
+    naturalEarthSourceSchema.optional(),
   ]),
   // Per capital of the release, as in its summary
   capitals: z.partialRecord(capitalSlugSchema, capitalSourcesSchema),
