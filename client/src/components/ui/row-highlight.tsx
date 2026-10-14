@@ -9,19 +9,20 @@ import {
   type RefObject,
 } from "react"
 
+import type { SquashScales } from "@/components/motion/use-touch-motion"
 import { motionDetails } from "@/design/tokens"
 import { toReducedFade, transitions } from "@/design/tokens-motion"
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion"
 import type { CapitalSlug } from "@/lib/capitals"
 
 /*
- * The highlight of the lists of capitals (the ranking, the A–Z list): the
- * capital under the pointer, or in keyboard focus, sits on a Surface 2 box
- * edged by a hairline, and its outline is edged in Ink. The box is one
- * element behind the rows, which follows from row to row (Follow). Rows do
- * not rise on hover; pressed, they squash and send out a ring like every
- * control. Under reduced motion the box does not move: it fades in on the row
- * it lands on.
+ * The highlight of the lists of capitals (the ranking, the A–Z list, Other
+ * capitals): the capital under the pointer, or in keyboard focus, sits on a
+ * Surface 2 box edged by a hairline, and its outline is edged in Ink. The box
+ * is one element behind the rows, which follows from row to row (Follow).
+ * Rows do not rise on hover; pressed, they squash with the box, as one
+ * piece, and send out a ring, like a button. Under reduced motion the box
+ * does not move: it fades in on the row it lands on.
  *
  * Each row carries its capital's slug as `data-slug`, inside a container
  * that is `relative`.
@@ -38,14 +39,17 @@ function findRow(container: HTMLElement | null, slug: string) {
  * The highlight box, placed on the row of `at`, or fading out where it was
  * when no row is highlighted (or its row is gone). Its place comes from the
  * row's position in the list, so the panel's scrolling never moves it off
- * its row.
+ * its row. It squashes about its centre, its row's, with `squash` (from
+ * `useRowHighlight`), while its place and size follow (Follow).
  */
 export function RowHighlight({
   container,
   at,
+  squash,
 }: {
   container: RefObject<HTMLElement | null>
   at: CapitalSlug | undefined
+  squash: SquashScales
 }) {
   const reduced = usePrefersReducedMotion()
   const y = useMotionValue(0)
@@ -136,7 +140,13 @@ export function RowHighlight({
       aria-hidden="true"
       data-slot="row-highlight"
       className="pointer-events-none absolute inset-x-0 top-0"
-      style={{ y, height, opacity }}
+      style={{
+        y,
+        height,
+        opacity,
+        scaleX: squash.scaleX,
+        scaleY: squash.scaleY,
+      }}
     >
       <span className="absolute inset-0 rounded-row border border-line bg-surface-2" />
     </motion.span>
@@ -146,28 +156,39 @@ export function RowHighlight({
 /**
  * Which row is highlighted: the row under the pointer or the row in keyboard
  * focus, the latest of the two, or else `highlighted`, a capital highlighted
- * from elsewhere (the map). Spread `listProps` on the list's container and
- * `rowProps(slug)` on each row's link.
+ * from elsewhere (the map) or at rest (the capital of the page, in Other
+ * capitals). Spread `listProps` on the list's container and `rowProps(slug)`
+ * on each row, and give `squash` to the `RowHighlight`: the row the box is
+ * on, pressed, squashes it with it.
  */
 export function useRowHighlight(highlighted?: CapitalSlug) {
+  const scaleX = useMotionValue(1)
+  const scaleY = useMotionValue(1)
+  const [squash] = useState<SquashScales>(() => ({ scaleX, scaleY }))
   const [hovered, setHovered] = useState<CapitalSlug>()
   const [focused, setFocused] = useState<CapitalSlug>()
   const [latest, setLatest] = useState<Source>("pointer")
   const active =
     latest === "focus" ? (focused ?? hovered) : (hovered ?? focused)
 
+  const hot = active ?? highlighted
+
   return {
-    hot: active ?? highlighted,
+    hot,
+    squash,
     listProps: { onPointerLeave: () => setHovered(undefined) },
     rowProps: (slug: CapitalSlug) => ({
-      onPointerEnter: (event: PointerEvent<HTMLAnchorElement>) => {
+      // Only the row the box is on squashes it: a finger's tap, which does
+      // not hover, squashes the row alone, as it does a quiet button
+      squashWith: slug === hot ? squash : undefined,
+      onPointerEnter: (event: PointerEvent<HTMLElement>) => {
         // Fingers do not hover: a tap opens the capital
         if (event.pointerType !== "touch") {
           setLatest("pointer")
           setHovered(slug)
         }
       },
-      onFocus: (event: FocusEvent<HTMLAnchorElement>) => {
+      onFocus: (event: FocusEvent<HTMLElement>) => {
         // The keyboard's focus, not a click's
         if (event.currentTarget.matches(":focus-visible")) {
           setLatest("focus")

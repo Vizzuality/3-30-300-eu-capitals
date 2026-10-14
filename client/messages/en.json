@@ -82,7 +82,13 @@
       "title": "{capital}: trees in view, tree canopy and parks near every home · 3-30-300",
       "description": "How many residents of {capital} see three trees from home, have 30% tree canopy around them and live within a 300 m walk of a park? Explore the map, building by building."
     },
+    "allCapitals": "All capitals",
+    "residents": "{country} · {scale, select, millions {about {residents, number, ::compact-long @##} residents} other {about {residents, number} residents}}",
+    "share": "<b>{three, number, percent}</b> of residents meet all three rules",
+    "key": "<met3>all {three, number} · {threeShare, number, percent}</met3> <met2>{two, number} · {twoShare, number, percent}</met2> <met1>{one, number} · {oneShare, number, percent}</met1> <met0>none · {noneShare, number, percent}</met0>",
+    "shares": "{three, number, percent} of residents meet all three rules, {two, number, percent} meet two, {one, number, percent} one and {none, number, percent} none",
     "otherCapitals": "Other capitals",
+    "allRanking": "All {capitals, number}<hidden> capitals, in the ranking</hidden>",
     "closeBuilding": "Close the building"
   },
   "methodology": {

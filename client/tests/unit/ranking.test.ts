@@ -2,7 +2,13 @@ import { describe, expect, test } from "vitest"
 
 import { rankingSchema, type Shares } from "@/data/schemas"
 import { outlinePath } from "@/lib/outline"
-import { barSegments, inTenths, wholePercent } from "@/lib/ranking"
+import type { CapitalSlug } from "@/lib/capitals"
+import {
+  barSegments,
+  inTenths,
+  otherCapitals,
+  wholePercent,
+} from "@/lib/ranking"
 import rankingFile from "@fixtures/release/ranking.json"
 
 const withMet = (met: Shares["met"]): Shares => ({
@@ -139,5 +145,33 @@ describe("a capital's outline", () => {
     expect(d.match(/Z/g)).toHaveLength(3)
     // The hole, inside the square
     expect(d).toContain("M12.5 37.5L37.5 37.5L37.5 12.5L12.5 12.5Z")
+  })
+})
+
+describe("other capitals", () => {
+  const ranking = rankingSchema.parse(rankingFile).capitals
+  const around = (slug: CapitalSlug, rows = ranking) =>
+    otherCapitals(rows, slug).map((row) => row.slug)
+
+  test("a capital between the ones ranked just above and just below it", () => {
+    // 16, 17 and 18
+    expect(around("stockholm")).toEqual(["paris", "stockholm", "brussels"])
+    // 1, 2 and 3: the second is not on an edge
+    expect(around("berlin")).toEqual(["helsinki", "berlin", "nicosia"])
+  })
+
+  test("the first and the last take the two closest", () => {
+    expect(around("helsinki")).toEqual(["helsinki", "berlin", "nicosia"])
+    expect(around("valletta")).toEqual(["athens", "lisbon", "valletta"])
+  })
+
+  test("a release with fewer capitals shows them all, in order", () => {
+    const [first, second] = ranking
+    expect(around("berlin", [first, second])).toEqual(["helsinki", "berlin"])
+    expect(around("helsinki", [first])).toEqual(["helsinki"])
+  })
+
+  test("a capital missing from the ranking has none", () => {
+    expect(around("stockholm", ranking.slice(0, 3))).toEqual([])
   })
 })

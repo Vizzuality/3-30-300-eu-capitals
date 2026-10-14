@@ -12,7 +12,6 @@ import { IntlProvider } from "use-intl"
 import { Ranking } from "@/components/ranking/ranking"
 import { RankingList } from "@/components/ranking/ranking-list"
 import { capitalsSchema, rankingSchema } from "@/data/schemas"
-import { motionDetails } from "@/design/tokens"
 import { timeZone } from "@/i18n/locales"
 import capitalsFile from "@fixtures/release/capitals.json"
 import rankingFile from "@fixtures/release/ranking.json"
@@ -61,12 +60,6 @@ function States({ rows }: { rows: Array<[string, ReactNode]> }) {
   )
 }
 
-/* A state held still: the row at the shape of its squash (Squash held) */
-function Squashed({ children }: { children: ReactNode }) {
-  const { x, y } = motionDetails.squashRowScale
-  return <div style={{ transform: `scale(${x}, ${y})` }}>{children}</div>
-}
-
 export function RankingKit() {
   return (
     <IntlProvider locale="en" messages={messages} timeZone={timeZone}>
@@ -100,10 +93,11 @@ export function RankingKit() {
               Hover the rows, or reach them with Tab: the highlight (Surface 2,
               a hairline, the outline edged in Ink) follows from row to row in
               400 ms (Follow). Rows do not rise on hover. Pressing a row
-              squashes it, sends out a ring and opens its capital. Under reduced
-              motion nothing moves: the highlight fades in on its row. On phones
-              (below 1024 px wide), the bar and the number take less room. Shown
-              at the panel&apos;s width (416 px).
+              squashes it and its background together while held, with a ring,
+              like a button, and opens its capital. Under reduced motion nothing
+              moves: the highlight fades in on its row. On phones (below 1024 px
+              wide), the bar and the number take less room. Shown at the
+              panel&apos;s width (416 px).
             </>
           }
         >
@@ -121,7 +115,9 @@ export function RankingKit() {
               Highlighted: the row under the pointer, the capital under the
               pointer on the map (from step 15), or a row in keyboard focus;
               rows do not rise. Focus adds the 2 px Ink focus ring, for the
-              keyboard only. Pressed: the row at the height of its squash.
+              keyboard only. Pressed: shown at rest, as wide as the Focus row; a
+              press squashes the row and its background together while held,
+              with a ring, like a button.
             </>
           }
         >
@@ -159,13 +155,12 @@ export function RankingKit() {
                 ],
                 [
                   "Pressed",
-                  <Squashed key="pressed">
-                    <RankingList
-                      rows={[secondRow]}
-                      capitals={capitals}
-                      highlighted={secondRow.slug}
-                    />
-                  </Squashed>,
+                  <RankingList
+                    key="pressed"
+                    rows={[secondRow]}
+                    capitals={capitals}
+                    highlighted={secondRow.slug}
+                  />,
                 ],
               ]}
             />

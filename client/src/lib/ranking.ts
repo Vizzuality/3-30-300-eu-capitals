@@ -1,4 +1,5 @@
 import type { Shares } from "@/data/schemas"
+import type { CapitalSlug } from "@/lib/capitals"
 
 /*
  * The ranking of the capitals, as the panel shows it: one row per capital,
@@ -47,4 +48,26 @@ export function barSegments(shares: Shares): Array<BarSegment> {
 /** Whether a rank is on the podium: the top three have a filled badge */
 export function isPodium(rank: number) {
   return rank <= 3
+}
+
+/** How many rows "Other capitals" shows: the capital and two around it */
+const OTHER_CAPITALS = 3
+
+/**
+ * The rows of "Other capitals", on a capital's page: the capital with the
+ * capitals ranked just above and just below it, in the ranking's order. The
+ * first and the last capital, with no neighbour on one side, take the two
+ * closest on the other. A release with fewer capitals shows them all; one
+ * without this capital shows none.
+ */
+export function otherCapitals<Row extends { slug: CapitalSlug }>(
+  rows: ReadonlyArray<Row>,
+  slug: CapitalSlug
+): Array<Row> {
+  const index = rows.findIndex((row) => row.slug === slug)
+  if (index === -1) {
+    return []
+  }
+  const first = Math.max(0, Math.min(index - 1, rows.length - OTHER_CAPITALS))
+  return rows.slice(first, first + OTHER_CAPITALS)
 }

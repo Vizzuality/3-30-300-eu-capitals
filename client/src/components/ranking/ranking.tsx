@@ -35,7 +35,7 @@ function KeyItem({
 
 // Each colour of the bars is marked in the key's one message, so a language
 // can word (and order) it as it needs
-const keyTags = {
+export const keyTags = {
   met3: (chunks: ReactNode) => <KeyItem rules={3}>{chunks}</KeyItem>,
   met2: (chunks: ReactNode) => <KeyItem rules={2}>{chunks}</KeyItem>,
   met1: (chunks: ReactNode) => <KeyItem rules={1}>{chunks}</KeyItem>,

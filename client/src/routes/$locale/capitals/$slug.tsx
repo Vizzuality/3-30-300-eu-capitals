@@ -1,9 +1,17 @@
 import { createFileRoute, notFound } from "@tanstack/react-router"
-import { useLocale, useTranslations } from "use-intl"
 
+import { CapitalHeader } from "@/components/capital/capital-header"
+import { OtherCapitals } from "@/components/capital/other-capitals"
 import { NextStepGuide } from "@/components/guide/next-step-guide"
 import { NotFoundPage } from "@/components/layout/not-found-page"
-import { summaryQuery, useSummary } from "@/data/queries"
+import {
+  capitalsQuery,
+  rankingQuery,
+  summaryQuery,
+  useCapitals,
+  useRanking,
+  useSummary,
+} from "@/data/queries"
 import { pageHead } from "@/i18n/head"
 import { nameIn } from "@/i18n/names"
 import { capitalSearchSchema } from "@/lib/capital-search"
@@ -21,12 +29,18 @@ export const Route = createFileRoute("/$locale/capitals/$slug")({
     }
     return { slug: params.slug }
   },
+  // The header's figures, and the ranking and outlines of Other capitals,
+  // also in the prerendered HTML
   loader: async ({ context }) => {
+    const [summary] = await Promise.all([
+      context.queryClient.query({
+        ...summaryQuery(context.slug),
+        staleTime: "static",
+      }),
+      context.queryClient.query({ ...rankingQuery(), staleTime: "static" }),
+      context.queryClient.query({ ...capitalsQuery(), staleTime: "static" }),
+    ])
     // A capital the release does not have yet is a missing page
-    const summary = await context.queryClient.query({
-      ...summaryQuery(context.slug),
-      staleTime: "static",
-    })
     if (!summary) {
       throw notFound()
     }
@@ -43,13 +57,14 @@ export const Route = createFileRoute("/$locale/capitals/$slug")({
       }
     }),
   // On phones, "Other capitals" comes after the map band
-  staticData: { afterMapBand: OtherCapitals },
+  staticData: { afterMapBand: CapitalNeighbours },
   notFoundComponent: NotFoundPage,
   component: Capital,
 })
 
+// The parts of the page that float in, one after the other: the header,
+// then the guide, then Other capitals (after the map band on phones)
 function Capital() {
-  const locale = useLocale()
   const { slug } = Route.useRouteContext()
   const summary = useSummary(slug)
   const search = Route.useSearch()
@@ -58,16 +73,16 @@ function Capital() {
   // or a selected building
   return (
     <>
-      <h1 className="font-serif text-title">{nameIn(summary.name, locale)}</h1>
+      <CapitalHeader summary={summary} />
       <NextStepGuide state={guideState({ page: "capital", ...search })} />
     </>
   )
 }
 
-function OtherCapitals() {
-  const t = useTranslations("capital")
+function CapitalNeighbours() {
+  const { slug } = Route.useRouteContext()
+  const ranking = useRanking()
+  const { capitals } = useCapitals()
 
-  return (
-    <h2 className="text-label text-ink-2 uppercase">{t("otherCapitals")}</h2>
-  )
+  return <OtherCapitals slug={slug} ranking={ranking} capitals={capitals} />
 }

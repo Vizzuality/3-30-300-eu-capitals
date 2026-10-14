@@ -158,3 +158,20 @@ test("a tab that does not exist opens the ranking", async ({ page }) => {
 
   await expect(tab(page, "Ranking")).toHaveAttribute("aria-selected", "true")
 })
+
+test("the tabs share the track's width equally", async ({ page }) => {
+  for (const path of ["/en", "/de"]) {
+    await page.goto(path)
+    await hydrated(page)
+
+    const track = await page.getByRole("tablist").boundingBox()
+    const ranking = await tab(page, "Ranking").boundingBox()
+    const az = await tab(page, "A–Z list").boundingBox()
+    if (!track || !ranking || !az) {
+      throw new Error("The tabs are not on screen")
+    }
+    expect(Math.abs(ranking.width - az.width)).toBeLessThan(0.5)
+    // Across the whole track, inside its 4 px padding and gap
+    expect(ranking.width + az.width + 12).toBeCloseTo(track.width, 0)
+  }
+})

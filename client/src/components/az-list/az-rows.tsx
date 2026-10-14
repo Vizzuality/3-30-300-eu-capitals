@@ -10,6 +10,7 @@ import {
   type RowHighlightProps,
 } from "@/components/ui/row-highlight"
 import type { Capital } from "@/data/schemas"
+import { motionDetails } from "@/design/tokens"
 import type { AzCapital } from "@/lib/az-list"
 import type { CapitalSlug } from "@/lib/capitals"
 
@@ -44,6 +45,7 @@ function AzRow({
         to="/$locale/capitals/$slug"
         params={{ locale, slug: capital.slug }}
         lift={false}
+        squashScale={motionDetails.squashRowScale}
         data-slug={capital.slug}
         className="flex w-full items-center gap-3 rounded-row border border-transparent p-2 text-ink"
         {...props}
@@ -85,13 +87,14 @@ export function AzRows({
   const container = useRef<HTMLDivElement>(null)
   const {
     hot,
+    squash,
     listProps,
     rowProps: highlightProps,
   } = useRowHighlight(highlighted)
 
   return (
     <div ref={container} className="relative -mx-2" {...listProps}>
-      <RowHighlight container={container} at={hot} />
+      <RowHighlight container={container} at={hot} squash={squash} />
       {/* Lists without bullets keep their list semantics in Safari */}
       {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
       <ul role="list" className="flex flex-col gap-0.5">

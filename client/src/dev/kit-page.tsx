@@ -15,6 +15,7 @@ import {
 } from "@/design/tokens"
 import { cn } from "@/lib/utils"
 import { AzKit } from "./kit-az"
+import { CapitalKit } from "./kit-capital"
 import { ComponentsKit } from "./kit-components"
 import { GuideKit } from "./kit-guide"
 import { MotionKit } from "./kit-motion"
@@ -427,14 +428,17 @@ export function KitPage() {
           The blocks of the panel, built from the components, to compare with
           the reference&apos;s UI kit: the next step guide (its Next step guide
           page), the ranking (&ldquo;Ranking · Home&rdquo; on its Components
-          page) and the A–Z list (&ldquo;Tabs · search&rdquo; and &ldquo;A–Z
-          row&rdquo; on its Components page).
+          page), the A–Z list (&ldquo;Tabs · search&rdquo; and &ldquo;A–Z
+          row&rdquo; on its Components page) and the capital page&apos;s header
+          and Other capitals (&ldquo;Other capitals · muted&rdquo; on its
+          Components page, and the capital screens).
         </p>
       </div>
 
       <GuideKit />
       <RankingKit />
       <AzKit />
+      <CapitalKit />
     </main>
   )
 }

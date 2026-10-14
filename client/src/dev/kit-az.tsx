@@ -14,7 +14,6 @@ import { AzRows } from "@/components/az-list/az-rows"
 import { HomeTabsView } from "@/components/home/home-tabs"
 import { SearchField } from "@/components/ui/search-field"
 import { capitalsSchema, rankingSchema } from "@/data/schemas"
-import { motionDetails } from "@/design/tokens"
 import { timeZone } from "@/i18n/locales"
 import { azList } from "@/lib/az-list"
 import type { HomeTab } from "@/lib/home-search"
@@ -63,12 +62,6 @@ function States({ rows }: { rows: Array<[string, ReactNode]> }) {
       ))}
     </dl>
   )
-}
-
-/* A state held still: the row at the shape of its squash (Squash held) */
-function Squashed({ children }: { children: ReactNode }) {
-  const { x, y } = motionDetails.squashRowScale
-  return <div style={{ transform: `scale(${x}, ${y})` }}>{children}</div>
 }
 
 /** Home's tabs, with the tab open kept here rather than in the address */
@@ -191,7 +184,9 @@ export function AzKit() {
               hairline, the outline edged in Ink) under the pointer or in
               keyboard focus, the highlight following from row to row (Follow);
               rows do not rise. Focus adds the 2 px Ink focus ring, for the
-              keyboard only. Pressed: the row at the height of its squash.
+              keyboard only. Pressed: shown at rest, as wide as the Focus row; a
+              press squashes the row and its background together while held,
+              with a ring, like a button.
             </>
           }
         >
@@ -220,12 +215,11 @@ export function AzKit() {
                 ],
                 [
                   "Pressed",
-                  <Squashed key="pressed">
-                    <AzRows
-                      entries={[secondRow]}
-                      highlighted={secondRow.capital.slug}
-                    />
-                  </Squashed>,
+                  <AzRows
+                    key="pressed"
+                    entries={[secondRow]}
+                    highlighted={secondRow.capital.slug}
+                  />,
                 ],
               ]}
             />

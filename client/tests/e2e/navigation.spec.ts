@@ -145,3 +145,20 @@ test("changing the language keeps the page and the map area", async ({
   await expectPage(page, "/fr/methodology", "How we checked every home")
   await expectSameMapArea(page, instance)
 })
+
+test("the site name is the current page on Home only", async ({ page }) => {
+  const siteName = page
+    .getByRole("banner")
+    .getByRole("link", { name: "3-30-300, back to Home" })
+
+  for (const path of ["/en", "/en?tab=az", "/de"]) {
+    await page.goto(path)
+    await mapAreaInstance(page)
+    await expect(siteName).toHaveAttribute("aria-current", "page")
+  }
+  for (const path of ["/en/capitals/stockholm", "/en/about"]) {
+    await page.goto(path)
+    await mapAreaInstance(page)
+    await expect(siteName).not.toHaveAttribute("aria-current")
+  }
+})
