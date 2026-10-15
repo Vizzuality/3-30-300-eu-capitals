@@ -1,18 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * Moving on from a capital's page: "All capitals" and "All 27" go back to
  * the ranking on Home, and the rows of Other capitals open the capitals
  * ranked around this one, clicked or tapped, or reached with Tab and opened
  * with Enter. The first and the last capital show the two closest.
  */
-
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
-}
 
 async function press(target: Locator, isMobile: boolean) {
   await target.scrollIntoViewIfNeeded()

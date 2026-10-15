@@ -79,12 +79,23 @@ const versionedSource = z.object({
 })
 const unversionedSource = z.object({ version: z.null(), date: dateSchema })
 
+/** An OpenStreetMap relation, pinned to one of its versions */
+const pinnedRelation = z.object({
+  relation: z.int().positive(),
+  relation_version: z.int().positive(),
+})
+
 /** The version and date of every source used for one capital */
 const capitalSourcesSchema = z.object({
+  // The extract read: a capital whose area crosses the edge of every single
+  // region reads several, joined with ", " (and a date interval when their
+  // dates differ)
   osm: versionedSource.extend({
     // The boundary relation and its pinned version
-    relation: z.int().positive(),
-    relation_version: z.int().positive(),
+    ...pinnedRelation.shape,
+    // Relations cut out of the boundary's area to give the city's territory
+    // (Nicosia: the UN buffer zone), when there are any
+    subtracted: z.array(pinnedRelation).min(1).optional(),
   }),
   osm_land_polygons: unversionedSource,
   overture_buildings: versionedSource,
@@ -143,10 +154,17 @@ const capitalSchema = z.object({
   country: countrySchema,
   residents: z.int().nonnegative(),
   centre: lonLatSchema,
-  // Where the enlarged outline is drawn on Home
+  // Where the enlarged outline is drawn on Home: the centre, unless the
+  // outline was nudged away from a neighbour
   display: lonLatSchema,
   // Square root of the city's area in km²
   km: z.number().positive(),
+  // The enlargement on Home: the outline is drawn `scale` times its size,
+  // around `display`
+  scale: z.number().positive(),
+  // When the outline was nudged off its true position, the point of the
+  // drawn outline nearest to the centre, for a thin line back to it
+  leader: lonLatSchema.nullable(),
   // One entry per polygon: its rings, exterior first, then holes
   outline: z.array(z.array(ringSchema).min(1)).min(1),
   placeholder: placeholderSchema,

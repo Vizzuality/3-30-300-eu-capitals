@@ -181,6 +181,10 @@
     }
   },
   "map": {
+    "name": {
+      "home": "Map of Europe",
+      "capital": "Map of {capital}, {view, select, street {street level} building {selected building} other {city overview}}"
+    },
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "wholeCity": "Whole city",
@@ -233,7 +237,11 @@
       "facade": "<key>Enter</key> whole building · <key>←</key> <key>→</key> switch rules · <key>Esc</key> close",
       "explore": "<key>←</key> <key>→</key> switch rules · <key>↑</key> <key>↓</key> move · <key>+</key> <key>−</key> zoom · <key>Esc</key> close"
     },
-    "twoFingers": "Use two fingers to move the map"
+    "twoFingers": "Use two fingers to move the map",
+    "announce": {
+      "overview": "City overview",
+      "street": "Street level"
+    }
   },
   "notFound": {
     "meta": {

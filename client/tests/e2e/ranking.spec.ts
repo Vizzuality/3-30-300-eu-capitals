@@ -1,16 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * Each row of the ranking on Home opens its capital: clicked or tapped, or
  * reached with Tab and opened with Enter.
  */
-
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
-}
 
 const row = (page: Page, capital: string, rank: number) =>
   page.getByRole("link", { name: new RegExp(`^${capital}, rank ${rank}:`) })
@@ -131,7 +126,11 @@ test(
       page.evaluate(
         () => (window as unknown as { copyFade: CopyFade }).copyFade
       )
-    await expect.poll(async () => (await copyFade()).done).toBe(true)
+    // Meanwhile the map flies to the capital, drawn by Chrome's software
+    // renderer, which slows the page while other tests run alongside
+    await expect
+      .poll(async () => (await copyFade()).done, { timeout: 15_000 })
+      .toBe(true)
     const { frames } = await copyFade()
     expect(frames.length).toBeGreaterThan(0)
     for (const y of frames) {

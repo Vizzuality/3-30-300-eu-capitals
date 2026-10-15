@@ -38,3 +38,10 @@ vi.mock("@/data/release.server", () => ({
     throw new Error("The tests read the release from the query cache")
   },
 }))
+
+// axe cannot see inside the map's canvas, and the tests must not need a
+// GPU: the map is drawn by its stand-in, with the same focus stop, keys and
+// overlays
+vi.mock("@/map/load-renderer", async () => ({
+  Renderer: (await import("@/map/stand-in-renderer")).default,
+}))

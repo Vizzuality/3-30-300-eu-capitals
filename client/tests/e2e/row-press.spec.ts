@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * A pressed row of a list of capitals squashes like a button, with its
  * highlight background: while the press is held (the button down, never
@@ -9,13 +11,6 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
  */
 
 test.skip(({ isMobile }) => isMobile, "Pressed with a mouse")
-
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
-}
 
 /** The vertical scale an element is drawn at, from its transform */
 const drawnHeight = (element: Element) =>

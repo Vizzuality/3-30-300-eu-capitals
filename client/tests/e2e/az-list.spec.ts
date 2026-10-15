@@ -1,17 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * Finding a capital in Home's A–Z list: switching to it, searching by a
  * local name typed without its accents or by a country, a search that finds
  * nothing, and the tab kept in the address.
  */
-
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
-}
 
 const tab = (page: Page, name: "Ranking" | "A–Z list") =>
   page.getByRole("tab", { name })

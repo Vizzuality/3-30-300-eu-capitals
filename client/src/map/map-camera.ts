@@ -1,0 +1,291 @@
+import type { MapViewState } from "@deck.gl/core"
+import { useSyncExternalStore } from "react"
+
+import { prefersReducedMotion } from "@/design/reduced-motion"
+import type { VisibleArea } from "@/lib/visible-area"
+
+import {
+  applyAction,
+  cameraMove,
+  clampZoom,
+  fitArea,
+  type Padding,
+  type Size,
+  zoomLimits,
+  type CameraAction,
+  type ZoomLimits,
+} from "./camera"
+
+/*
+ * The map's camera, shared by everything around the map: the overlays read
+ * it (the scale, the zoom buttons' limits), the keys and buttons move it,
+ * and the address follows it. The renderer (deck.gl, or the stand-in map of
+ * the accessibility tests) carries out each move asked for, and reports
+ * every camera it draws, so the camera is always the one on screen.
+ *
+ * It lives outside React: the camera changes on every frame of a move, and
+ * only what reads it re-renders.
+ */
+
+/** Where to take the camera: an area to fit, or a camera as it is */
+export type CameraTarget =
+  | {
+      area: VisibleArea
+      padding?: Padding
+      /**
+       * The whole map (a whole city): shown in full even when that takes a
+       * zoom farther out than the map's limit, which then follows it, so the
+       * visitor can come back to it
+       */
+      whole?: boolean
+    }
+  | { camera: MapViewState }
+
+/** Who asked for a move: the visitor (written to the address), or the page */
+export type MoveSource = "visitor" | "page"
+
+/** A move for the renderer to make */
+export type CameraRequest = {
+  id: number
+  camera: MapViewState
+  /** In milliseconds; 0 jumps */
+  duration: number
+  /** A flight that rises and comes down, for far moves */
+  flight: boolean
+}
+
+export type MapCameraState = {
+  /** The camera on screen; undefined until the map has a size */
+  camera: MapViewState | undefined
+  size: Size
+  limits: ZoomLimits
+  /** The last move asked for */
+  request: CameraRequest | undefined
+}
+
+/** How long the camera must rest before the address follows it */
+export const settleDelay = 400
+
+export class MapCamera {
+  state: MapCameraState = {
+    camera: undefined,
+    size: { width: 0, height: 0 },
+    limits: zoomLimits.home,
+    request: undefined,
+  }
+
+  /**
+   * Called once the camera rests after the visitor moved it, with the
+   * camera and the map's size then
+   */
+  onSettle: ((camera: MapViewState, size: Size) => void) | undefined
+
+  private listeners = new Set<() => void>()
+  // Where the move asked for ends, so keys pressed during it add up
+  private target: MapViewState | undefined
+  // A move asked for before the map had a size
+  private waiting: { target: CameraTarget; source: MoveSource } | undefined
+  private source: MoveSource = "page"
+  // When the move asked for ends (its duration from when it was asked),
+  // in milliseconds since 1970
+  private moveEnds = 0
+  private moved = false
+  // Whether the renderer is still moving the camera (a drag, a pinch, a
+  // glide), as it says
+  private moving = false
+  private timer: ReturnType<typeof setTimeout> | undefined
+  private requests = 0
+  // The map's own zoom limits, before a whole map farther out widens them
+  private mapLimits: ZoomLimits = zoomLimits.home
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  private update(change: Partial<MapCameraState>) {
+    this.state = { ...this.state, ...change }
+    for (const listener of this.listeners) {
+      listener()
+    }
+  }
+
+  /** The map's size on screen, as it changes */
+  setSize(size: Size) {
+    if (
+      size.width === this.state.size.width &&
+      size.height === this.state.size.height
+    ) {
+      return
+    }
+    this.update({ size })
+    if (this.waiting && hasSize(size)) {
+      const { target, source } = this.waiting
+      this.waiting = undefined
+      this.go(target, source)
+    }
+  }
+
+  /** How far the map shown may zoom */
+  setLimits(limits: ZoomLimits) {
+    if (limits !== this.mapLimits) {
+      this.mapLimits = limits
+      this.update({ limits })
+    }
+  }
+
+  /**
+   * Takes the camera to a target: it glides there (or flies, from far away),
+   * or jumps under reduced motion and when the map first appears. A move
+   * asked for by the page forgets the visitor's last moves, so they are
+   * never written to the next page's address.
+   */
+  go(target: CameraTarget, source: MoveSource) {
+    const { size, camera: from } = this.state
+    if (!hasSize(size)) {
+      this.waiting = { target, source }
+      return
+    }
+    const fitted =
+      "camera" in target
+        ? target.camera
+        : fitArea(target.area, size, target.padding)
+    // A whole map is shown in full: the limit moves out to it, or back
+    if ("area" in target && target.whole) {
+      const min = Math.min(this.mapLimits.min, fitted.zoom)
+      if (min !== this.state.limits.min) {
+        this.update({ limits: { ...this.mapLimits, min } })
+      }
+    }
+    // Never past the map's zooms, even for a tiny area in a shared address
+    const camera = {
+      ...fitted,
+      zoom: clampZoom(fitted.zoom, this.state.limits),
+    }
+    if (source === "page") {
+      this.forgetMoves()
+    }
+    const move = from
+      ? cameraMove(from, camera, size, prefersReducedMotion())
+      : { duration: 0, flight: false }
+    this.request(camera, move, source)
+  }
+
+  /** A key or a button's move, from where the last one ends */
+  act(action: CameraAction) {
+    const from = this.target ?? this.state.camera
+    if (!from) {
+      return
+    }
+    const camera = applyAction(from, action, this.state.limits, this.state.size)
+    if (
+      camera.longitude === from.longitude &&
+      camera.latitude === from.latitude &&
+      camera.zoom === from.zoom
+    ) {
+      return
+    }
+    const move = cameraMove(
+      from,
+      camera,
+      this.state.size,
+      prefersReducedMotion()
+    )
+    // Keys and buttons always glide, however far a zoom level goes
+    this.request(camera, { ...move, flight: false }, "visitor")
+  }
+
+  private request(
+    camera: MapViewState,
+    move: { duration: number; flight: boolean },
+    source: MoveSource
+  ) {
+    this.target = camera
+    this.source = source
+    this.moveEnds = Date.now() + move.duration
+    this.requests += 1
+    this.update({ request: { id: this.requests, camera, ...move } })
+  }
+
+  /**
+   * The camera the renderer has drawn: during a move asked for, or as the
+   * visitor drags, scrolls or pinches (a `gesture`, which takes over from
+   * any move)
+   */
+  report(camera: MapViewState, { gesture }: { gesture: boolean }) {
+    if (gesture) {
+      this.target = undefined
+      this.source = "visitor"
+      this.moveEnds = 0
+    }
+    if (this.source === "visitor") {
+      this.moved = true
+    }
+    this.update({ camera })
+    this.waitToSettle()
+  }
+
+  /**
+   * Whether the renderer is moving the camera: a drag, a scroll, a pinch or
+   * a glide under way. The camera never rests before the move is over,
+   * however far apart its frames are on a slow device.
+   */
+  setMoving(moving: boolean) {
+    if (moving === this.moving) {
+      return
+    }
+    this.moving = moving
+    this.waitToSettle()
+  }
+
+  // The camera rests once nothing has moved it for a while, the renderer
+  // has finished moving it, and the move asked for has had its time. A
+  // last frame drawn later still settles again.
+  private waitToSettle() {
+    clearTimeout(this.timer)
+    if (this.moved && !this.moving) {
+      const left = Math.max(0, this.moveEnds - Date.now())
+      this.timer = setTimeout(() => this.settle(), left + settleDelay)
+    }
+  }
+
+  private settle() {
+    const { camera, size } = this.state
+    this.moved = false
+    if (camera) {
+      this.onSettle?.(camera, size)
+    }
+  }
+
+  private forgetMoves() {
+    clearTimeout(this.timer)
+    this.moved = false
+  }
+
+  dispose() {
+    clearTimeout(this.timer)
+    this.listeners.clear()
+  }
+}
+
+function hasSize({ width, height }: Size) {
+  return width > 0 && height > 0
+}
+
+/**
+ * A value read from the camera, re-rendering only when it changes; `read`
+ * must return a value that compares equal while nothing it reads changes
+ * (a number, a string)
+ */
+export function useMapCamera<Value>(
+  store: MapCamera,
+  read: (state: MapCameraState) => Value
+) {
+  return useSyncExternalStore(
+    store.subscribe,
+    () => read(store.state),
+    () => read(store.state)
+  )
+}

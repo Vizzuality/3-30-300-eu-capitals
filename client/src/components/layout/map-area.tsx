@@ -7,7 +7,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 
-import { breakpoints } from "@/design/tokens"
+import { desktopQuery } from "@/hooks/use-desktop-layout"
 import { cn } from "@/lib/utils"
 
 /**
@@ -68,8 +68,6 @@ export function MapSlot({
   )
 }
 
-const desktopQuery = `(min-width: ${breakpoints.desktop / 16}rem)`
-
 // Whether the page runs in the browser, after hydration: false while the
 // server renders and while the browser hydrates its HTML
 const subscribeToNothing = () => () => {}
@@ -80,6 +78,9 @@ function useIsHydrated() {
     () => false
   )
 }
+
+// How many map areas this page has made, to tell each one apart
+let areasMade = 0
 
 /**
  * The map area: one element, created once in the browser and never recreated,
@@ -98,8 +99,11 @@ export function MapArea({ children }: { children?: ReactNode }) {
     element.className = "absolute inset-0"
     element.dataset.mapArea = ""
     // Set once: it stays the same for as long as the area lives, which the
-    // end-to-end tests check
-    element.dataset.instance = crypto.randomUUID()
+    // end-to-end tests check. A count, not a random id: `crypto.randomUUID`
+    // only exists on secure origins, not on a phone opening the
+    // development server by its network address.
+    areasMade += 1
+    element.dataset.instance = String(areasMade)
     return element
   })
   const isHydrated = useIsHydrated()

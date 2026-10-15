@@ -1,7 +1,7 @@
 /*
- * Builds the stand-in release: the capitals of a real release as they are,
- * and every other capital with placeholder figures and outline taken from the
- * reference design, marked `placeholder: true`.
+ * Builds the stand-in release: the capitals of a real release kept as they
+ * are (Stockholm), and every other capital with placeholder figures and
+ * outline taken from the reference design, marked `placeholder: true`.
  */
 import { locales } from "@/i18n/locales"
 import { capitalSlugs, type CapitalSlug } from "@/lib/capitals"
@@ -55,6 +55,63 @@ export type Release = {
 
 const round = (value: number, decimals: number) =>
   Number(value.toFixed(decimals))
+
+/** The capitals of the real release that the stand-in keeps as they are */
+export const standInRealCapitals: ReadonlyArray<CapitalSlug> = ["stockholm"]
+
+/**
+ * A real release cut down to some of its capitals, as if the pipeline had
+ * computed only those: their ranking rows (ranked again), outlines,
+ * summaries and sources. The release's own list of sources is kept as it is.
+ */
+export function onlyCapitals(
+  release: Release,
+  slugs: ReadonlyArray<CapitalSlug>
+): Release {
+  const kept = <T extends { slug: CapitalSlug }>(rows: T[]) =>
+    rows.filter(({ slug }) => slugs.includes(slug))
+  const complete = slugs.length === capitalSlugs.length
+
+  return {
+    ranking: {
+      ...release.ranking,
+      complete,
+      capitals: kept(release.ranking.capitals).map((row, index) => ({
+        ...row,
+        rank: index + 1,
+      })),
+    },
+    capitals: {
+      ...release.capitals,
+      complete,
+      capitals: kept(release.capitals.capitals),
+    },
+    sources: {
+      ...release.sources,
+      capitals: Object.fromEntries(
+        Object.entries(release.sources.capitals).filter(([slug]) =>
+          slugs.includes(slug as CapitalSlug)
+        )
+      ),
+    },
+    summaries: kept(release.summaries),
+  }
+}
+
+/**
+ * How much a capital's outline is enlarged on the Home map, as the pipeline
+ * lays it out: at the Home view's reference scale (6,000 Web Mercator metres
+ * per pixel), its size (the square root of its area) is 12.5 × km^0.4
+ * pixels, so the smaller the city, the more it is enlarged. Rounded to 4
+ * significant digits, as the pipeline writes it.
+ */
+export function homeScale(km: number, latitude: number) {
+  const sizePixels = 12.5 * km ** 0.4
+  const groundMetresPerPixel = 6000 * Math.cos((latitude * Math.PI) / 180)
+  return Number(
+    ((sizePixels * groundMetresPerPixel) / (km * 1000)).toPrecision(4)
+  )
+}
 
 /** The same name in every language, until the pipeline gives translations */
 function sameInEveryLanguage(name: string): Names {
@@ -249,8 +306,11 @@ export function buildStandIn(
     })
     capitals.push({
       ...common,
+      // Placeholders are never nudged apart, so they need no leader line
       display: facts.centre,
       km,
+      scale: homeScale(km, facts.centre[1]),
+      leader: null,
       outline,
       placeholder: true,
     })

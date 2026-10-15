@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { defaultRule, rules } from "@/lib/rules"
-import { parseVisibleArea } from "@/lib/visible-area"
+import { visibleAreaParam } from "@/lib/visible-area"
 
 /*
  * The capital page's state in its address, so a view can be shared and the
@@ -27,10 +27,6 @@ const featureId = z
   .positive()
   .max(2 ** 24)
 
-const visibleArea = z
-  .string()
-  .refine((at) => parseVisibleArea(at) !== undefined)
-
 export const capitalSearchSchema = z
   .object({
     // The selected building (street level)
@@ -40,7 +36,7 @@ export const capitalSearchSchema = z
     // The selected facade of the building (rule 3 only)
     facade: featureId.optional().catch(undefined),
     // The area of the map in view: west, south, east, north
-    at: visibleArea.optional().catch(undefined),
+    at: visibleAreaParam.optional().catch(undefined),
   })
   .transform(({ building, rule, facade, at }) =>
     building === undefined

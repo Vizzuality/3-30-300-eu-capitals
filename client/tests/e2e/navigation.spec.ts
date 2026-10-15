@@ -1,13 +1,15 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * The map area is given an id once it mounts in the browser. While the id
  * stays the same, the area (and later the map) has not been remounted.
  */
 async function mapAreaInstance(page: Page) {
   const mapArea = page.locator("[data-map-area]")
-  // Also waits for the page to be hydrated
-  await expect(mapArea).toHaveAttribute("data-instance", /.+/)
+  // Also waits for the page to be hydrated, and its map set up
+  await hydrated(page)
   return (await mapArea.getAttribute("data-instance")) as string
 }
 
@@ -153,15 +155,21 @@ test("the site name is the current page on Home only", async ({ page }) => {
   const siteName = page
     .getByRole("banner")
     .getByRole("link", { name: "3-30-300, back to Home" })
+  // Once the page is hydrated; the map setting up WebGL does not matter here
+  const pageHydrated = () =>
+    expect(page.locator("[data-map-area]")).toHaveAttribute(
+      "data-instance",
+      /.+/
+    )
 
   for (const path of ["/en", "/en?tab=az", "/de"]) {
     await page.goto(path)
-    await mapAreaInstance(page)
+    await pageHydrated()
     await expect(siteName).toHaveAttribute("aria-current", "page")
   }
   for (const path of ["/en/capitals/stockholm", "/en/about"]) {
     await page.goto(path)
-    await mapAreaInstance(page)
+    await pageHydrated()
     await expect(siteName).not.toHaveAttribute("aria-current")
   }
 })

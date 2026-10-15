@@ -3,10 +3,10 @@
  * `tests/fixtures/release/` from a real release folder
  * written by the pipeline (only its JSON files are read):
  *
- *   pnpm stand-in ../data-processing/data/03_primary/releases/2026-10-stockholm
+ *   pnpm stand-in ../data-processing/data/03_primary/releases/2026-10-all
  *
- * The capitals of the real release are copied as they are; every other one of
- * the 27 gets placeholder figures and outline from the reference design.
+ * Stockholm is copied from the real release as it is; every other one of the
+ * 27 gets placeholder figures and outline from the reference design.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
@@ -20,7 +20,12 @@ import {
   standInRelease,
 } from "@/data/schemas"
 import reference from "@scripts/stand-in/reference-capitals.json" with { type: "json" }
-import { buildStandIn, type ReferenceRow } from "./stand-in/build"
+import {
+  buildStandIn,
+  onlyCapitals,
+  standInRealCapitals,
+  type ReferenceRow,
+} from "./stand-in/build"
 
 const source = process.argv[2]
 if (!source) {
@@ -42,7 +47,11 @@ const real = {
     )
   ),
 }
-const standIn = buildStandIn(real, reference as ReferenceRow[], standInRelease)
+const standIn = buildStandIn(
+  onlyCapitals(real, standInRealCapitals),
+  reference as ReferenceRow[],
+  standInRelease
+)
 
 // Written without whitespace, as the pipeline writes its files
 const target = fileURLToPath(import.meta.resolve("@fixtures/release"))

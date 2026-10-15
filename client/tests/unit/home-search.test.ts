@@ -21,6 +21,13 @@ describe("Home's address", () => {
     }
   })
 
+  test("the area of the map in view, when valid", () => {
+    const at = "-11,34,35,62"
+
+    expect(parse({ at })).toEqual({ tab: "ranking", at })
+    expect(parse({ at: "35,34,-11,62" })).toEqual({ tab: "ranking" })
+  })
+
   test("the capital page's parameters are left out", () => {
     expect(parse({ tab: "az", building: 7, rule: 30 })).toEqual({ tab: "az" })
   })

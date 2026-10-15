@@ -1,18 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * A control rises 2 px under the pointer (Lift) and drops back when the
  * pointer leaves. Wherever the pointer rests, on the control, on its very
  * edge or just past it, the control rises at most once and then keeps still:
  * it never rises and drops over and over under a resting pointer.
  */
-
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
-}
 
 type Point = readonly [x: number, y: number]
 
@@ -74,8 +69,9 @@ test(
   async ({ page, isMobile }) => {
     // Fingers do not hover
     test.skip(isMobile, "Hover needs a mouse")
-    // Sixteen points, each watched for over a second
-    test.setTimeout(60_000)
+    // Sixteen points, each watched for over a second, while other tests draw
+    // their maps alongside
+    test.setTimeout(90_000)
     await page.goto("/en")
     await hydrated(page)
 

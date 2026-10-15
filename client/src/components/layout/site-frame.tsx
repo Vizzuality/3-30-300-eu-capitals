@@ -5,6 +5,7 @@ import {
   PanelPart,
   PanelTransition,
 } from "@/components/motion/panel-transition"
+import { SiteMap } from "@/map/site-map"
 import { MapArea, MapSlot, type MapAreaMode } from "./map-area"
 import { RouteAnnouncer } from "./route-announcer"
 import { SiteFooter } from "./site-footer"
@@ -72,7 +73,9 @@ export function SiteFrame({
           </>
         )}
       </PanelTransition>
-      <MapArea />
+      <MapArea>
+        <SiteMap />
+      </MapArea>
     </div>
   )
 }

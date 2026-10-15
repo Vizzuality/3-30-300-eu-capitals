@@ -14,9 +14,12 @@ import { locales } from "@/i18n/locales"
 import { capitalSlugs } from "@/lib/capitals"
 import {
   buildStandIn,
+  homeScale,
+  onlyCapitals,
   parsePath,
   placeholderOutline,
   placeholderShares,
+  standInRealCapitals,
   type ReferenceRow,
 } from "@scripts/stand-in/build"
 import referenceFile from "@scripts/stand-in/reference-capitals.json"
@@ -139,6 +142,66 @@ describe("placeholder outlines", () => {
     expect(ring[0][0]).toBeCloseTo(-707.1, 1)
     // The SVG's top edge is the northern one
     expect(ring[0][1]).toBeCloseTo(1414.2, 1)
+  })
+})
+
+describe("placeholder enlargements on the Home map", () => {
+  test("as the pipeline computes them: Stockholm's own size and latitude give its scale", () => {
+    const real = capitals.capitals.find(({ slug }) => slug === "stockholm")
+
+    expect(real?.scale).toBe(7.704)
+    expect(homeScale(14.46, 59.321574)).toBe(7.704)
+  })
+
+  test("the smaller the city, the more it is enlarged", () => {
+    expect(homeScale(1, 50)).toBeGreaterThan(homeScale(10, 50))
+  })
+
+  test("placeholders stay where they are, with no leader line", () => {
+    const placeholders = capitals.capitals.filter(
+      ({ placeholder }) => placeholder
+    )
+
+    expect(placeholders).toHaveLength(26)
+    for (const capital of placeholders) {
+      expect(capital.display).toEqual(capital.centre)
+      expect(capital.leader).toBeNull()
+    }
+  })
+})
+
+describe("a real release cut down to Stockholm", () => {
+  test("keeps its rows, ranked again, and its sources", () => {
+    const real = stockholmRelease()
+    // Another capital next to Stockholm, as in a complete release
+    const berlin = {
+      ...real.ranking.capitals[0],
+      slug: "berlin" as const,
+      rank: 1,
+    }
+    const release = {
+      ...real,
+      ranking: {
+        ...real.ranking,
+        complete: true,
+        capitals: [berlin, { ...real.ranking.capitals[0], rank: 2 }],
+      },
+      sources: {
+        ...real.sources,
+        capitals: {
+          ...real.sources.capitals,
+          berlin: real.sources.capitals.stockholm,
+        },
+      },
+    }
+    const cut = onlyCapitals(release, standInRealCapitals)
+
+    expect(cut.ranking.complete).toBe(false)
+    expect(cut.ranking.capitals.map(({ slug, rank }) => [slug, rank])).toEqual([
+      ["stockholm", 1],
+    ])
+    expect(Object.keys(cut.sources.capitals)).toEqual(["stockholm"])
+    expect(cut.sources.sources).toEqual(real.sources.sources)
   })
 })
 

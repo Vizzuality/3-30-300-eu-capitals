@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * A selected building in the panel, opened from its address before the map
  * exists: its rule switcher (3 · 30 · 300) with the mouse, a finger or the
@@ -10,13 +12,6 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
  */
 
 const BUILDING = "/en/capitals/stockholm?building=31947"
-
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
-}
 
 async function press(target: Locator, isMobile: boolean) {
   await target.scrollIntoViewIfNeeded()

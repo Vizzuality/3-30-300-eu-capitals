@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * The Next step guide follows what the visitor does on a page and tells
  * screen readers each change, politely. A new page is announced by its name
@@ -25,13 +27,6 @@ async function expectGuide(
   await expect(region.getByText(label, { exact: true })).toBeVisible()
   await expect(region.getByText(shown, { exact: true })).toBeVisible()
   await expect(region.getByText(hidden, { exact: true })).toBeHidden()
-}
-
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
 }
 
 /** The map is not there yet: the address changes as the map will change it */

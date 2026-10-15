@@ -2,8 +2,16 @@ import { defineConfig, devices } from "@playwright/test"
 
 const PORT = 4173
 
-const desktop = { ...devices["Desktop Chrome"], channel: "chrome" }
-const phone = { ...devices["Pixel 7"], channel: "chrome" }
+const launchOptions = {
+  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+}
+
+const desktop = {
+  ...devices["Desktop Chrome"],
+  channel: "chrome",
+  launchOptions,
+}
+const phone = { ...devices["Pixel 7"], channel: "chrome", launchOptions }
 
 export default defineConfig({
   testDir: ".",
@@ -14,7 +22,9 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
   },
-  // The machine's Chrome, as in the accessibility tests.
+  // The machine's Chrome, as in the accessibility tests. The map draws with
+  // WebGL on Chrome's software renderer (SwiftShader), the same with or
+  // without a GPU, so it runs alike on a laptop and in CI.
   //
   // Every flow runs as a visitor who asks for reduced motion, a mode the
   // site honours: the camera jumps and nothing waits for an animation, so

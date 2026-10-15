@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * Moving to another page changes only the panel's content. Keyboard and
  * screen reader users are then where a full page load would put them: focus
@@ -10,8 +12,8 @@ import { expect, test, type Page } from "@playwright/test"
 
 async function mapAreaInstance(page: Page) {
   const mapArea = page.locator("[data-map-area]")
-  // Also waits for the page to be hydrated
-  await expect(mapArea).toHaveAttribute("data-instance", /.+/)
+  // Also waits for the page to be hydrated, and its map set up
+  await hydrated(page)
   return (await mapArea.getAttribute("data-instance")) as string
 }
 

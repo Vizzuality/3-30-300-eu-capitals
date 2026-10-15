@@ -1,18 +1,12 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { hydrated } from "./page-ready"
+
 /*
  * About, opened from the top bar, leads back to the page it was opened from,
  * as that page was left (its tab, or its building and rule); opened
  * directly, it leads to Home. The footer leads to Vizzuality.
  */
-
-/** Waits for the page to be hydrated, so its links are the router's */
-async function hydrated(page: Page) {
-  await expect(page.locator("[data-map-area]")).toHaveAttribute(
-    "data-instance",
-    /.+/
-  )
-}
 
 async function expectPage(page: Page, path: string, heading: string) {
   await expect(page).toHaveURL(path)

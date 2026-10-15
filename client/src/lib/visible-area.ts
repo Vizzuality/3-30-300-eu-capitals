@@ -1,3 +1,5 @@
+import { z } from "zod"
+
 import type { MapView } from "@/lib/guide"
 
 /*
@@ -44,6 +46,37 @@ export function parseVisibleArea(at: string): VisibleArea | undefined {
     south < north
   return valid ? { west, south, east, north } : undefined
 }
+
+/**
+ * The area as the address writes it. Each edge is rounded to the decimals a
+ * pixel of the map needs at its zoom (`degreesPerPixel`, the smallest of a
+ * pixel's width and height in degrees), so the address stays short when
+ * zoomed out and precise to about a metre at street level (5 decimals at
+ * most), and opening it shows the same area to the pixel. An area beyond
+ * the edges of the map's world is cut to them.
+ */
+export function formatVisibleArea(area: VisibleArea, degreesPerPixel: number) {
+  const decimals = Math.min(
+    maxDecimals,
+    Math.max(0, Math.ceil(-Math.log10(degreesPerPixel)))
+  )
+  // Kept on the globe, when the map shows beyond its edges
+  const edges = [
+    Math.max(-180, area.west),
+    Math.max(-85, area.south),
+    Math.min(180, area.east),
+    Math.min(85, area.north),
+  ]
+  return edges.map((edge) => String(Number(edge.toFixed(decimals)))).join(",")
+}
+
+/** About a metre, the most a visitor needs */
+const maxDecimals = 5
+
+/** The area in view as a search parameter of the address (`at`) */
+export const visibleAreaParam = z
+  .string()
+  .refine((at) => parseVisibleArea(at) !== undefined)
 
 /** How wide the area is on the ground, in metres, at its middle latitude */
 export function groundWidth({ west, south, east, north }: VisibleArea) {
