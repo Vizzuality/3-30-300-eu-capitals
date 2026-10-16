@@ -150,7 +150,8 @@ function RankingRow({
 /**
  * The rows, in the order given. `highlighted` is a capital highlighted from
  * elsewhere (the map), as when it is hovered; the pointer and the keyboard
- * take over while they are on a row.
+ * take over while they are on a row, and `onPoint` hears which row they are
+ * on.
  *
  * With `current`, the rows are Other capitals on that capital's page: its
  * row is highlighted at rest, its name in semibold, and is not a link; the
@@ -162,12 +163,14 @@ export function RankingList({
   highlighted,
   current,
   rowProps,
+  onPoint,
 }: {
   rows: Array<RankingRowData>
   capitals: Array<Capital>
   highlighted?: CapitalSlug
   current?: CapitalSlug
   rowProps?: RowProps
+  onPoint?: (slug: CapitalSlug | undefined) => void
 }) {
   const container = useRef<HTMLDivElement>(null)
   const outlines = useMemo(
@@ -180,7 +183,7 @@ export function RankingList({
     squash,
     listProps,
     rowProps: highlightProps,
-  } = useRowHighlight(highlighted ?? current)
+  } = useRowHighlight(highlighted ?? current, onPoint)
 
   return (
     <div ref={container} className="relative -mx-2" {...listProps}>

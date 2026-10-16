@@ -45,6 +45,9 @@ export const capitalsQuery = () => releaseQuery({ kind: "capitals" })
 export const sourcesQuery = () => releaseQuery({ kind: "sources" })
 export const summaryQuery = (slug: CapitalSlug) =>
   releaseQuery({ kind: "summary", slug })
+/** A capital's city limits, loaded by the map in the browser only */
+export const outlineQuery = (slug: CapitalSlug) =>
+  releaseQuery({ kind: "outline", slug })
 
 /*
  * Each page's loader puts the data it needs in the cache first, so these

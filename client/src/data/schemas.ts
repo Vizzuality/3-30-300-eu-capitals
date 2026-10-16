@@ -210,6 +210,41 @@ export const summarySchema = z.object({
   placeholder: placeholderSchema,
 })
 
+// `capitals/<slug>/outline.json`
+
+/** A closed ring of longitudes and latitudes */
+const lonLatRingSchema = z
+  .array(lonLatSchema)
+  .min(4)
+  .refine(
+    (ring) => {
+      const [first, last] = [ring[0], ring.at(-1)]
+      return first[0] === last?.[0] && first[1] === last[1]
+    },
+    { message: "A ring must be closed" }
+  )
+
+/**
+ * The city limits, drawn on the capital's page: a GeoJSON Feature that
+ * deck.gl's GeoJsonLayer takes as it is, always a MultiPolygon (exteriors
+ * counter-clockwise, holes clockwise), with the release's members beside
+ * the GeoJSON ones
+ */
+export const outlineSchema = z.object({
+  type: z.literal("Feature"),
+  schema_version: schemaVersion,
+  release: releaseNameSchema,
+  slug: capitalSlugSchema,
+  // The simplification, in metres on the ground
+  tolerance_m: z.number().nonnegative(),
+  properties: z.object({ slug: capitalSlugSchema }),
+  geometry: z.object({
+    type: z.literal("MultiPolygon"),
+    coordinates: z.array(z.array(lonLatRingSchema).min(1)).min(1),
+  }),
+  placeholder: placeholderSchema,
+})
+
 // `sources.json`
 
 function sourceSchema<Id extends string>(id: Id) {
@@ -330,6 +365,7 @@ export type RankingRow = Ranking["capitals"][number]
 export type Capitals = z.infer<typeof capitalsSchema>
 export type Capital = Capitals["capitals"][number]
 export type Summary = z.infer<typeof summarySchema>
+export type CityOutline = z.infer<typeof outlineSchema>
 export type Sources = z.infer<typeof sourcesSchema>
 export type EvidenceBuilding = z.infer<typeof evidenceBuildingSchema>
 export type EvidencePark = z.infer<typeof evidenceParkSchema>
@@ -342,6 +378,7 @@ export const releaseFileSchemas = {
   capitals: capitalsSchema,
   sources: sourcesSchema,
   summary: summarySchema,
+  outline: outlineSchema,
 }
 
 export type ReleaseFileData = {

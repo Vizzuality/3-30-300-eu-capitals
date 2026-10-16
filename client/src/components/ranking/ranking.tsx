@@ -56,18 +56,21 @@ function RankingKey() {
 /**
  * The whole ranking: the sentence on the capital that leads, the key and the
  * rows, from the release's ranking and the capitals' outlines. `highlighted`
- * is the capital highlighted from elsewhere (the map); `rowProps` are passed
- * on to the rows (the kit page holds a state still with them).
+ * is the capital highlighted from elsewhere (the map), and `onPoint` hears
+ * which row the pointer or the keyboard is on; `rowProps` are passed on to
+ * the rows (the kit page holds a state still with them).
  */
 export function Ranking({
   ranking,
   capitals,
   highlighted,
+  onPoint,
   rowProps,
 }: {
   ranking: RankingData
   capitals: Array<Capital>
   highlighted?: CapitalSlug
+  onPoint?: (slug: CapitalSlug | undefined) => void
   rowProps?: RowProps
 }) {
   const t = useTranslations("ranking")
@@ -93,6 +96,7 @@ export function Ranking({
         rows={rows}
         capitals={capitals}
         highlighted={highlighted}
+        onPoint={onPoint}
         rowProps={rowProps}
       />
     </div>

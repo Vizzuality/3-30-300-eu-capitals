@@ -9,11 +9,17 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent,
   type PointerEvent,
   type RefObject,
 } from "react"
 import { useLocale, useTranslations } from "use-intl"
 
+import {
+  useCapitalHighlight,
+  useSetCapitalHighlight,
+} from "@/components/home/capital-highlight"
+import { HoverLabel } from "@/components/map/hover-label"
 import { KeyHint } from "@/components/map/key-hint"
 import { MapAttribution } from "@/components/map/map-attribution"
 import { MapBottom, mapBottomRow } from "@/components/map/map-bottom"
@@ -25,19 +31,35 @@ import {
   TwoFingerHint,
   useTwoFingerHint,
 } from "@/components/map/two-finger-hint"
-import { capitalsQuery, sourcesQuery, summaryQuery } from "@/data/queries"
+import {
+  capitalsQuery,
+  outlineQuery,
+  rankingQuery,
+  sourcesQuery,
+  summaryQuery,
+} from "@/data/queries"
 import { standInBuilding } from "@/data/stand-in-buildings"
-import { spacing, typeScale } from "@/design/tokens"
+import { prefersReducedMotion } from "@/design/reduced-motion"
+import {
+  motionDetails,
+  motionTokens,
+  spacing,
+  typeScale,
+} from "@/design/tokens"
+import { env } from "@/env"
 import { useDesktopLayout } from "@/hooks/use-desktop-layout"
 import { nameIn } from "@/i18n/names"
+import type { Capital, Ranking } from "@/data/schemas"
 import type { CapitalSearch } from "@/lib/capital-search"
 import { capitalView, guideInput } from "@/lib/capital-view"
 import type { CapitalSlug } from "@/lib/capitals"
 import { guideState, type GuideState, type MapView } from "@/lib/guide"
 import type { LegendView } from "@/lib/map-legend"
+import { wholePercent } from "@/lib/ranking"
 import {
   mapViewOf,
   parseVisibleArea,
+  polygonsArea,
   type VisibleArea,
 } from "@/lib/visible-area"
 import {
@@ -46,13 +68,21 @@ import {
   europeArea,
   keyAction,
   metresPerPixel,
+  viewportOf,
   zoomLimits,
   zoomRoom,
   type Padding,
 } from "./camera"
+import {
+  capitalStep,
+  homeCapitals,
+  type HomeCapital,
+  type LngLat,
+} from "./home-capitals"
 import { Renderer } from "./load-renderer"
 import { MapCamera, useMapCamera, type MapCameraState } from "./map-camera"
 import { mapColors, useColorScheme } from "./map-colors"
+import type { CapitalPress, HomeMap } from "./renderer"
 
 /*
  * The map, in the layout every page shares: made once, it stays on screen
@@ -65,6 +95,12 @@ import { mapColors, useColorScheme } from "./map-colors"
  * the keys common to every view (the arrow keys pan, + and − zoom). The
  * area in view is kept in the address (`at`) once the visitor's moves
  * settle, and a shared address shows the same area.
+ *
+ * On Home it shows the 27 capitals. The capital under the pointer shows its
+ * label and highlights its ranking row, and a row pointed at lifts its
+ * capital. With the keyboard, Tab and Shift+Tab go through the capitals in
+ * the order of the ranking, each shown as on hover, then Tab leaves the map;
+ * Enter, or a click, opens the capital's page once it has wobbled.
  */
 
 /** The page that sets what the map shows */
@@ -159,15 +195,34 @@ export function SiteMap() {
   const at = atOf(shown)
 
   const { data: capitals } = useQuery(capitalsQuery())
+  const { data: ranking } = useQuery(rankingQuery())
   const { data: sources } = useQuery(sourcesQuery())
   const { data: summary } = useQuery({
     ...summaryQuery(slug ?? "stockholm"),
     enabled: slug !== undefined,
   })
+  // The city limits, drawn as soon as they arrive (not part of the page's
+  // HTML: Helsinki's are 814 kB)
+  const { data: outline, isError: noOutline } = useQuery({
+    ...outlineQuery(slug ?? "stockholm"),
+    enabled: slug !== undefined,
+  })
+  const cityOutline = slug && outline?.slug === slug ? outline : undefined
   const city = slug
     ? capitals?.capitals.find((capital) => capital.slug === slug)
     : undefined
-  const cityArea = slug && summary ? bboxArea(summary.bbox) : undefined
+  // The whole city: the bounds of its limits, which the camera waits for,
+  // or, when the limits cannot be had, the summary's box (the same bounds,
+  // rounded outwards)
+  const cityArea = useMemo(
+    () =>
+      cityOutline
+        ? polygonsArea(cityOutline.geometry.coordinates)
+        : slug && summary && (noOutline || outline === null)
+          ? bboxArea(summary.bbox)
+          : undefined,
+    [cityOutline, slug, summary, noOutline, outline]
+  )
 
   // The map's size, and so whether it is on screen
   useLayoutEffect(() => {
@@ -291,6 +346,13 @@ export function SiteMap() {
   // The key hint shows while the map has the keyboard's focus
   const [keyboardFocus, setKeyboardFocus] = useState(false)
 
+  const home = useHomeCapitals({
+    onHome: shown.map === "home",
+    capitals: capitals?.capitals,
+    ranking,
+    locale,
+  })
+
   const twoFingers = useTwoFingers(root, !desktop)
   const visible = useMapCamera(camera, isOnScreen)
 
@@ -316,6 +378,10 @@ export function SiteMap() {
         aria-describedby={hintId}
         tabIndex={0}
         onKeyDown={(event) => {
+          if (home.onKey(event)) {
+            event.preventDefault()
+            return
+          }
           const action = keyAction(event)
           if (action) {
             event.preventDefault()
@@ -325,7 +391,10 @@ export function SiteMap() {
         onFocus={(event) =>
           setKeyboardFocus(event.currentTarget.matches(":focus-visible"))
         }
-        onBlur={() => setKeyboardFocus(false)}
+        onBlur={() => {
+          setKeyboardFocus(false)
+          home.blur()
+        }}
         {...twoFingers.handlers}
         className="absolute inset-0 -outline-offset-2 desktop:touch-none"
       >
@@ -333,7 +402,10 @@ export function SiteMap() {
           <Renderer
             camera={camera}
             colors={colors}
-            city={city}
+            release={env.VITE_DATA_RELEASE}
+            home={home.map}
+            press={home.press}
+            city={cityOutline}
             oneFingerScrolls={!desktop}
             visible={visible}
           />
@@ -355,17 +427,197 @@ export function SiteMap() {
         scale={shown.map === "capital" && <CameraScale camera={camera} />}
         keyHint={<KeyHint id={hintId} state={state} visible={keyboardFocus} />}
       />
+      <CapitalLabel camera={camera} capital={home.labelled} />
       <div className={overlayPlacement.twoFingerHint}>
         <TwoFingerHint visible={twoFingers.visible} />
       </div>
-      {/* A live region, said politely, as the view changes */}
-      <output className="sr-only">{announcement}</output>
+      {/* A live region, said politely, as the view changes or a capital is
+          pointed at */}
+      <output className="sr-only">
+        {shown.map === "home" ? home.announcement : announcement}
+      </output>
     </div>
   )
 }
 
 const isOnScreen = ({ size }: MapCameraState) =>
   size.width > 0 && size.height > 0
+
+/**
+ * The capitals of the Home map and what the visitor does with them: the one
+ * under the pointer, the one in keyboard focus (Tab and Shift+Tab, in the
+ * order of the ranking, then out of the map), the row pointed at in the
+ * ranking, and a capital opened (it wobbles and sends out a ring, then its
+ * page opens; at once under reduced motion)
+ */
+function useHomeCapitals({
+  onHome,
+  capitals,
+  ranking,
+  locale,
+}: {
+  onHome: boolean
+  capitals: Array<Capital> | undefined
+  ranking: Ranking | null | undefined
+  locale: string
+}) {
+  const t = useTranslations("map.announce")
+  const navigate = useNavigate()
+  const shownCapitals = useMemo(
+    () => (capitals ? homeCapitals(capitals, ranking, locale) : undefined),
+    [capitals, ranking, locale]
+  )
+
+  const [pointed, setPointed] = useState<CapitalSlug>()
+  const [focused, setFocused] = useState<CapitalSlug>()
+  // Nothing is pointed at once the map leaves Home
+  const [wasOnHome, setWasOnHome] = useState(onHome)
+  if (wasOnHome !== onHome) {
+    setWasOnHome(onHome)
+    setPointed(undefined)
+    setFocused(undefined)
+  }
+
+  // The map and the ranking highlight each other's capital
+  const mapPoints = onHome ? (focused ?? pointed) : undefined
+  const rowPoints = useCapitalHighlight("list")
+  const setHighlight = useSetCapitalHighlight()
+  useEffect(() => {
+    setHighlight({ map: mapPoints })
+  }, [mapPoints, setHighlight])
+  useEffect(() => () => setHighlight({ map: undefined }), [setHighlight])
+
+  // A capital opened: its page opens once its wobble is over
+  const [press, setPress] = useState<CapitalPress>()
+  const opening = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const open = useCallback(
+    (slug: CapitalSlug, at: LngLat) => {
+      if (opening.current !== undefined) {
+        return
+      }
+      setPress((last) => ({ id: (last?.id ?? 0) + 1, slug, at }))
+      opening.current = setTimeout(
+        () => {
+          opening.current = undefined
+          void navigate({
+            to: "/$locale/capitals/$slug",
+            params: { locale, slug },
+          })
+        },
+        prefersReducedMotion() ? 0 : motionTokens.squash.duration
+      )
+    },
+    [navigate, locale]
+  )
+  useEffect(() => () => clearTimeout(opening.current), [])
+
+  const map = useMemo<HomeMap | undefined>(
+    () =>
+      onHome && shownCapitals
+        ? {
+            capitals: shownCapitals,
+            lifted: mapPoints ?? rowPoints,
+            focused,
+            onHover: setPointed,
+            onPress: open,
+          }
+        : undefined,
+    [onHome, shownCapitals, mapPoints, rowPoints, focused, open]
+  )
+
+  const labelled = shownCapitals?.find(({ slug }) => slug === mapPoints)
+
+  return {
+    map,
+    press,
+    labelled,
+    // What screen readers hear of the capital pointed at
+    announcement:
+      labelled && labelled.share !== undefined
+        ? t("capital", {
+            capital: labelled.name,
+            country: labelled.country,
+            rank: labelled.rank,
+            count: shownCapitals?.length ?? 0,
+            share: wholePercent(labelled.share) / 100,
+          })
+        : "",
+    /** Takes Tab and Enter among the capitals; true when it took the key */
+    onKey: (event: KeyboardEvent<HTMLElement>) => {
+      if (!map || event.altKey || event.ctrlKey || event.metaKey) {
+        return false
+      }
+      if (event.key === "Tab") {
+        const order = map.capitals.map(({ slug }) => slug)
+        const step = capitalStep(order, focused, event.shiftKey)
+        if (step.leaves) {
+          return false
+        }
+        setFocused(step.next)
+        return true
+      }
+      const capital = map.capitals.find(({ slug }) => slug === focused)
+      if (event.key === "Enter" && capital) {
+        open(capital.slug, capital.display)
+        return true
+      }
+      return false
+    },
+    /** The map lost the focus: no capital is in focus any more */
+    blur: () => setFocused(undefined),
+  }
+}
+
+/**
+ * The label of the capital pointed at on the map, 12 px above its lifted
+ * outline (or below it, near the top of the map), following the camera
+ */
+function CapitalLabel({
+  camera,
+  capital,
+}: {
+  camera: MapCamera
+  capital: HomeCapital | undefined
+}) {
+  // Where it is on screen, and the map's size, to the half pixel
+  const placed = useMapCamera(camera, ({ camera: shown, size }) => {
+    if (!capital || !shown) {
+      return ""
+    }
+    const viewport = viewportOf(shown, size)
+    const [x, top] = viewport.project(capital.top)
+    const [, bottom] = viewport.project(capital.bottom)
+    const half = (value: number) => Math.round(value * 2) / 2
+    return [
+      half(x),
+      half(top - motionDetails.liftMap),
+      half(bottom - motionDetails.liftMap),
+      size.width,
+      size.height,
+    ].join()
+  })
+  const [x, y, bottom, width, height] = placed
+    ? placed.split(",").map(Number)
+    : []
+
+  return (
+    <HoverLabel
+      capital={
+        capital && placed && capital.share !== undefined
+          ? {
+              name: capital.name,
+              country: capital.country,
+              share: capital.share,
+            }
+          : undefined
+      }
+      x={x ?? 0}
+      y={y ?? 0}
+      bottom={bottom}
+      map={{ width: width ?? 0, height: height ?? 0 }}
+    />
+  )
+}
 
 /** Zoom in and out, and "Whole city" on a capital's page */
 function ZoomControls({

@@ -1,10 +1,13 @@
 import { env } from "@/env"
+import { capitalSlugs } from "@/lib/capitals"
 import {
   entityTag,
   hasPlaceholders,
   releaseFilePath,
+  type JsonEncoding,
   type ReleaseFile,
 } from "./api"
+import { compress } from "./compress.server"
 import { localReleaseFiles } from "./local-release-files.server"
 import type { ReleaseFiles } from "./release-files"
 import { releaseFileSchemas, type ReleaseFileData } from "./schemas"
@@ -15,15 +18,23 @@ export type ReleaseEntry<Kind extends ReleaseFile["kind"]> = {
   body: string
   etag: string
   placeholder: boolean
+  /** The body compressed, made once per entry and encoding */
+  encoded: (encoding: JsonEncoding) => Promise<Uint8Array<ArrayBuffer>>
 }
 
-// The bucket's reader takes this place once the site is deployed
-const files: ReleaseFiles = localReleaseFiles(env.DATA_RELEASE_DIR)
+/**
+ * The files of the release in use, its JSON files and its tile archives; the
+ * bucket's reader takes this place once the site is deployed
+ */
+export const releaseFiles: ReleaseFiles = localReleaseFiles(
+  env.DATA_RELEASE_DIR
+)
 
 /*
  * In production, each file is read once per process and kept in memory. Only
  * files of the release in use with a known slug get here, so the cache holds
- * at most 30 entries: ranking, capitals, sources and the 27 summaries.
+ * at most 57 entries: ranking, capitals, sources, and the 27 summaries and
+ * outlines.
  * Requests arriving together share one read. In development, files are read
  * on each request, so a rebuilt stand-in release shows on the next reload.
  */
@@ -58,7 +69,7 @@ export function readReleaseFile<File extends ReleaseFile>(
 }
 
 async function read(file: ReleaseFile, path: string) {
-  const text = await files.readText(path)
+  const text = await releaseFiles.readText(path)
   if (text === null) {
     return null
   }
@@ -77,15 +88,55 @@ async function read(file: ReleaseFile, path: string) {
       `${path} belongs to release "${data.release}", not to the release in use, "${release}"`
     )
   }
-  if (file.kind === "summary" && "slug" in data && data.slug !== file.slug) {
-    throw new Error(`${path} is the summary of "${data.slug}"`)
+  if (
+    (file.kind === "summary" || file.kind === "outline") &&
+    "slug" in data &&
+    data.slug !== file.slug
+  ) {
+    throw new Error(`${path} is the ${file.kind} of "${data.slug}"`)
   }
 
   const body = JSON.stringify(data)
+  const encodings = new Map<JsonEncoding, Promise<Uint8Array<ArrayBuffer>>>()
   return {
     data,
     body,
     etag: await entityTag(body),
     placeholder: hasPlaceholders(data),
+    encoded: (encoding: JsonEncoding) => {
+      let encoded = encodings.get(encoding)
+      if (!encoded) {
+        encoded = compress(body, encoding, import.meta.env.PROD)
+        encodings.set(encoding, encoded)
+      }
+      return encoded
+    },
   }
+}
+
+/**
+ * Reads every capital's outline, then compresses them one after the other,
+ * the largest first, so no visitor waits for it: as hard as Brotli goes,
+ * Helsinki's 814 kB take most of a second. Compression runs on Node's worker
+ * threads, so the server answers requests meanwhile; one asking for an
+ * outline still being compressed shares the same work. A file that fails is
+ * reported, and tried again when it is asked for.
+ */
+async function compressOutlines() {
+  const reads = await Promise.allSettled(
+    capitalSlugs.map((slug) => readReleaseFile({ kind: "outline", slug }))
+  )
+  const entries = reads
+    .map((result) => (result.status === "fulfilled" ? result.value : null))
+    .filter((entry) => entry !== null)
+  entries.sort((a, b) => b.body.length - a.body.length)
+  for (const entry of entries) {
+    await entry.encoded("br")
+    await entry.encoded("gzip")
+  }
+}
+
+// In production, as soon as the server loads the data API
+if (import.meta.env.PROD) {
+  void compressOutlines().catch((error: unknown) => console.error(error))
 }

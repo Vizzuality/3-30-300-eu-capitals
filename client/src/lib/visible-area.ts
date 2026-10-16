@@ -92,3 +92,23 @@ export function groundWidth({ west, south, east, north }: VisibleArea) {
 export function mapViewOf(area: VisibleArea | undefined): MapView {
   return area && groundWidth(area) < streetLevelWidth ? "street" : "overview"
 }
+
+/**
+ * The area a MultiPolygon covers, from its exteriors: a city's limits, the
+ * area that shows the whole city
+ */
+export function polygonsArea(
+  polygons: ReadonlyArray<
+    ReadonlyArray<ReadonlyArray<readonly [number, number]>>
+  >
+): VisibleArea {
+  const points = polygons.flatMap(([exterior]) => exterior)
+  const longitudes = points.map(([longitude]) => longitude)
+  const latitudes = points.map(([, latitude]) => latitude)
+  return {
+    west: Math.min(...longitudes),
+    south: Math.min(...latitudes),
+    east: Math.max(...longitudes),
+    north: Math.max(...latitudes),
+  }
+}

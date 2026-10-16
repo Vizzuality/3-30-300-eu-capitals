@@ -163,6 +163,15 @@ export const typeScale = {
   rank: { font: "sans", size: 11, lineHeight: 14, weight: 600 },
   // A capital's name in its label on the Home map
   mapLabel: { font: "serif", size: 18, lineHeight: 22, weight: 600 },
+  // A capital's name under its outline on the Home map, drawn on the map
+  // with a halo in the paper's colour
+  mapName: {
+    font: "sans",
+    size: 11,
+    lineHeight: 11,
+    weight: 600,
+    letterSpacing: 0.02,
+  },
   // The pulse's tag and the map's hints, in Ink pills
   tag: { font: "sans", size: 13, lineHeight: 20, weight: 600 },
   // A key in the map's key hint ("Tab", "Enter")

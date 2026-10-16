@@ -6,4 +6,13 @@
 export interface ReleaseFiles {
   /** The file's text, or null when the release has no such file */
   readText(path: string): Promise<string | null>
+  /**
+   * Up to `length` bytes of the file from `offset` (fewer at its end), or
+   * null when the release has no such file: how the tile archives are read
+   */
+  readBytes(
+    path: string,
+    offset: number,
+    length: number
+  ): Promise<ArrayBuffer | null>
 }

@@ -8,11 +8,13 @@ import { capitalSlugs, type CapitalSlug } from "@/lib/capitals"
 import {
   capitalsSchema,
   naturalEarthSourceSchema,
+  outlineSchema,
   rankingSchema,
   sourcesSchema,
   summarySchema,
   type Capital,
   type Capitals,
+  type CityOutline,
   type Names,
   type Ranking,
   type RankingRow,
@@ -51,6 +53,8 @@ export type Release = {
   capitals: Capitals
   sources: Sources
   summaries: Summary[]
+  /** The city limits drawn on each capital's page */
+  outlines: CityOutline[]
 }
 
 const round = (value: number, decimals: number) =>
@@ -95,6 +99,7 @@ export function onlyCapitals(
       ),
     },
     summaries: kept(release.summaries),
+    outlines: kept(release.outlines),
   }
 }
 
@@ -215,6 +220,14 @@ export function placeholderOutline(path: string, km: number) {
 }
 
 /** West, south, east, north of an outline around `centre`, in degrees */
+/** Metres east and north of a place, as degrees of longitude and latitude */
+function degreesPerMetre(latitude: number) {
+  return {
+    lon: 1 / (111_320 * Math.cos((latitude * Math.PI) / 180)),
+    lat: 1 / 110_574,
+  }
+}
+
 function outlineBounds(
   outline: Capital["outline"],
   [lon, lat]: [number, number]
@@ -222,15 +235,64 @@ function outlineBounds(
   const points = outline.flat(2)
   const xs = points.map(([x]) => x)
   const ys = points.map(([, y]) => y)
-  const metresPerDegreeLon = 111_320 * Math.cos((lat * Math.PI) / 180)
-  const metresPerDegreeLat = 110_574
+  const per = degreesPerMetre(lat)
 
   return [
-    round(lon + Math.min(...xs) / metresPerDegreeLon, 5),
-    round(lat + Math.min(...ys) / metresPerDegreeLat, 5),
-    round(lon + Math.max(...xs) / metresPerDegreeLon, 5),
-    round(lat + Math.max(...ys) / metresPerDegreeLat, 5),
+    round(lon + Math.min(...xs) * per.lon, 5),
+    round(lat + Math.min(...ys) * per.lat, 5),
+    round(lon + Math.max(...xs) * per.lon, 5),
+    round(lat + Math.max(...ys) * per.lat, 5),
   ] as Summary["bbox"]
+}
+
+/** Twice the signed area of a ring: positive when counter-clockwise */
+function signedArea(ring: Array<[number, number]>) {
+  let sum = 0
+  for (let index = 1; index < ring.length; index++) {
+    const [x0, y0] = ring[index - 1]
+    const [x1, y1] = ring[index]
+    sum += x0 * y1 - x1 * y0
+  }
+  return sum
+}
+
+/**
+ * A placeholder's city limits: its placeholder outline in degrees, as the
+ * release writes them (exteriors counter-clockwise, holes clockwise)
+ */
+export function placeholderCityOutline(
+  slug: CapitalSlug,
+  outline: Capital["outline"],
+  [lon, lat]: [number, number],
+  release: string
+): CityOutline {
+  const per = degreesPerMetre(lat)
+  const coordinates = outline.map((rings) =>
+    rings.map((ring, index) => {
+      const turned = [...ring]
+      if (signedArea(ring) > 0 !== (index === 0)) {
+        turned.reverse()
+      }
+      return turned.map(
+        ([x, y]) =>
+          [round(lon + x * per.lon, 6), round(lat + y * per.lat, 6)] as [
+            number,
+            number,
+          ]
+      )
+    })
+  )
+  return outlineSchema.parse({
+    type: "Feature",
+    schema_version: 1,
+    release,
+    slug,
+    // As simplified as the placeholder outline, about 50 m
+    tolerance_m: 50,
+    properties: { slug },
+    geometry: { type: "MultiPolygon", coordinates },
+    placeholder: true,
+  })
 }
 
 function slugOf(name: string) {
@@ -259,6 +321,10 @@ export function buildStandIn(
   const rows: Array<Omit<RankingRow, "rank">> = []
   const capitals: Capital[] = []
   const summaries: Summary[] = []
+  const outlines: CityOutline[] = real.outlines.map((outline) => ({
+    ...outline,
+    release,
+  }))
 
   for (const row of real.ranking.capitals) {
     const { rank: _rank, ...rest } = row
@@ -314,6 +380,7 @@ export function buildStandIn(
       outline,
       placeholder: true,
     })
+    outlines.push(placeholderCityOutline(slug, outline, facts.centre, release))
     summaries.push({
       schema_version: 1,
       release,
@@ -337,6 +404,7 @@ export function buildStandIn(
   )
   capitals.sort((a, b) => a.slug.localeCompare(b.slug))
   summaries.sort((a, b) => a.slug.localeCompare(b.slug))
+  outlines.sort((a, b) => a.slug.localeCompare(b.slug))
 
   const complete = rows.length === capitalSlugs.length
 
@@ -359,6 +427,7 @@ export function buildStandIn(
       sources: withNaturalEarth(real.sources.sources),
     }),
     summaries: summaries.map((summary) => summarySchema.parse(summary)),
+    outlines: outlines.map((outline) => outlineSchema.parse(outline)),
   }
 }
 

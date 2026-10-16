@@ -17,7 +17,8 @@ export function toCssName(key: string) {
 
 const rem = (px: number) => `${px / 16}rem`
 const px = (value: number) => `${value}px`
-const fontFamily = (stack: ReadonlyArray<string>) =>
+/** A font stack as CSS writes it, names with spaces quoted */
+export const fontFamily = (stack: ReadonlyArray<string>) =>
   stack.map((name) => (name.includes(" ") ? `"${name}"` : name)).join(", ")
 
 function declarations(entries: Array<[string, string]>, indent: string) {

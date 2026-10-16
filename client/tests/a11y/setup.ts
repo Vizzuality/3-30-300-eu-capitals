@@ -38,6 +38,11 @@ vi.mock("@/data/release.server", () => ({
     throw new Error("The tests read the release from the query cache")
   },
 }))
+vi.mock("@/data/tiles.server", () => ({
+  readTile: () => {
+    throw new Error("The stand-in map draws no tiles")
+  },
+}))
 
 // axe cannot see inside the map's canvas, and the tests must not need a
 // GPU: the map is drawn by its stand-in, with the same focus stop, keys and

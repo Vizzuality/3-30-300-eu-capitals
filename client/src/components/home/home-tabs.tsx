@@ -4,6 +4,10 @@ import { useState, type ReactNode } from "react"
 import { useTranslations } from "use-intl"
 
 import { AzList } from "@/components/az-list/az-list"
+import {
+  useCapitalHighlight,
+  useSetCapitalHighlight,
+} from "@/components/home/capital-highlight"
 import { Ranking } from "@/components/ranking/ranking"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
 import { useCapitals, useRanking } from "@/data/queries"
@@ -59,6 +63,30 @@ function TabArrival({
   )
 }
 
+/**
+ * The ranking, highlighting the capital the map points at, and telling the
+ * map which row the pointer or the keyboard is on, so it lifts its capital
+ */
+function MapRanking({
+  ranking,
+  capitals,
+}: {
+  ranking: RankingData
+  capitals: Array<Capital>
+}) {
+  const highlighted = useCapitalHighlight("map")
+  const setHighlight = useSetCapitalHighlight()
+
+  return (
+    <Ranking
+      ranking={ranking}
+      capitals={capitals}
+      highlighted={highlighted}
+      onPoint={(slug) => setHighlight({ list: slug })}
+    />
+  )
+}
+
 /** The tabs with `tab` open, telling `onTabChange` when another is chosen */
 export function HomeTabsView({
   tab,
@@ -97,7 +125,7 @@ export function HomeTabsView({
       </TabsList>
       <TabsPanel value="ranking">
         <TabArrival arriving={arriving}>
-          <Ranking ranking={ranking} capitals={capitals} />
+          <MapRanking ranking={ranking} capitals={capitals} />
         </TabArrival>
       </TabsPanel>
       <TabsPanel value="az">

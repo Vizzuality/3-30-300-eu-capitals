@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from "react"
 import { useTranslations } from "use-intl"
 
+import { CapitalHighlightProvider } from "@/components/home/capital-highlight"
 import {
   PanelPart,
   PanelTransition,
@@ -41,41 +42,44 @@ export function SiteFrame({
   const t = useTranslations("frame")
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-surface desktop:h-dvh desktop:min-h-0 desktop:bg-background">
-      <a
-        href="#main"
-        className="sr-only z-20 rounded-control bg-ink text-control text-surface focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:px-4 focus:py-2.5"
-      >
-        {t("skipLink")}
-      </a>
-      <PanelTransition pageKey={pageKey} mapArea={mapArea}>
-        {({ mapArea: shownMapArea, announcement }) => (
-          <>
-            <RouteAnnouncer message={announcement} />
-            <div className="flex flex-1 flex-col desktop:min-h-0 desktop:w-panel desktop:border-r desktop:border-line desktop:bg-surface">
-              <TopBar />
-              <main
-                id="main"
-                tabIndex={-1}
-                className="flex flex-1 flex-col gap-block px-panel-inset-phone pt-1 pb-7 desktop:min-h-0 desktop:overflow-y-auto desktop:px-panel-inset desktop:pt-2"
-              >
-                <PanelPart name="before" pageKey={pageKey}>
-                  {children}
-                </PanelPart>
-                <MapSlot layout="phone" mode={shownMapArea} />
-                <PanelPart name="after" pageKey={pageKey}>
-                  {AfterMapBand && <AfterMapBand />}
-                </PanelPart>
-              </main>
-              <SiteFooter />
-            </div>
-            <MapSlot layout="desktop" mode={shownMapArea} />
-          </>
-        )}
-      </PanelTransition>
-      <MapArea>
-        <SiteMap />
-      </MapArea>
-    </div>
+    // The map and the ranking highlight each other's capital
+    <CapitalHighlightProvider>
+      <div className="relative flex min-h-dvh flex-col bg-surface desktop:h-dvh desktop:min-h-0 desktop:bg-background">
+        <a
+          href="#main"
+          className="sr-only z-20 rounded-control bg-ink text-control text-surface focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:px-4 focus:py-2.5"
+        >
+          {t("skipLink")}
+        </a>
+        <PanelTransition pageKey={pageKey} mapArea={mapArea}>
+          {({ mapArea: shownMapArea, announcement }) => (
+            <>
+              <RouteAnnouncer message={announcement} />
+              <div className="flex flex-1 flex-col desktop:min-h-0 desktop:w-panel desktop:border-r desktop:border-line desktop:bg-surface">
+                <TopBar />
+                <main
+                  id="main"
+                  tabIndex={-1}
+                  className="flex flex-1 flex-col gap-block px-panel-inset-phone pt-1 pb-7 desktop:min-h-0 desktop:overflow-y-auto desktop:px-panel-inset desktop:pt-2"
+                >
+                  <PanelPart name="before" pageKey={pageKey}>
+                    {children}
+                  </PanelPart>
+                  <MapSlot layout="phone" mode={shownMapArea} />
+                  <PanelPart name="after" pageKey={pageKey}>
+                    {AfterMapBand && <AfterMapBand />}
+                  </PanelPart>
+                </main>
+                <SiteFooter />
+              </div>
+              <MapSlot layout="desktop" mode={shownMapArea} />
+            </>
+          )}
+        </PanelTransition>
+        <MapArea>
+          <SiteMap />
+        </MapArea>
+      </div>
+    </CapitalHighlightProvider>
   )
 }

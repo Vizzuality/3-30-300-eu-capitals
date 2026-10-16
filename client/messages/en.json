@@ -240,7 +240,8 @@
     "twoFingers": "Use two fingers to move the map",
     "announce": {
       "overview": "City overview",
-      "street": "Street level"
+      "street": "Street level",
+      "capital": "{capital}, {country}, rank {rank, number} of {count, number}: {share, number, percent} of residents meet all three rules"
     }
   },
   "notFound": {

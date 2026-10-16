@@ -6,6 +6,7 @@ import sourcesFile from "@fixtures/release/sources.json"
 
 import {
   capitalsSchema,
+  outlineSchema,
   rankingSchema,
   sourcesSchema,
   summarySchema,
@@ -40,6 +41,17 @@ const summaryFiles = new Map(
 )
 const summary = (slug: string) => summarySchema.parse(summaryFiles.get(slug))
 
+// The outlines, by the name of their folder
+const outlineFiles = new Map(
+  Object.entries(
+    import.meta.glob<unknown>("@fixtures/release/capitals/*/outline.json", {
+      eager: true,
+      import: "default",
+    })
+  ).map(([path, file]) => [path.split("/").at(-2), file])
+)
+const outlineOf = (slug: string) => outlineSchema.parse(outlineFiles.get(slug))
+
 const only = <T extends { slug: string }>(rows: T[]) =>
   rows.filter(({ slug }) => slug === "stockholm")
 
@@ -60,6 +72,7 @@ function stockholmRelease() {
     },
     sources: { ...sources, release: "2026-10-stockholm" },
     summaries: [{ ...summary("stockholm"), release: "2026-10-stockholm" }],
+    outlines: [{ ...outlineOf("stockholm"), release: "2026-10-stockholm" }],
   }
 }
 
@@ -205,6 +218,15 @@ describe("a real release cut down to Stockholm", () => {
   })
 })
 
+/** Twice a ring's signed area: positive when counter-clockwise */
+const twiceArea = (ring: Array<[number, number]>) =>
+  ring
+    .slice(1)
+    .reduce(
+      (sum, [x1, y1], index) => sum + ring[index][0] * y1 - x1 * ring[index][1],
+      0
+    )
+
 describe("the stand-in release", () => {
   const built = buildStandIn(stockholmRelease(), reference, "stand-in")
 
@@ -214,6 +236,30 @@ describe("the stand-in release", () => {
     expect(built.sources).toEqual(sources)
     for (const builtSummary of built.summaries) {
       expect(builtSummary).toEqual(summary(builtSummary.slug))
+    }
+    expect(built.outlines).toHaveLength(27)
+    for (const builtOutline of built.outlines) {
+      expect(builtOutline).toEqual(outlineOf(builtOutline.slug))
+    }
+  })
+
+  test("each placeholder's city limits lie within its bounds, exteriors counter-clockwise", () => {
+    for (const city of built.outlines.filter(
+      ({ placeholder }) => placeholder
+    )) {
+      const [west, south, east, north] = summary(city.slug).bbox
+      for (const [exterior, ...holes] of city.geometry.coordinates) {
+        expect(twiceArea(exterior)).toBeGreaterThan(0)
+        for (const hole of holes) {
+          expect(twiceArea(hole)).toBeLessThan(0)
+        }
+        for (const [lon, lat] of exterior) {
+          expect(lon).toBeGreaterThanOrEqual(west - 1e-5)
+          expect(lon).toBeLessThanOrEqual(east + 1e-5)
+          expect(lat).toBeGreaterThanOrEqual(south - 1e-5)
+          expect(lat).toBeLessThanOrEqual(north + 1e-5)
+        }
+      }
     }
   })
 
@@ -243,6 +289,10 @@ describe("the stand-in release", () => {
     expect(built.capitals.capitals).toContainEqual(real.capitals.capitals[0])
     expect(built.summaries).toContainEqual({
       ...real.summaries[0],
+      release: "stand-in",
+    })
+    expect(built.outlines).toContainEqual({
+      ...real.outlines[0],
       release: "stand-in",
     })
     expect(built.sources.capitals).toEqual(real.sources.capitals)

@@ -5,13 +5,15 @@ import {
   type MapViewState,
 } from "@deck.gl/core"
 import { cubicBezier } from "motion"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { motionTokens } from "@/design/tokens"
+import type { CapitalSlug } from "@/lib/capitals"
 import { allZooms, clampZoom, type ZoomLimits } from "@/map/camera"
 import { useMapCamera, type CameraRequest } from "@/map/map-camera"
 import type { MapRendererProps } from "@/map/renderer"
 import { baseLayers } from "./base-layers"
+import { useCapitalMotion, useNameFont } from "./capital-motion"
 import { MapGestures, SiteDeck } from "./site-deck"
 
 /*
@@ -56,9 +58,16 @@ function controller(oneFingerScrolls: boolean, zoomLimits: ZoomLimits) {
 // How many deck.gl instances this page has made, to tell each one apart
 let decksMade = 0
 
+/** What the pointer is over: a capital's outline, on Home */
+const capitalOf = (object: unknown) =>
+  (object as { slug?: CapitalSlug } | null)?.slug
+
 export default function DeckRenderer({
   camera,
   colors,
+  release,
+  home,
+  press,
   city,
   oneFingerScrolls,
   visible,
@@ -66,6 +75,11 @@ export default function DeckRenderer({
   const parent = useRef<HTMLDivElement>(null)
   const [deck, setDeck] = useState<SiteDeck>()
   const [loaded, setLoaded] = useState(false)
+
+  // The capitals under the pointer and clicked, told to the map around
+  const homeRef = useRef(home)
+  homeRef.current = home
+  const hovered = useRef<CapitalSlug | undefined>(undefined)
 
   // Made once, never again: navigating, changing the language or resizing
   // the window keeps it, its WebGL context and what it has loaded
@@ -98,7 +112,31 @@ export default function DeckRenderer({
       // The browser may scroll the page vertically; the desktop layout's
       // map area takes every touch (`touch-action` on the map's element)
       touchAction: "pan-y",
+      // Picks read back without waiting for the GPU: deck.gl's own pick as
+      // a press starts, done synchronously, held the page until every frame
+      // queued was drawn (seconds on a slow device), and the press then
+      // counted as too long to be a click
+      pickAsync: "async",
       layers: [],
+      // A flat map: everything is drawn in the order of its layers, as
+      // painted on paper, never hidden by what was drawn before
+      parameters: { depthCompare: "always", depthWriteEnabled: false },
+      // Only the capitals can be picked
+      getCursor: ({ isDragging, isHovering }) =>
+        isDragging ? "grabbing" : isHovering ? "pointer" : "grab",
+      onHover: ({ object }) => {
+        const slug = homeRef.current ? capitalOf(object) : undefined
+        if (slug !== hovered.current) {
+          hovered.current = slug
+          homeRef.current?.onHover(slug)
+        }
+      },
+      onClick: ({ object, coordinate }) => {
+        const slug = capitalOf(object)
+        if (slug && coordinate && homeRef.current) {
+          homeRef.current.onPress(slug, [coordinate[0], coordinate[1]])
+        }
+      },
       onLoad: () => {
         quietCanvas()
         setLoaded(true)
@@ -203,11 +241,64 @@ export default function DeckRenderer({
     deck?.setProps({ controller: controller(oneFingerScrolls, zoomLimits) })
   }, [deck, oneFingerScrolls, zoomLimits])
 
-  useEffect(() => {
+  // The layers, drawn again whenever what they show or their motion
+  // changes, at most once per change of the page's state
+  const names = useMemo(
+    () => home?.capitals.map((capital) => capital.name),
+    [home?.capitals]
+  )
+  const nameFont = useNameFont(names)
+  const drawn = useRef<() => void>(() => {})
+  const queued = useRef(false)
+  const redraw = useCallback(() => {
+    if (!queued.current) {
+      queued.current = true
+      queueMicrotask(() => {
+        queued.current = false
+        drawn.current()
+      })
+    }
+  }, [])
+  const motion = useCapitalMotion({ home, press, camera, redraw })
+  drawn.current = () =>
     deck?.setProps({
-      layers: baseLayers({ colors, city }),
+      layers: baseLayers({
+        colors,
+        release,
+        city,
+        capitals: home && {
+          capitals: home.capitals,
+          focused: home.focused,
+          motion,
+          nameFont,
+        },
+        ring: motion.ring,
+      }),
     })
-  }, [deck, colors, city])
+  useEffect(redraw, [
+    redraw,
+    deck,
+    colors,
+    release,
+    city,
+    home?.capitals,
+    home?.focused,
+    nameFont,
+  ])
+
+  // The capital lifted, for the tests to follow
+  useEffect(() => {
+    if (parent.current) {
+      parent.current.dataset.lifted = home?.lifted ?? ""
+    }
+  }, [home?.lifted])
+
+  // No capital is under the pointer once the map leaves Home
+  useEffect(() => {
+    if (!home) {
+      hovered.current = undefined
+    }
+  }, [home])
 
   // Stops drawing while hidden (once deck.gl has started)
   useEffect(() => {

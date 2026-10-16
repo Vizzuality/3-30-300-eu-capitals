@@ -1,19 +1,28 @@
 /*
  * Writes the stand-in release, the development and test data, to
- * `tests/fixtures/release/` from a real release folder
- * written by the pipeline (only its JSON files are read):
+ * `tests/fixtures/release/` from a real release folder written by the
+ * pipeline (its JSON files, the capitals' outlines, and the Home map's tiles, `europe.pmtiles`,
+ * about 1 MB, copied as they are; the cities' archives are too large to
+ * keep with the tests):
  *
  *   pnpm stand-in ../data-processing/data/03_primary/releases/2026-10-all
  *
  * Stockholm is copied from the real release as it is; every other one of the
  * 27 gets placeholder figures and outline from the reference design.
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import {
+  copyFileSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
   capitalsSchema,
+  outlineSchema,
   rankingSchema,
   sourcesSchema,
   summarySchema,
@@ -46,6 +55,11 @@ const real = {
       readJson(join(source, "capitals", slug, "summary.json"))
     )
   ),
+  outlines: ranking.capitals.map(({ slug }) =>
+    outlineSchema.parse(
+      readJson(join(source, "capitals", slug, "outline.json"))
+    )
+  ),
 }
 const standIn = buildStandIn(
   onlyCapitals(real, standInRealCapitals),
@@ -67,6 +81,11 @@ write("sources.json", standIn.sources)
 for (const summary of standIn.summaries) {
   write(join("capitals", summary.slug, "summary.json"), summary)
 }
+for (const outline of standIn.outlines) {
+  write(join("capitals", outline.slug, "outline.json"), outline)
+}
+// The Home map draws real tiles, whatever the capitals' figures
+copyFileSync(join(source, "europe.pmtiles"), join(target, "europe.pmtiles"))
 
 const placeholders = standIn.ranking.capitals.filter((row) => row.placeholder)
 console.log(

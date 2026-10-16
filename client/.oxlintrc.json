@@ -19,7 +19,15 @@
   },
   "rules": {
     "react/react-in-jsx-scope": "off",
-    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }]
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }],
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "crypto",
+        "property": "randomUUID",
+        "message": "Only secure origins (HTTPS, localhost) have it: a page opened by its network address would fail. Use a counter or useId."
+      }
+    ]
   },
   "ignorePatterns": ["src/routeTree.gen.ts"]
 }

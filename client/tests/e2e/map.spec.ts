@@ -1,4 +1,7 @@
-import { expect, test, type Locator, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+
+import { colors } from "@/design/tokens"
+import { clampZoom, fitArea, viewportOf, zoomLimits } from "@/map/camera"
 
 /*
  * The map: moving it with the mouse, touch and the keyboard, its area kept
@@ -20,6 +23,13 @@ const sodermalm: Area = {
 const sodermalmAt = "18.0603,59.3105,18.0802,59.3201"
 
 const mapOf = (page: Page) => page.getByRole("application")
+
+// The three paper tints of the EU countries on the Home map
+const landTints: Array<{ light: string; dark: string }> = [
+  colors.europeLand1,
+  colors.europeLand2,
+  colors.europeLand3,
+]
 const deckOf = (page: Page) => page.locator("[data-deck-instance]")
 
 /**
@@ -73,9 +83,30 @@ async function tabToMap(page: Page) {
   throw new Error("The map was not reached with Tab")
 }
 
-/** The colour most of the map shows, as #rrggbb (graticule lines aside) */
-async function mapColour(page: Page, map: Locator) {
-  const shot = await map.screenshot()
+/** The area of Europe shown on Home, shared in the address */
+const europe = { west: -11, south: 34, east: 35, north: 62 }
+
+/**
+ * The colour the map shows around a place, as #rrggbb: the most frequent in
+ * a small square, so a line crossing it (the sea's hatching) does not count
+ */
+async function colourAt(page: Page, [longitude, latitude]: [number, number]) {
+  const map = mapOf(page)
+  await map.scrollIntoViewIfNeeded()
+  const box = (await map.boundingBox()) as {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  // Where the place is, as the map fits the shared area
+  const size = { width: box.width, height: box.height }
+  const fitted = fitArea(europe, size)
+  const camera = { ...fitted, zoom: clampZoom(fitted.zoom, zoomLimits.home) }
+  const [x, y] = viewportOf(camera, size).project([longitude, latitude])
+  const shot = await page.screenshot({
+    clip: { x: box.x + x - 4, y: box.y + y - 4, width: 9, height: 9 },
+  })
   return page.evaluate(async (data) => {
     const image = new Image()
     image.src = `data:image/png;base64,${data}`
@@ -85,16 +116,11 @@ async function mapColour(page: Page, map: Locator) {
     canvas.height = image.height
     const context = canvas.getContext("2d") as CanvasRenderingContext2D
     context.drawImage(image, 0, 0)
+    const pixels = context.getImageData(0, 0, image.width, image.height).data
     const counts = new Map<string, number>()
-    // A grid of points away from the overlays at the edges
-    for (let i = 3; i <= 7; i += 1) {
-      for (let j = 3; j <= 7; j += 1) {
-        const x = Math.round((image.width * i) / 10)
-        const y = Math.round((image.height * j) / 10)
-        const [r, g, b] = context.getImageData(x, y, 1, 1).data
-        const hex = `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`
-        counts.set(hex, (counts.get(hex) ?? 0) + 1)
-      }
+    for (let at = 0; at < pixels.length; at += 4) {
+      const hex = `#${[...pixels.subarray(at, at + 3)].map((v) => v.toString(16).padStart(2, "0")).join("")}`
+      counts.set(hex, (counts.get(hex) ?? 0) + 1)
     }
     // The most frequent colour
     return [...counts].reduce((most, entry) =>
@@ -234,22 +260,36 @@ test("a shared address shows its area, on any screen", async ({ page }) => {
   expect(fillsWidth || fillsHeight).toBe(true)
 })
 
-test("the map's colours follow the theme, without reloading", async ({
+test("the map of Europe follows the theme, without reloading", async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: "light" })
-  await page.goto("/en")
+  await page.goto(
+    `/en?at=${europe.west},${europe.south},${europe.east},${europe.north}`
+  )
   const instance = await mapDrawn(page)
-  const map = mapOf(page)
-  await map.scrollIntoViewIfNeeded()
   await page.evaluate(() => {
     ;(window as unknown as { stayed: boolean }).stayed = true
   })
+  // The North Sea, and the middle of France, an EU country in one of the
+  // three paper tints
+  const sea: [number, number] = [3, 55.5]
+  const france: [number, number] = [2.6, 46.6]
 
-  // The sea of the Home map, light then dark
-  await expect.poll(() => mapColour(page, map)).toBe("#dde8e6")
+  await expect.poll(() => colourAt(page, sea)).toBe(colors.europeSea.light)
+  await expect
+    .poll(async () =>
+      landTints.map((tint) => tint.light).includes(await colourAt(page, france))
+    )
+    .toBe(true)
+
   await page.emulateMedia({ colorScheme: "dark" })
-  await expect.poll(() => mapColour(page, map)).toBe("#1c2626")
+  await expect.poll(() => colourAt(page, sea)).toBe(colors.europeSea.dark)
+  await expect
+    .poll(async () =>
+      landTints.map((tint) => tint.dark).includes(await colourAt(page, france))
+    )
+    .toBe(true)
 
   expect(
     await page.evaluate(
@@ -376,18 +416,21 @@ test.describe("on a touch screen", () => {
         })
     )
 
-    // One finger sideways: the hint says to use two
-    // (watched from the start: it shows for 2 s, and a slow drag can last
-    // as long)
+    // One finger sideways, in the middle of the band where the scroll left
+    // it: the hint says to use two (watched from the start: it shows for
+    // 2 s, and a slow drag can last as long)
+    const now = (await map.boundingBox()) as typeof box
+    const y = now.y + now.height / 2
     const hint = page.getByText("Use two fingers to move the map")
     const hintShown = expect(hint).toBeVisible({ timeout: 10_000 })
-    await touchDrag(page, [centre], { x: -120, y: 0 })
+    await touchDrag(page, [{ x: now.x + now.width / 2, y }], {
+      x: -120,
+      y: 0,
+    })
     await hintShown
     await expect(hint).toBeHidden()
 
     // Two fingers move the map, and the address follows
-    const now = (await map.boundingBox()) as typeof box
-    const y = now.y + now.height / 2
     await touchDrag(
       page,
       [

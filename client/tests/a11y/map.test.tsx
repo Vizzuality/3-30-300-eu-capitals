@@ -38,6 +38,46 @@ describe("The map", () => {
     await expect(document.body).toHaveNoA11yViolations()
   })
 
+  test("Home: a capital reached with Tab, its label shown, announced and its row highlighted", async () => {
+    await renderPage("/en")
+
+    await tabToMap()
+    await userEvent.keyboard("{Tab}{Tab}")
+    await expect.element(map()).toHaveFocus()
+    // The second capital of the ranking
+    await expect
+      .poll(
+        () => document.querySelector("[data-map] output.sr-only")?.textContent
+      )
+      .toMatch(/^Berlin, Germany, rank 2 of 27: /)
+    await expect
+      .poll(() => document.querySelector("[data-hover-label]")?.textContent)
+      .toContain("Berlin")
+    // Its ranking row highlighted, once the highlight has faded in on it
+    await expect
+      .poll(() => {
+        const row = document.querySelector<HTMLElement>("[data-slug='berlin']")
+        const highlight = row
+          ?.closest("ol")
+          ?.parentElement?.querySelector<HTMLElement>(
+            "[data-slot='row-highlight']"
+          )
+        return (
+          row !== null &&
+          highlight !== null &&
+          highlight !== undefined &&
+          getComputedStyle(highlight).opacity === "1" &&
+          Math.abs(
+            highlight.getBoundingClientRect().top -
+              row.getBoundingClientRect().top
+          ) < 1
+        )
+      })
+      .toBe(true)
+
+    await expect(document.body).toHaveNoA11yViolations()
+  })
+
   test("a capital: the map moved by keyboard to the street, as it is announced", async () => {
     await renderPage("/en/capitals/stockholm")
 

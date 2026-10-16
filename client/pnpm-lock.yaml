@@ -172,6 +172,9 @@ importers:
       '@deck.gl/core':
         specifier: 9.4.0
         version: 9.4.0(@luma.gl/webgpu@9.4.2(@luma.gl/core@9.4.2)(@luma.gl/shadertools@9.4.2(@luma.gl/core@9.4.2)))
+      '@deck.gl/extensions':
+        specifier: 9.4.0
+        version: 9.4.0(@deck.gl/core@9.4.0(@luma.gl/webgpu@9.4.2(@luma.gl/core@9.4.2)(@luma.gl/shadertools@9.4.2(@luma.gl/core@9.4.2))))(@luma.gl/core@9.4.2)(@luma.gl/engine@9.4.2(@luma.gl/core@9.4.2)(@luma.gl/shadertools@9.4.2(@luma.gl/core@9.4.2)))
       '@deck.gl/geo-layers':
         specifier: 9.4.0
         version: 9.4.0(4812c3599c678c787a3931db28c54a1c)
@@ -190,6 +193,9 @@ importers:
       '@fontsource-variable/noto-serif':
         specifier: 5.3.0
         version: 5.3.0
+      '@loaders.gl/mvt':
+        specifier: 4.5.4
+        version: 4.5.4(@loaders.gl/core@4.5.4)
       '@math.gl/web-mercator':
         specifier: 4.1.0
         version: 4.1.0
@@ -226,6 +232,9 @@ importers:
       motion:
         specifier: 14.1.0
         version: 14.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      pmtiles:
+        specifier: 4.5.0
+        version: 4.5.0
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -3092,6 +3101,9 @@ packages:
     resolution: {integrity: sha512-kVzTnYFYEyQ9RGzBjNCd2+yEqWmVbxl3AHPynv3qQ6JTjv4a+kwRcnqQwIpuP3NnrnIrE/Q6wWAIAvMfIE2/Yg==}
     engines: {node: '>=20'}
     hasBin: true
+
+  pmtiles@4.5.0:
+    resolution: {integrity: sha512-CBeD4SoUluFziGdy/8k7FOjQxQy486n+929W/tWophauvMICpkZ26vGBWhDt/6b1FZQWNaf4jFdT/5+q0Wii5w==}
 
   pngjs@7.0.0:
     resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
@@ -6537,6 +6549,10 @@ snapshots:
   playwright@1.64.0:
     dependencies:
       playwright-core: 1.64.0
+
+  pmtiles@4.5.0:
+    dependencies:
+      fflate: 0.8.3
 
   pngjs@7.0.0: {}
 

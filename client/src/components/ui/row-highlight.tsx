@@ -1,6 +1,7 @@
 import { animate, motion, useMotionValue } from "motion/react"
 import {
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   useState,
@@ -159,9 +160,13 @@ export function RowHighlight({
  * from elsewhere (the map) or at rest (the capital of the page, in Other
  * capitals). Spread `listProps` on the list's container and `rowProps(slug)`
  * on each row, and give `squash` to the `RowHighlight`: the row the box is
- * on, pressed, squashes it with it.
+ * on, pressed, squashes it with it. `onPoint` hears which row the pointer
+ * or the keyboard is on (none once they leave), for the map to follow.
  */
-export function useRowHighlight(highlighted?: CapitalSlug) {
+export function useRowHighlight(
+  highlighted?: CapitalSlug,
+  onPoint?: (slug: CapitalSlug | undefined) => void
+) {
   const scaleX = useMotionValue(1)
   const scaleY = useMotionValue(1)
   const [squash] = useState<SquashScales>(() => ({ scaleX, scaleY }))
@@ -172,6 +177,14 @@ export function useRowHighlight(highlighted?: CapitalSlug) {
     latest === "focus" ? (focused ?? hovered) : (hovered ?? focused)
 
   const hot = active ?? highlighted
+
+  const point = useEffectEvent((slug: CapitalSlug | undefined) =>
+    onPoint?.(slug)
+  )
+  useEffect(() => {
+    point(active)
+  }, [active])
+  useEffect(() => () => point(undefined), [])
 
   return {
     hot,

@@ -37,10 +37,12 @@ test("switching to the A–Z list loads nothing", async ({ page, isMobile }) => 
   await page.goto("/en")
   await hydrated(page)
 
-  // Requests to the data API
+  // Requests to the data API, but for the map's own tiles, which may still
+  // be arriving for the Home map on a slow renderer
   const requests: Array<string> = []
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname.startsWith("/api/")) {
+    const { pathname } = new URL(request.url())
+    if (pathname.startsWith("/api/") && !pathname.includes("/tiles/")) {
       requests.push(request.url())
     }
   })

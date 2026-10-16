@@ -2,12 +2,14 @@ import type { QueryClient } from "@tanstack/react-query"
 
 import {
   capitalsQuery,
+  outlineQuery,
   rankingQuery,
   sourcesQuery,
   summaryQuery,
 } from "@/data/queries"
 import {
   capitalsSchema,
+  outlineSchema,
   rankingSchema,
   sourcesSchema,
   summarySchema,
@@ -18,6 +20,10 @@ import sources from "@fixtures/release/sources.json"
 
 const summaries = import.meta.glob<unknown>(
   "@fixtures/release/capitals/*/summary.json",
+  { eager: true, import: "default" }
+)
+const outlines = import.meta.glob<unknown>(
+  "@fixtures/release/capitals/*/outline.json",
   { eager: true, import: "default" }
 )
 
@@ -42,6 +48,10 @@ export function withStandInRelease(queryClient: QueryClient) {
   for (const file of Object.values(summaries)) {
     const summary = summarySchema.parse(file)
     queryClient.setQueryData(summaryQuery(summary.slug).queryKey, summary)
+  }
+  for (const file of Object.values(outlines)) {
+    const outline = outlineSchema.parse(file)
+    queryClient.setQueryData(outlineQuery(outline.slug).queryKey, outline)
   }
   return queryClient
 }

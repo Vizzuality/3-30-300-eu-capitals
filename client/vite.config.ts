@@ -19,6 +19,12 @@ const pages = locales.flatMap((locale) =>
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  build: {
+    // The map's renderer (deck.gl and its layers) is one chunk of its own,
+    // loaded lazily with the map, never with the first page, whose budget
+    // it does not count against: the warning watches the other chunks
+    chunkSizeWarningLimit: 700,
+  },
   plugins: [
     devtools(),
     tailwindcss(),
