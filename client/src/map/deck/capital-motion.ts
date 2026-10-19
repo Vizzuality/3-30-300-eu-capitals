@@ -13,7 +13,7 @@ import { tween, type Tween } from "@/design/tween"
 import type { CapitalSlug } from "@/lib/capitals"
 import { namesFromZoom, nameCharacters } from "@/map/home-capitals"
 import { useMapCamera, type MapCamera } from "@/map/map-camera"
-import type { CapitalPress, HomeMap } from "@/map/renderer"
+import type { HomeMap, MapPress } from "@/map/renderer"
 import {
   nameFontFamily,
   type CapitalMotion,
@@ -25,7 +25,8 @@ import {
  * with the motion tokens, frame by frame:
  * - Lift: the capital under the pointer, in focus or whose row is pointed
  *   at rises, and the one it leaves settles back (a spring);
- * - Squash and Ring: a pressed capital wobbles once and sends out a ring;
+ * - Squash and Ring: a pressed capital wobbles once and sends out a ring
+ *   (a place of the city overview zoomed into only sends out the ring);
  * - Fade: the names show once the map is close enough to read them.
  * Under reduced motion nothing moves: the lift and the wobble are left out
  * (the edge still turns Ink), the ring is a still one that fades out, and
@@ -41,7 +42,7 @@ export function useCapitalMotion({
   redraw,
 }: {
   home: HomeMap | undefined
-  press: CapitalPress | undefined
+  press: MapPress | undefined
   camera: MapCamera
   /** Stable: the same function for the life of the map */
   redraw: () => void
@@ -101,25 +102,27 @@ export function useCapitalMotion({
     const width = interpolate([...times], [...x])
     const height = interpolate([...times], [...y])
     const { ringScale, ringOpacity } = motionDetails
-    const squash = reduced
-      ? undefined
-      : tween({
-          from: 0,
-          to: 1,
-          token: "squash",
-          onUpdate: (progress) => {
-            motion.squash = {
-              slug: press.slug,
-              x: width(progress),
-              y: height(progress),
-            }
-            redraw()
-          },
-          onComplete: () => {
-            motion.squash = undefined
-            redraw()
-          },
-        })
+    const { slug } = press
+    const squash =
+      reduced || slug === undefined
+        ? undefined
+        : tween({
+            from: 0,
+            to: 1,
+            token: "squash",
+            onUpdate: (progress) => {
+              motion.squash = {
+                slug,
+                x: width(progress),
+                y: height(progress),
+              }
+              redraw()
+            },
+            onComplete: () => {
+              motion.squash = undefined
+              redraw()
+            },
+          })
     const ring = tween({
       from: 0,
       to: 1,

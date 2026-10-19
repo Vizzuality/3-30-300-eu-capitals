@@ -7,13 +7,14 @@ import type { VisibleArea } from "@/lib/visible-area"
 import {
   applyAction,
   cameraMove,
-  clampZoom,
+  constrain,
   fitArea,
+  limitsFor,
+  type CameraLimits,
   type Padding,
   type Size,
   zoomLimits,
   type CameraAction,
-  type ZoomLimits,
 } from "./camera"
 
 /*
@@ -29,16 +30,7 @@ import {
 
 /** Where to take the camera: an area to fit, or a camera as it is */
 export type CameraTarget =
-  | {
-      area: VisibleArea
-      padding?: Padding
-      /**
-       * The whole map (a whole city): shown in full even when that takes a
-       * zoom farther out than the map's limit, which then follows it, so the
-       * visitor can come back to it
-       */
-      whole?: boolean
-    }
+  | { area: VisibleArea; padding?: Padding }
   | { camera: MapViewState }
 
 /** Who asked for a move: the visitor (written to the address), or the page */
@@ -58,9 +50,15 @@ export type MapCameraState = {
   /** The camera on screen; undefined until the map has a size */
   camera: MapViewState | undefined
   size: Size
-  limits: ZoomLimits
+  /** Where the camera may go, for the map's size */
+  limits: CameraLimits
   /** The last move asked for */
   request: CameraRequest | undefined
+  /**
+   * How many times the visitor has moved the map (a drag, a scroll, a pinch,
+   * a key, a button or a click), for what leaves once the map is moved
+   */
+  visitorMoves: number
 }
 
 /** How long the camera must rest before the address follows it */
@@ -72,6 +70,7 @@ export class MapCamera {
     size: { width: 0, height: 0 },
     limits: zoomLimits.home,
     request: undefined,
+    visitorMoves: 0,
   }
 
   /**
@@ -95,8 +94,8 @@ export class MapCamera {
   private moving = false
   private timer: ReturnType<typeof setTimeout> | undefined
   private requests = 0
-  // The map's own zoom limits, before a whole map farther out widens them
-  private mapLimits: ZoomLimits = zoomLimits.home
+  // The map's own limits, whatever its size
+  private mapLimits: CameraLimits = zoomLimits.home
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
@@ -120,7 +119,7 @@ export class MapCamera {
     ) {
       return
     }
-    this.update({ size })
+    this.update({ size, limits: limitsFor(this.mapLimits, size) })
     if (this.waiting && hasSize(size)) {
       const { target, source } = this.waiting
       this.waiting = undefined
@@ -128,11 +127,11 @@ export class MapCamera {
     }
   }
 
-  /** How far the map shown may zoom */
-  setLimits(limits: ZoomLimits) {
+  /** Where the camera of the map shown may go */
+  setLimits(limits: CameraLimits) {
     if (limits !== this.mapLimits) {
       this.mapLimits = limits
-      this.update({ limits })
+      this.update({ limits: limitsFor(limits, this.state.size) })
     }
   }
 
@@ -152,18 +151,8 @@ export class MapCamera {
       "camera" in target
         ? target.camera
         : fitArea(target.area, size, target.padding)
-    // A whole map is shown in full: the limit moves out to it, or back
-    if ("area" in target && target.whole) {
-      const min = Math.min(this.mapLimits.min, fitted.zoom)
-      if (min !== this.state.limits.min) {
-        this.update({ limits: { ...this.mapLimits, min } })
-      }
-    }
-    // Never past the map's zooms, even for a tiny area in a shared address
-    const camera = {
-      ...fitted,
-      zoom: clampZoom(fitted.zoom, this.state.limits),
-    }
+    // Never past the map's limits, even for a tiny area in a shared address
+    const camera = constrain(fitted, this.state.limits, size)
     if (source === "page") {
       this.forgetMoves()
     }
@@ -179,7 +168,11 @@ export class MapCamera {
     if (!from) {
       return
     }
-    const camera = applyAction(from, action, this.state.limits, this.state.size)
+    const camera = constrain(
+      applyAction(from, action, this.state.limits, this.state.size),
+      this.state.limits,
+      this.state.size
+    )
     if (
       camera.longitude === from.longitude &&
       camera.latitude === from.latitude &&
@@ -206,7 +199,10 @@ export class MapCamera {
     this.source = source
     this.moveEnds = Date.now() + move.duration
     this.requests += 1
-    this.update({ request: { id: this.requests, camera, ...move } })
+    this.update({
+      request: { id: this.requests, camera, ...move },
+      visitorMoves: this.state.visitorMoves + (source === "visitor" ? 1 : 0),
+    })
   }
 
   /**
@@ -223,7 +219,10 @@ export class MapCamera {
     if (this.source === "visitor") {
       this.moved = true
     }
-    this.update({ camera })
+    this.update({
+      camera,
+      visitorMoves: this.state.visitorMoves + (gesture ? 1 : 0),
+    })
     this.waitToSettle()
   }
 

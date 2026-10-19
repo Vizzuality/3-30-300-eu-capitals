@@ -5,11 +5,17 @@ import type { MapViewState } from "@deck.gl/core"
 import {
   addressArea,
   applyAction,
+  areaInView,
+  constrain,
+  insideZoom,
+  limitsFor,
   cameraMove,
   fitArea,
   keyAction,
   longestMove,
   panStep,
+  streetCamera,
+  streetScale,
   zoomLimits,
   zoomRoom,
   type Size,
@@ -18,7 +24,10 @@ import { MapCamera, settleDelay } from "@/map/map-camera"
 import { toRgba } from "@/map/map-colors"
 import {
   formatVisibleArea,
+  groundWidth,
+  mapViewOf,
   parseVisibleArea,
+  streetLevelWidth,
   type VisibleArea,
 } from "@/lib/visible-area"
 
@@ -226,22 +235,73 @@ describe("the camera shared around the map", () => {
     vi.useRealTimers()
   })
 
-  test("a whole city wider than the map's zooms is shown in full, and can be zoomed back to", () => {
+  test("in a rectangle, the area in view never leaves it, by any move", () => {
     const { camera } = mapCamera()
-    // About 120 km across: wider than zoom 9 shows on this map
-    const wide = { west: 11.5, south: 41.3, east: 13, north: 42.5 }
+    // Stockholm's overview rectangle, and its desktop least zoom
+    const bounds = {
+      west: 17.245,
+      south: 58.977,
+      east: 18.7158,
+      north: 59.6799,
+    }
+    camera.setLimits({ min: 9.37, max: 18, bounds })
+    const inside = () => {
+      const area = areaInView(camera.state.camera as MapViewState, desktop)
+      const hair = 1e-9
+      return (
+        area.west >= bounds.west - hair &&
+        area.east <= bounds.east + hair &&
+        area.south >= bounds.south - hair &&
+        area.north <= bounds.north + hair
+      )
+    }
 
-    camera.go({ area: wide }, "page")
-    expect(camera.state.camera?.zoom).toBe(zoomLimits.capital.min)
+    // Asked for a far wider area: the farthest zoom the limits allow
+    camera.go({ area: { west: 16, south: 58, east: 20, north: 61 } }, "page")
+    expect(inside()).toBe(true)
+    expect(camera.state.camera?.zoom).toBeCloseTo(
+      Math.max(9.37, insideZoom(bounds, desktop)),
+      6
+    )
 
-    camera.go({ area: wide, whole: true }, "page")
-    const zoom = camera.state.camera?.zoom ?? 0
-    expect(zoom).toBeLessThan(zoomLimits.capital.min)
-    expect(camera.state.limits).toEqual({ ...zoomLimits.capital, min: zoom })
+    // Panned against its edge, and zoomed out at it
+    camera.go({ area: sodermalm }, "page")
+    for (let step = 0; step < 40; step += 1) {
+      camera.act({ kind: "pan", by: [panStep, -panStep] })
+    }
+    expect(inside()).toBe(true)
+    camera.act({ kind: "zoom", by: -1 })
+    camera.act({ kind: "zoom", by: -1 })
+    expect(inside()).toBe(true)
+  })
 
-    // A smaller city brings the limit back
-    camera.go({ area: sodermalm, whole: true }, "page")
-    expect(camera.state.limits).toEqual(zoomLimits.capital)
+  test("a rectangle no wider than the map allows keeps the map's own least zoom", () => {
+    const bounds = {
+      west: 17.245,
+      south: 58.977,
+      east: 18.7158,
+      north: 59.6799,
+    }
+    const phone: Size = { width: 412, height: 386 }
+    // The band shows the rectangle in full from zoom 7.6 or so
+    expect(insideZoom(bounds, phone)).toBeLessThan(7.63)
+    expect(limitsFor({ min: 7.63, max: 18, bounds }, phone).min).toBe(7.63)
+    expect(limitsFor({ min: 7.63, max: 18, bounds }, desktop).min).toBeCloseTo(
+      insideZoom(bounds, desktop),
+      6
+    )
+  })
+
+  test("a camera already inside is left as it is", () => {
+    const bounds = {
+      west: 17.245,
+      south: 58.977,
+      east: 18.7158,
+      north: 59.6799,
+    }
+    const limits = { min: 9, max: 18, bounds }
+    const centred = { longitude: 18.07, latitude: 59.33, zoom: 12 }
+    expect(constrain(centred, limits, desktop)).toEqual(centred)
   })
 
   test("a move asked for before the map has a size waits for it, then jumps", () => {
@@ -320,12 +380,62 @@ describe("the camera shared around the map", () => {
     expect(settled).toEqual([])
   })
 
+  test("only the visitor's moves count as moving the map, gestures included", () => {
+    const { camera } = mapCamera()
+    camera.go({ area: sodermalm }, "page")
+    expect(camera.state.visitorMoves).toBe(0)
+
+    camera.act({ kind: "zoom", by: 1 })
+    expect(camera.state.visitorMoves).toBe(1)
+    camera.go({ area: sodermalm }, "visitor")
+    expect(camera.state.visitorMoves).toBe(2)
+    // A drag, one move per frame; a frame of a move asked for is not one
+    const shown = camera.state.camera as MapViewState
+    camera.report(
+      { ...shown, longitude: shown.longitude + 0.01 },
+      { gesture: true }
+    )
+    expect(camera.state.visitorMoves).toBe(3)
+    camera.report(shown, { gesture: false })
+    expect(camera.state.visitorMoves).toBe(3)
+  })
+
   test("a shared area smaller than the closest zoom opens at that zoom", () => {
     const { camera } = mapCamera()
     const tiny = { west: 18.07, south: 59.315, east: 18.0701, north: 59.31505 }
     camera.go({ area: tiny }, "page")
 
     expect(camera.state.camera?.zoom).toBe(zoomLimits.capital.max)
+  })
+})
+
+describe("zooming in from the city overview", () => {
+  const phone: Size = { width: 412, height: 386 }
+  const stockholm = [18.0686, 59.3293] as const
+  const valletta = [14.5146, 35.8989] as const
+
+  test("centres the place clicked, at the street's scale, the same everywhere", () => {
+    for (const place of [stockholm, valletta]) {
+      for (const size of [desktop, phone]) {
+        const street = streetCamera(place, size, zoomLimits.capital)
+        expect([street.longitude, street.latitude]).toEqual([...place])
+        const area = areaInView(street, size)
+        expect(groundWidth(area) / size.width).toBeCloseTo(streetScale, 2)
+        expect(mapViewOf(area)).toBe("street")
+      }
+    }
+  })
+
+  test("a map too wide for the street at that scale still lands at street level", () => {
+    const wide: Size = { width: 3360, height: 2000 }
+    const street = streetCamera(stockholm, wide, zoomLimits.capital)
+
+    expect(groundWidth(areaInView(street, wide))).toBeLessThan(streetLevelWidth)
+  })
+
+  test("never past the map's zooms", () => {
+    const limits = { min: 9, max: 15 }
+    expect(streetCamera(stockholm, desktop, limits).zoom).toBe(15)
   })
 })
 

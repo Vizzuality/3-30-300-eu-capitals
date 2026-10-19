@@ -37,12 +37,12 @@ export type CapitalMotion = {
   /** The shape of the capital wobbling after a click */
   squash: { slug: CapitalSlug; x: number; y: number } | undefined
   /** The ring sent out by a click: its spread (a scale) and opacity */
-  ring: CapitalRing | undefined
+  ring: PressRing | undefined
   /** The names' opacity: they show once the map is close enough */
   names: number
 }
 
-export type CapitalRing = { at: LngLat; scale: number; opacity: number }
+export type PressRing = { at: LngLat; scale: number; opacity: number }
 
 /**
  * The names' font: its family, the characters of the names, and the
@@ -294,12 +294,12 @@ export function capitalsLayers(input: CapitalLayersInput) {
 }
 
 /**
- * The ring a clicked capital sends out, spreading and fading, drawn even
- * as the capital's page opens
+ * The ring a press sends out, spreading and fading: a clicked capital, drawn
+ * even as its page opens, or a place of the city overview zoomed into
  */
-export function capitalRingLayer(ring: CapitalRing, colors: MapColors) {
-  return new ScatterplotLayer<CapitalRing>({
-    id: "capital-ring",
+export function pressRingLayer(ring: PressRing, colors: MapColors) {
+  return new ScatterplotLayer<PressRing>({
+    id: "press-ring",
     data: [ring],
     getPosition: (shown) => shown.at,
     getRadius: ringRadius * ring.scale,

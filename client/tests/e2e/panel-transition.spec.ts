@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { hydrated } from "./page-ready"
+import { slowAnimations } from "./slow-animations"
 
 /*
  * Moving to another page changes only the panel's content. Keyboard and
@@ -108,15 +109,6 @@ test("changing only the language keeps focus where it is", async ({ page }) => {
  * move always lands during the first fade.
  */
 
-async function slowFades(page: Page) {
-  const devtools = await page.context().newCDPSession(page)
-  await devtools.send("Animation.enable")
-  await devtools.send("Animation.setPlaybackRate", { playbackRate: 0.1 })
-  return async () => {
-    await devtools.send("Animation.setPlaybackRate", { playbackRate: 1 })
-  }
-}
-
 async function openStockholm(page: Page, isMobile: boolean) {
   const row = page.getByRole("link", { name: /^Stockholm, rank 17:/ })
   await row.scrollIntoViewIfNeeded()
@@ -165,7 +157,7 @@ test(
   async ({ page, isMobile }) => {
     await page.goto("/en")
     await mapAreaInstance(page)
-    const normalSpeed = await slowFades(page)
+    const normalSpeed = await slowAnimations(page)
 
     await openStockholm(page, isMobile)
     await fadingTo(page, "Stockholm")
@@ -201,7 +193,7 @@ test(
   async ({ page, isMobile }) => {
     await page.goto("/en")
     await mapAreaInstance(page)
-    const normalSpeed = await slowFades(page)
+    const normalSpeed = await slowAnimations(page)
 
     await openStockholm(page, isMobile)
     await fadingTo(page, "Stockholm")

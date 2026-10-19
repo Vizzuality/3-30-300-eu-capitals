@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import { hydrated } from "./page-ready"
+import { slowAnimations } from "./slow-animations"
 
 /*
  * Each row of the ranking on Home opens its capital: clicked or tapped, or
@@ -84,9 +85,7 @@ test(
 
     // The fade played ten times slower, so that frames of it are seen even
     // when the new page takes long to render
-    const devtools = await page.context().newCDPSession(page)
-    await devtools.send("Animation.enable")
-    await devtools.send("Animation.setPlaybackRate", { playbackRate: 0.1 })
+    await slowAnimations(page)
 
     // Each frame of the fade, where the leaving copy of the row is on screen,
     // from the click until the copy has come and faded out, however long the

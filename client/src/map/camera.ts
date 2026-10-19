@@ -4,10 +4,17 @@ import {
   fitBounds,
   getBounds,
   getFlyToDuration,
+  getMeterZoom,
+  lngLatToWorld,
+  worldToLngLat,
 } from "@math.gl/web-mercator"
 
 import { motionTokens } from "@/design/tokens"
-import { formatVisibleArea, type VisibleArea } from "@/lib/visible-area"
+import {
+  formatVisibleArea,
+  streetLevelWidth,
+  type VisibleArea,
+} from "@/lib/visible-area"
 
 /*
  * What moves the map's camera beyond the gestures deck.gl handles itself:
@@ -93,6 +100,73 @@ export type MapKind = "home" | "capital"
 export type ZoomLimits = { min: number; max: number }
 
 /**
+ * Where the camera may go: its zooms, and on a capital's page the
+ * overview's rectangle, which the area in view never leaves
+ */
+export type CameraLimits = ZoomLimits & { bounds?: VisibleArea }
+
+/** A rectangle in the units of deck.gl's world (512 at zoom 0), y down */
+function worldBox({ west, south, east, north }: VisibleArea) {
+  const [x0, y0] = lngLatToWorld([west, north])
+  const [x1, y1] = lngLatToWorld([east, south])
+  return { x0, y0: Math.min(y0, y1), x1, y1: Math.max(y0, y1) }
+}
+
+/**
+ * The farthest zoom at which a map of this size shows nothing beyond the
+ * rectangle
+ */
+export function insideZoom(bounds: VisibleArea, size: Size) {
+  const { x0, y0, x1, y1 } = worldBox(bounds)
+  return Math.log2(Math.max(size.width / (x1 - x0), size.height / (y1 - y0)))
+}
+
+/**
+ * The limits of a map of this size: no farther out than its rectangle
+ * allows, if it has one
+ */
+export function limitsFor(limits: CameraLimits, size: Size): CameraLimits {
+  if (!limits.bounds || size.width <= 0 || size.height <= 0) {
+    return limits
+  }
+  const min = Math.max(limits.min, insideZoom(limits.bounds, size))
+  return { ...limits, min, max: Math.max(limits.max, min) }
+}
+
+/** A value kept between two others; halfway when they cross */
+const keep = (value: number, low: number, high: number) =>
+  low > high ? (low + high) / 2 : Math.min(high, Math.max(low, value))
+
+/**
+ * A camera kept within the limits: its zoom between theirs, and, with a
+ * rectangle, its centre moved so that the area in view stays inside it
+ */
+export function constrain<Camera extends MapViewState>(
+  camera: Camera,
+  limits: CameraLimits,
+  size: Size
+): Camera {
+  const zoom = clampZoom(camera.zoom, limits)
+  if (!limits.bounds || size.width <= 0 || size.height <= 0) {
+    return zoom === camera.zoom ? camera : { ...camera, zoom }
+  }
+  const { x0, y0, x1, y1 } = worldBox(limits.bounds)
+  // Half the map, in world units at this zoom
+  const halfWidth = size.width / 2 / 2 ** zoom
+  const halfHeight = size.height / 2 / 2 ** zoom
+  const [x, y] = lngLatToWorld([camera.longitude, camera.latitude])
+  const kept = [
+    keep(x, x0 + halfWidth, x1 - halfWidth),
+    keep(y, y0 + halfHeight, y1 - halfHeight),
+  ]
+  if (kept[0] === x && kept[1] === y) {
+    return zoom === camera.zoom ? camera : { ...camera, zoom }
+  }
+  const [longitude, latitude] = worldToLngLat(kept)
+  return { ...camera, longitude, latitude, zoom }
+}
+
+/**
  * How far each map zooms. Europe from the whole continent to a region; a
  * capital from more than the whole city down to a few buildings (its tiles
  * stop at zoom 16, and the map enlarges the last ones beyond).
@@ -114,6 +188,39 @@ export const europeArea: VisibleArea = {
   south: 34,
   east: 35,
   north: 62,
+}
+
+/**
+ * How close a click on the city overview takes the map, in metres on the
+ * ground per CSS pixel: the street as the mockup shows it, 620 m across a
+ * 960 px map, so buildings have the same size on a phone and on a desktop
+ */
+export const streetScale = 620 / 960
+
+/**
+ * The widest the area in view may be after zooming in to the street, as a
+ * share of the street level's width, so a very wide map still lands at
+ * street level
+ */
+const streetLanding = 0.8
+
+/**
+ * Where a click on the city overview, or Enter at the centre of the view,
+ * takes the camera: centred on that place, as close as the street is shown
+ * (closer on a map so wide that the street would not fit), never past the
+ * map's zooms
+ */
+export function streetCamera(
+  [longitude, latitude]: readonly [number, number],
+  size: Size,
+  limits: ZoomLimits
+): MapViewState {
+  const scale = Math.min(
+    streetScale,
+    (streetLanding * streetLevelWidth) / Math.max(1, size.width)
+  )
+  const zoom = getMeterZoom({ latitude }) - Math.log2(scale)
+  return { longitude, latitude, zoom: clampZoom(zoom, limits) }
 }
 
 /** A move asked for by a key or a button */

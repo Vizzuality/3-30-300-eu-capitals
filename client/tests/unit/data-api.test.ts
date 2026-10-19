@@ -14,6 +14,7 @@ import {
   negotiateEncoding,
   releaseFilePath,
   tileArchivePath,
+  tileContentType,
   tileEncoding,
   tileResponse,
   tileUrlTemplate,
@@ -104,7 +105,7 @@ describe("the data API's addresses", () => {
 })
 
 describe("the data API's tile addresses", () => {
-  test("a tile of the Home map and of a capital's city map", () => {
+  test("a tile of the Home map, of a capital's grid and of its city map", () => {
     expect(matchTileRequest(`${RELEASE}/europe/tiles/3/4/2`, RELEASE)).toEqual({
       archive: { kind: "europe" },
       z: 3,
@@ -122,6 +123,17 @@ describe("the data API's tile addresses", () => {
       x: 9006,
       y: 4810,
     })
+    expect(
+      matchTileRequest(
+        `${RELEASE}/capitals/stockholm/tiles/grid/10/562/300`,
+        RELEASE
+      )
+    ).toEqual({
+      archive: { kind: "grid", slug: "stockholm" },
+      z: 10,
+      x: 562,
+      y: 300,
+    })
     expect(matchTileRequest(`${RELEASE}/europe/tiles/0/0/0`, RELEASE)).toEqual({
       archive: { kind: "europe" },
       z: 0,
@@ -135,8 +147,8 @@ describe("the data API's tile addresses", () => {
       "2026-09-stockholm/europe/tiles/3/4/2",
       `${RELEASE}/capitals/london/tiles/city/14/9006/4810`,
       `${RELEASE}/capitals/Stockholm/tiles/city/14/9006/4810`,
-      `${RELEASE}/capitals/stockholm/tiles/grid/10/562/300`,
       `${RELEASE}/capitals/stockholm/tiles/evidence/15/18013/9620`,
+      `${RELEASE}/capitals/stockholm/tiles/Grid/10/562/300`,
       `${RELEASE}/capitals/stockholm/tiles/../../europe/tiles/3/4/2`,
       `${RELEASE}/world/tiles/3/4/2`,
     ]) {
@@ -179,7 +191,9 @@ describe("the data API's tile addresses", () => {
   test("each archive is read from its file, and the browser asks the same address", () => {
     const archives: Array<[TileArchive, string]> = [
       [{ kind: "europe" }, "europe.pmtiles"],
+      [{ kind: "grid", slug: "sofia" }, "capitals/sofia/grid.pmtiles"],
       [{ kind: "city", slug: "sofia" }, "capitals/sofia/city.pmtiles"],
+      [{ kind: "context", slug: "sofia" }, "capitals/sofia/context.pmtiles"],
     ]
 
     for (const [archive, path] of archives) {
@@ -269,10 +283,18 @@ describe("tiles, as stored", () => {
     expect(() => tileEncoding(0)).toThrow("unknown")
   })
 
-  test("a tile is sent as a vector tile, still compressed, with its tag", async () => {
+  test("each type of the archive is the tile's content type", () => {
+    expect(tileContentType(1)).toBe("application/vnd.mapbox-vector-tile")
+    expect(tileContentType(2)).toBe("image/png")
+    expect(() => tileContentType(0)).toThrow("unknown")
+    expect(() => tileContentType(6)).toThrow("unknown")
+  })
+
+  test("a tile is sent as stored, still compressed, with its type and tag", async () => {
     const body = new Uint8Array([0x1f, 0x8b, 1, 2]).buffer
     const response = tileResponse({
       body,
+      contentType: "application/vnd.mapbox-vector-tile",
       encoding: "gzip",
       etag: '"tag"',
       ifNoneMatch: null,
@@ -293,6 +315,7 @@ describe("tiles, as stored", () => {
   test("a tile the browser has is not sent again", () => {
     const response = tileResponse({
       body: new ArrayBuffer(4),
+      contentType: "application/vnd.mapbox-vector-tile",
       encoding: "gzip",
       etag: '"tag"',
       ifNoneMatch: '"tag"',

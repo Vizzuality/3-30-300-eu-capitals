@@ -28,6 +28,7 @@ export function PulseTag({
   x,
   y,
   pointer,
+  visible = true,
 }: {
   state: GuideState
   /** The pulse's centre, in pixels from the map's top left corner */
@@ -35,6 +36,8 @@ export function PulseTag({
   y: number
   /** Forces "Click" or "Tap"; otherwise it follows the device */
   pointer?: PointerKind
+  /** Whether the pulse is on the map: it leaves once the map is moved */
+  visible?: boolean
 }) {
   const t = useTranslations("map.pulse")
   const reduced = usePrefersReducedMotion()
@@ -44,7 +47,7 @@ export function PulseTag({
 
   return (
     <AnimatePresence>
-      {pulse && (
+      {pulse && visible && (
         <div
           key={pulse}
           aria-hidden="true"

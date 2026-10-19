@@ -19,6 +19,7 @@ import {
   useCapitalHighlight,
   useSetCapitalHighlight,
 } from "@/components/home/capital-highlight"
+import { CentreMark } from "@/components/map/centre-mark"
 import { HoverLabel } from "@/components/map/hover-label"
 import { KeyHint } from "@/components/map/key-hint"
 import { MapAttribution } from "@/components/map/map-attribution"
@@ -54,8 +55,9 @@ import type { CapitalSearch } from "@/lib/capital-search"
 import { capitalView, guideInput } from "@/lib/capital-view"
 import type { CapitalSlug } from "@/lib/capitals"
 import { guideState, type GuideState, type MapView } from "@/lib/guide"
-import type { LegendView } from "@/lib/map-legend"
+import { capitalLegend, drawnLegend, type LegendView } from "@/lib/map-legend"
 import { wholePercent } from "@/lib/ranking"
+import { cn } from "@/lib/utils"
 import {
   mapViewOf,
   parseVisibleArea,
@@ -71,6 +73,7 @@ import {
   viewportOf,
   zoomLimits,
   zoomRoom,
+  type CameraLimits,
   type Padding,
 } from "./camera"
 import {
@@ -79,10 +82,11 @@ import {
   type HomeCapital,
   type LngLat,
 } from "./home-capitals"
+import { OverviewPulse, useCityOverview } from "./city-overview"
 import { Renderer } from "./load-renderer"
 import { MapCamera, useMapCamera, type MapCameraState } from "./map-camera"
 import { mapColors, useColorScheme } from "./map-colors"
-import type { CapitalPress, HomeMap } from "./renderer"
+import type { HomeMap, MapPress } from "./renderer"
 
 /*
  * The map, in the layout every page shares: made once, it stays on screen
@@ -101,6 +105,11 @@ import type { CapitalPress, HomeMap } from "./renderer"
  * capital. With the keyboard, Tab and Shift+Tab go through the capitals in
  * the order of the ranking, each shown as on hover, then Tab leaves the map;
  * Enter, or a click, opens the capital's page once it has wobbled.
+ *
+ * On a capital's city overview, a click or a tap anywhere zooms in there to
+ * the street, and Enter at the centre of the view, marked by a small cross
+ * while the map has the keyboard's focus. The guide's pulse sits on the
+ * city's suggested place until the visitor moves the map.
  */
 
 /** The page that sets what the map shows */
@@ -163,9 +172,6 @@ const fitPadding: Record<"desktop" | "phone", Padding> = {
     left: spacing.mapInset,
   },
 }
-
-/** The views the map draws so far; the others arrive with the next steps */
-const drawnViews: ReadonlySet<LegendView["view"]> = new Set(["home"])
 
 const bboxArea = ([west, south, east, north]: [
   number,
@@ -241,9 +247,26 @@ export function SiteMap() {
   }, [camera])
   useEffect(() => () => camera.dispose(), [camera])
 
+  // Where the camera may go: on a capital's page, inside the overview's
+  // rectangle, no farther out than its least zoom for the layout, which the
+  // camera waits for
+  const capitalSummary = slug && summary?.slug === slug ? summary : undefined
+  const limitsReady = shown.map === "home" || capitalSummary !== undefined
+  const layout = desktop ? "desktop" : "phone"
+  const limits = useMemo<CameraLimits>(
+    () =>
+      capitalSummary
+        ? {
+            min: capitalSummary.context.min_zoom[layout],
+            max: zoomLimits.capital.max,
+            bounds: bboxArea(capitalSummary.context.bbox),
+          }
+        : zoomLimits[shown.map],
+    [capitalSummary, layout, shown.map]
+  )
   useEffect(() => {
-    camera.setLimits(zoomLimits[shown.map])
-  }, [camera, shown.map])
+    camera.setLimits(limits)
+  }, [camera, limits])
 
   // The camera fits the page's area: the one in its address, otherwise
   // Europe or the whole city. The map's own writes to the address are left
@@ -254,7 +277,7 @@ export function SiteMap() {
   paddingRef.current = padding
   const place = placeOf(shown)
   useEffect(() => {
-    if (written.current === `${place}|${at}`) {
+    if (!limitsReady || written.current === `${place}|${at}`) {
       return
     }
     written.current = undefined
@@ -266,14 +289,11 @@ export function SiteMap() {
     if (place === "home") {
       camera.go({ area: europeArea, padding: paddingRef.current }, "page")
     } else if (cityArea) {
-      camera.go(
-        { area: cityArea, padding: paddingRef.current, whole: true },
-        "page"
-      )
+      camera.go({ area: cityArea, padding: paddingRef.current }, "page")
     }
     // The city's area is the same for as long as its page is shown
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera, place, at, cityArea === undefined])
+  }, [camera, place, at, cityArea === undefined, limitsReady])
 
   // Once the visitor's moves settle, the address keeps the area in view,
   // in place of the last one (no new step in the history). Only on the
@@ -309,10 +329,7 @@ export function SiteMap() {
 
   const wholeCity = useCallback(() => {
     if (cityArea) {
-      camera.go(
-        { area: cityArea, padding: paddingRef.current, whole: true },
-        "visitor"
-      )
+      camera.go({ area: cityArea, padding: paddingRef.current }, "visitor")
     }
   }, [camera, cityArea])
 
@@ -333,24 +350,40 @@ export function SiteMap() {
     ? guideState(guideInput(capitalViewShown))
     : "home"
   const legendView: LegendView = capitalViewShown
-    ? capitalViewShown.view === "building"
-      ? {
-          view: "building",
-          rule: capitalViewShown.rule,
-          facade: capitalViewShown.facade !== undefined,
-        }
-      : { view: capitalViewShown.view }
+    ? drawnLegend(capitalLegend(capitalViewShown))
     : { view: "home" }
   const announcement = useViewAnnouncement(slug, capitalViewShown?.view)
 
   // The key hint shows while the map has the keyboard's focus
   const [keyboardFocus, setKeyboardFocus] = useState(false)
 
+  // The last press on the map, which sends out a ring: a capital, or a
+  // place of the city overview zoomed into
+  const [press, setPress] = useState<MapPress>()
+  const pressAt = useCallback(
+    (pressed: LngLat, capital?: CapitalSlug) =>
+      setPress((last) => ({
+        id: (last?.id ?? 0) + 1,
+        slug: capital,
+        at: pressed,
+      })),
+    []
+  )
+
   const home = useHomeCapitals({
     onHome: shown.map === "home",
     capitals: capitals?.capitals,
     ranking,
     locale,
+    onPress: pressAt,
+  })
+
+  const overview = useCityOverview({
+    camera,
+    slug,
+    summary: slug && summary?.slug === slug ? summary : undefined,
+    onOverview: capitalViewShown?.view === "overview",
+    onPress: pressAt,
   })
 
   const twoFingers = useTwoFingers(root, !desktop)
@@ -378,7 +411,7 @@ export function SiteMap() {
         aria-describedby={hintId}
         tabIndex={0}
         onKeyDown={(event) => {
-          if (home.onKey(event)) {
+          if (home.onKey(event) || overview.onKey(event)) {
             event.preventDefault()
             return
           }
@@ -404,17 +437,19 @@ export function SiteMap() {
             colors={colors}
             release={env.VITE_DATA_RELEASE}
             home={home.map}
-            press={home.press}
+            press={press}
             city={cityOutline}
+            capital={overview.map}
             oneFingerScrolls={!desktop}
             visible={visible}
           />
         </Suspense>
       </div>
       {/* oxlint-enable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions */}
+      {/* On phones, the legend is under the map band instead */}
       <MapLegend
-        view={drawnViews.has(legendView.view) ? legendView : { view: "home" }}
-        className={overlayPlacement.legend}
+        view={legendView}
+        className={cn(overlayPlacement.legend, "max-desktop:hidden")}
       />
       <ZoomControls
         camera={camera}
@@ -428,6 +463,10 @@ export function SiteMap() {
         keyHint={<KeyHint id={hintId} state={state} visible={keyboardFocus} />}
       />
       <CapitalLabel camera={camera} capital={home.labelled} />
+      <OverviewPulse camera={camera} pulse={overview.pulse} />
+      <CentreMark
+        visible={keyboardFocus && overview.map?.onPress !== undefined}
+      />
       <div className={overlayPlacement.twoFingerHint}>
         <TwoFingerHint visible={twoFingers.visible} />
       </div>
@@ -455,11 +494,14 @@ function useHomeCapitals({
   capitals,
   ranking,
   locale,
+  onPress,
 }: {
   onHome: boolean
   capitals: Array<Capital> | undefined
   ranking: Ranking | null | undefined
   locale: string
+  /** A capital pressed, which wobbles and sends out a ring */
+  onPress: (at: LngLat, slug: CapitalSlug) => void
 }) {
   const t = useTranslations("map.announce")
   const navigate = useNavigate()
@@ -488,14 +530,13 @@ function useHomeCapitals({
   useEffect(() => () => setHighlight({ map: undefined }), [setHighlight])
 
   // A capital opened: its page opens once its wobble is over
-  const [press, setPress] = useState<CapitalPress>()
   const opening = useRef<ReturnType<typeof setTimeout>>(undefined)
   const open = useCallback(
     (slug: CapitalSlug, at: LngLat) => {
       if (opening.current !== undefined) {
         return
       }
-      setPress((last) => ({ id: (last?.id ?? 0) + 1, slug, at }))
+      onPress(at, slug)
       opening.current = setTimeout(
         () => {
           opening.current = undefined
@@ -507,7 +548,7 @@ function useHomeCapitals({
         prefersReducedMotion() ? 0 : motionTokens.squash.duration
       )
     },
-    [navigate, locale]
+    [navigate, locale, onPress]
   )
   useEffect(() => () => clearTimeout(opening.current), [])
 
@@ -529,7 +570,6 @@ function useHomeCapitals({
 
   return {
     map,
-    press,
     labelled,
     // What screen readers hear of the capital pointed at
     announcement:

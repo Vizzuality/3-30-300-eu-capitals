@@ -3,6 +3,7 @@ import { PMTiles, SharedPromiseCache, type Source } from "pmtiles"
 import {
   entityTag,
   tileArchivePath,
+  tileContentType,
   tileEncoding,
   type TileArchive,
   type TileRequest,
@@ -39,8 +40,8 @@ const asStored = async (data: ArrayBuffer) => data
 
 /*
  * In production, one reader per archive for the life of the process, so
- * each archive's header and index are read once (at most 28 archives:
- * Europe and the 27 cities). In development, a reader per request, so a
+ * each archive's header and index are read once (at most 82 archives:
+ * Europe, and the 27 capitals' grid, city and context archives). In development, a reader per request, so a
  * rebuilt archive shows on the next reload, as the JSON files do.
  */
 const readers = new Map<string, PMTiles>()
@@ -66,6 +67,7 @@ export type TileEntry =
   | {
       kind: "tile"
       body: ArrayBuffer
+      contentType: string
       encoding: string | undefined
       etag: string
     }
@@ -100,6 +102,7 @@ export async function readTile({
     return {
       kind: "tile",
       body: tile.data,
+      contentType: tileContentType(header.tileType),
       encoding: tileEncoding(header.tileCompression),
       etag: await entityTag(tile.data),
     }

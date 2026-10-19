@@ -350,6 +350,12 @@ export const motionDetails = {
   nudgeRingTimes: { shown: 0.08, gone: 0.55 },
   // The first tap waits for the guide to float into place, in milliseconds
   nudgeDelay: 800,
+  // The map's pulse sends out two rings with each tap, the second this long
+  // after the first, in milliseconds (Nudge)
+  nudgeRingApart: 350,
+  // Under reduced motion, the pulse keeps one still, faint ring, at this
+  // scale and opacity
+  pulseStillRing: { scale: 1.3, opacity: 0.5 },
   // The guide nudges this many times each time its step changes (on first
   // show too), then rests until the next change
   nudgeCount: 3,

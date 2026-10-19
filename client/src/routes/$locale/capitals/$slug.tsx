@@ -10,6 +10,7 @@ import { MiddleBlock } from "@/components/capital/middle-block"
 import { OtherCapitals } from "@/components/capital/other-capitals"
 import { NextStepGuide } from "@/components/guide/next-step-guide"
 import { NotFoundPage } from "@/components/layout/not-found-page"
+import { MapLegend } from "@/components/map/map-legend"
 import {
   capitalsQuery,
   rankingQuery,
@@ -28,6 +29,7 @@ import {
 import { capitalView, guideInput } from "@/lib/capital-view"
 import { isCapitalSlug } from "@/lib/capitals"
 import { guideState } from "@/lib/guide"
+import { capitalLegend, drawnLegend } from "@/lib/map-legend"
 import type { Rule } from "@/lib/rules"
 import { assertLocale } from "@/routes/$locale/-guards"
 
@@ -163,6 +165,12 @@ function CapitalAfterBand() {
 
   return (
     <>
+      {/* The map's legend, under its band on phones */}
+      <MapLegend
+        view={drawnLegend(capitalLegend(view))}
+        variant="band"
+        className="desktop:hidden"
+      />
       <MiddleBlock
         view={view}
         shares={summary.shares.rules}

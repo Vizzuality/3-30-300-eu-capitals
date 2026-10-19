@@ -1,3 +1,4 @@
+import type { CapitalView } from "@/lib/capital-view"
 import {
   canopyRadius,
   gridCell,
@@ -23,6 +24,21 @@ export type LegendView =
   | { view: "overview" }
   | { view: "street" }
   | { view: "building"; rule: Rule; facade: boolean }
+
+/** The legend of a capital's map in one of its views */
+export function capitalLegend(view: CapitalView): LegendView {
+  return view.view === "building"
+    ? { view: "building", rule: view.rule, facade: view.facade !== undefined }
+    : { view: view.view }
+}
+
+/**
+ * The legend of what the map draws so far: on a capital's page, its 10 m
+ * grid in every view, until the street and the selected building are drawn
+ */
+export function drawnLegend(view: LegendView): LegendView {
+  return view.view === "home" ? view : { view: "overview" }
+}
 
 /** How an entry is drawn */
 export type LegendSwatch =

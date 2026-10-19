@@ -198,6 +198,15 @@ export const summarySchema = z.object({
   centre: lonLatSchema,
   // West, south, east, north
   bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  // The overview's rectangle, which the camera stays in and the context
+  // tiles cover, and the least zoom of each layout's camera
+  context: z.object({
+    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+    min_zoom: z.object({
+      desktop: z.number().nonnegative(),
+      phone: z.number().nonnegative(),
+    }),
+  }),
   area_km2: z.number().positive(),
   // Every character of the names drawn on the map, without the space
   label_chars: z.string(),
@@ -205,6 +214,7 @@ export const summarySchema = z.object({
     grid: zoomRangeSchema,
     city: zoomRangeSchema,
     evidence: z.int().nonnegative(),
+    context: zoomRangeSchema,
   }),
   sources: capitalSourcesSchema,
   placeholder: placeholderSchema,

@@ -78,15 +78,26 @@ describe("The map", () => {
     await expect(document.body).toHaveNoA11yViolations()
   })
 
-  test("a capital: the map moved by keyboard to the street, as it is announced", async () => {
+  test("a capital: the city overview reached with the keyboard, with its centre marked", async () => {
     await renderPage("/en/capitals/stockholm")
 
     await tabToMap()
     await expect
       .element(map())
       .toHaveAccessibleName("Map of Stockholm, city overview")
-    // Zoomed in six levels, from the whole city to the street
-    await userEvent.keyboard("++++++")
+    await expect
+      .poll(() => document.querySelector("[data-centre-mark]"))
+      .not.toBeNull()
+    await expect.poll(() => document.getAnimations().length).toBe(0)
+
+    await expect(document.body).toHaveNoA11yViolations()
+  })
+
+  test("a capital: the map zoomed in to the street with Enter, as it is announced", async () => {
+    await renderPage("/en/capitals/stockholm")
+
+    await tabToMap()
+    await userEvent.keyboard("{Enter}")
     await expect
       .poll(
         () => document.querySelector("[data-map] output.sr-only")?.textContent

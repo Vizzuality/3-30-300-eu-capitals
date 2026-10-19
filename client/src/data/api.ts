@@ -92,13 +92,23 @@ export function releaseFilePath(file: ReleaseFile) {
  * column and row on the Web Mercator tile grid.
  *
  *   GET /api/{release}/europe/tiles/{z}/{x}/{y}                europe.pmtiles
+ *   GET /api/{release}/capitals/{slug}/tiles/grid/{z}/{x}/{y}  capitals/{slug}/grid.pmtiles
  *   GET /api/{release}/capitals/{slug}/tiles/city/{z}/{x}/{y}  capitals/{slug}/city.pmtiles
+ *   GET /api/{release}/capitals/{slug}/tiles/context/{z}/{x}/{y}  capitals/{slug}/context.pmtiles
  */
+
+/**
+ * A capital's archives of tiles: its 10 m grid, its city map, and the water
+ * of the map around it
+ */
+export const capitalTileArchives = ["grid", "city", "context"] as const
+
+export type CapitalTileArchive = (typeof capitalTileArchives)[number]
 
 /** An archive of tiles that the API can read from */
 export type TileArchive =
   | { kind: "europe" }
-  | { kind: "city"; slug: CapitalSlug }
+  | { kind: CapitalTileArchive; slug: CapitalSlug }
 
 /** A tile asked for: its archive, then its place on the tile grid */
 export type TileRequest = {
@@ -142,11 +152,11 @@ function tileRequestSchema(release: string) {
           z.literal("capitals"),
           capitalSlugSchema,
           z.literal("tiles"),
-          z.literal("city"),
+          z.enum(capitalTileArchives),
           ...place,
         ])
-        .transform(([, , slug, , , zoom, x, y]): TileRequest => ({
-          archive: { kind: "city", slug },
+        .transform(([, , slug, , kind, zoom, x, y]): TileRequest => ({
+          archive: { kind, slug },
           z: zoom,
           x,
           y,
@@ -177,7 +187,7 @@ export function matchTileRequest(
 export function tileArchivePath(archive: TileArchive) {
   return archive.kind === "europe"
     ? "europe.pmtiles"
-    : `capitals/${archive.slug}/city.pmtiles`
+    : `capitals/${archive.slug}/${archive.kind}.pmtiles`
 }
 
 /**
@@ -188,12 +198,25 @@ export function tileUrlTemplate(archive: TileArchive, release: string) {
   const tiles =
     archive.kind === "europe"
       ? "europe/tiles"
-      : `capitals/${archive.slug}/tiles/city`
+      : `capitals/${archive.slug}/tiles/${archive.kind}`
   return `/api/${release}/${tiles}/{z}/{x}/{y}`
 }
 
-/** Every archive served holds vector tiles */
-export const vectorTileType = "application/vnd.mapbox-vector-tile"
+/**
+ * The `Content-Type` of an archive's tiles, from the type its header gives
+ * (the numbers of the PMTiles format): vector tiles for the maps, PNG images
+ * for the grid. Any other type cannot be served.
+ */
+export function tileContentType(tileType: number) {
+  switch (tileType) {
+    case 1:
+      return "application/vnd.mapbox-vector-tile"
+    case 2:
+      return "image/png"
+    default:
+      throw new Error(`Tiles of an unknown type (${tileType})`)
+  }
+}
 
 /**
  * The `Content-Encoding` of tiles stored with an archive's compression (the
@@ -222,12 +245,14 @@ export function tileEncoding(compression: number): string | undefined {
  */
 export function tileResponse({
   body,
+  contentType,
   encoding,
   etag,
   ifNoneMatch,
   caching,
 }: {
   body: ArrayBuffer
+  contentType: string
   encoding: string | undefined
   etag: string
   ifNoneMatch: string | null
@@ -242,7 +267,7 @@ export function tileResponse({
     status: 200,
     headers: {
       ...headers,
-      "Content-Type": vectorTileType,
+      "Content-Type": contentType,
       ...(encoding ? { "Content-Encoding": encoding } : {}),
     },
   })

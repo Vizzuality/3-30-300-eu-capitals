@@ -1,4 +1,5 @@
-import type { CityOutline } from "@/data/schemas"
+import type { CapitalTileArchive } from "@/data/api"
+import type { CityOutline, Summary } from "@/data/schemas"
 import type { CapitalSlug } from "@/lib/capitals"
 import type { HomeCapital, LngLat } from "./home-capitals"
 import type { MapCamera } from "./map-camera"
@@ -11,12 +12,17 @@ import type { MapColors } from "./map-colors"
  * and its overlays around them are the same.
  */
 
-/** A capital pressed (clicked, tapped, or Enter in keyboard focus) */
-export type CapitalPress = {
+/**
+ * A press on the map, which sends out a ring: a capital (clicked, tapped,
+ * or Enter in keyboard focus), which also wobbles, or a place of the city
+ * overview zoomed into
+ */
+export type MapPress = {
   /** A new press has a new id */
   id: number
-  slug: CapitalSlug
-  /** Where it was pressed (its middle, with the keyboard) */
+  /** The capital pressed, on Home */
+  slug?: CapitalSlug
+  /** Where it was pressed (the middle of the capital or of the map, with the keyboard) */
   at: LngLat
 }
 
@@ -33,6 +39,22 @@ export type HomeMap = {
   onPress: (slug: CapitalSlug, at: LngLat) => void
 }
 
+/** A capital's map, on its page */
+export type CapitalMap = {
+  slug: CapitalSlug
+  /** The city's bounds and the zooms of its tiles, from its summary */
+  bbox: Summary["bbox"]
+  zooms: Summary["zooms"]
+  /** The overview's rectangle */
+  context: Summary["context"]
+  /** The city's area, in km² */
+  areaKm2: number
+  /** Which of its archives of tiles the map draws from */
+  archives: Record<CapitalTileArchive, boolean>
+  /** On the city overview, a click or a tap zooms in there */
+  onPress: ((at: LngLat) => void) | undefined
+}
+
 export type MapRendererProps = {
   camera: MapCamera
   colors: MapColors
@@ -41,12 +63,14 @@ export type MapRendererProps = {
   /** The capitals, on Home */
   home: HomeMap | undefined
   /**
-   * The last capital pressed, which wobbles and sends out a ring, even as
-   * its page opens
+   * The last press, which sends out a ring; a capital pressed also wobbles,
+   * even as its page opens
    */
-  press: CapitalPress | undefined
+  press: MapPress | undefined
   /** The city limits of the capital shown, on its page, once loaded */
   city: CityOutline | undefined
+  /** The capital shown, on its page, once its summary is loaded */
+  capital: CapitalMap | undefined
   /** On the phone's map band, one finger scrolls the page */
   oneFingerScrolls: boolean
   /** Whether the map is on screen; a hidden map draws nothing */

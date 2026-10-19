@@ -4,12 +4,13 @@ import {
   MapView,
   type MapViewState,
 } from "@deck.gl/core"
+import { getMeterZoom } from "@math.gl/web-mercator"
 import { cubicBezier } from "motion"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { motionTokens } from "@/design/tokens"
 import type { CapitalSlug } from "@/lib/capitals"
-import { allZooms, clampZoom, type ZoomLimits } from "@/map/camera"
+import { allZooms, constrain, type ZoomLimits } from "@/map/camera"
 import { useMapCamera, type CameraRequest } from "@/map/map-camera"
 import type { MapRendererProps } from "@/map/renderer"
 import { baseLayers } from "./base-layers"
@@ -69,6 +70,7 @@ export default function DeckRenderer({
   home,
   press,
   city,
+  capital,
   oneFingerScrolls,
   visible,
 }: MapRendererProps) {
@@ -80,6 +82,9 @@ export default function DeckRenderer({
   const homeRef = useRef(home)
   homeRef.current = home
   const hovered = useRef<CapitalSlug | undefined>(undefined)
+  // The city overview zoomed into where it is clicked or tapped
+  const zoomInRef = useRef(capital?.onPress)
+  zoomInRef.current = capital?.onPress
 
   // Made once, never again: navigating, changing the language or resizing
   // the window keeps it, its WebGL context and what it has loaded
@@ -121,9 +126,16 @@ export default function DeckRenderer({
       // A flat map: everything is drawn in the order of its layers, as
       // painted on paper, never hidden by what was drawn before
       parameters: { depthCompare: "always", depthWriteEnabled: false },
-      // Only the capitals can be picked
+      // Only the capitals can be picked; the city overview zooms in
+      // wherever it is clicked
       getCursor: ({ isDragging, isHovering }) =>
-        isDragging ? "grabbing" : isHovering ? "pointer" : "grab",
+        isDragging
+          ? "grabbing"
+          : isHovering
+            ? "pointer"
+            : zoomInRef.current
+              ? "zoom-in"
+              : "grab",
       onHover: ({ object }) => {
         const slug = homeRef.current ? capitalOf(object) : undefined
         if (slug !== hovered.current) {
@@ -132,9 +144,15 @@ export default function DeckRenderer({
         }
       },
       onClick: ({ object, coordinate }) => {
+        if (!coordinate) {
+          return
+        }
+        const at: [number, number] = [coordinate[0], coordinate[1]]
         const slug = capitalOf(object)
-        if (slug && coordinate && homeRef.current) {
-          homeRef.current.onPress(slug, [coordinate[0], coordinate[1]])
+        if (slug && homeRef.current) {
+          homeRef.current.onPress(slug, at)
+        } else {
+          zoomInRef.current?.(at)
         }
       },
       onLoad: () => {
@@ -168,12 +186,18 @@ export default function DeckRenderer({
           interactionState?.isZooming
         )
         if (gesture) {
-          // The visitor's gestures stay within the map's zooms
-          const { limits } = camera.state
-          const zoom = clampZoom(next.zoom, limits)
-          if (zoom !== next.zoom) {
-            next = { ...(oldViewState ?? next), zoom }
-          }
+          // The visitor's gestures stay within the map's zooms, and inside
+          // its rectangle; at a zoom limit, the map stays where it was
+          const { limits, size } = camera.state
+          const kept = constrain(next, limits, size)
+          next =
+            kept.zoom === next.zoom
+              ? kept
+              : constrain(
+                  { ...(oldViewState ?? next), zoom: kept.zoom },
+                  limits,
+                  size
+                )
         }
         camera.report(cameraOf(next), { gesture })
         return next
@@ -244,7 +268,7 @@ export default function DeckRenderer({
   // The layers, drawn again whenever what they show or their motion
   // changes, at most once per change of the page's state
   const names = useMemo(
-    () => home?.capitals.map((capital) => capital.name),
+    () => home?.capitals.map((shown) => shown.name),
     [home?.capitals]
   )
   const nameFont = useNameFont(names)
@@ -260,12 +284,34 @@ export default function DeckRenderer({
     }
   }, [])
   const motion = useCapitalMotion({ home, press, camera, redraw })
+  // Whether the capital's grid has drawn the area in view, by capital
+  const capitalRef = useRef(capital)
+  capitalRef.current = capital
+  const [gridDrawnFor, setGridDrawnFor] = useState<CapitalSlug>()
+  const onGridDrawn = useCallback(
+    () => setGridDrawnFor(capitalRef.current?.slug),
+    []
+  )
+  // Metres per pixel at the city, to a twentieth of a zoom level: the width
+  // of the rings' lines on the ground
+  const zoomStep = useMapCamera(camera, ({ camera: shown }) =>
+    shown ? Math.round(shown.zoom * 20) / 20 : undefined
+  )
+  const latitude = capital ? (capital.bbox[1] + capital.bbox[3]) / 2 : undefined
+  const metresPerPixel =
+    zoomStep === undefined || latitude === undefined
+      ? undefined
+      : 2 ** (getMeterZoom({ latitude }) - zoomStep)
   drawn.current = () =>
     deck?.setProps({
       layers: baseLayers({
         colors,
         release,
         city,
+        capital,
+        gridDrawn: capital !== undefined && gridDrawnFor === capital.slug,
+        metresPerPixel,
+        onGridDrawn,
         capitals: home && {
           capitals: home.capitals,
           focused: home.focused,
@@ -281,6 +327,9 @@ export default function DeckRenderer({
     colors,
     release,
     city,
+    capital,
+    gridDrawnFor,
+    metresPerPixel,
     home?.capitals,
     home?.focused,
     nameFont,

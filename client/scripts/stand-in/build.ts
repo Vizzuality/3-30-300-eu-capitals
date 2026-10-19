@@ -3,6 +3,12 @@
  * are (Stockholm), and every other capital with placeholder figures and
  * outline taken from the reference design, marked `placeholder: true`.
  */
+import {
+  WebMercatorViewport,
+  fitBounds,
+  getBounds,
+} from "@math.gl/web-mercator"
+
 import { locales } from "@/i18n/locales"
 import { capitalSlugs, type CapitalSlug } from "@/lib/capitals"
 import {
@@ -245,6 +251,79 @@ function outlineBounds(
   ] as Summary["bbox"]
 }
 
+/**
+ * The maps the release fits a city to, as the site lays them out: the
+ * desktop map and the phone's map band, with the room kept clear of what
+ * floats over them (top, right, bottom, left)
+ */
+const contextMaps = {
+  desktop: {
+    width: 960,
+    height: 900,
+    padding: { top: 72, right: 72, bottom: 42, left: 28 },
+  },
+  phone: {
+    width: 412,
+    height: 386,
+    padding: { top: 72, right: 16, bottom: 80, left: 16 },
+  },
+} as const
+
+const roundUp = (value: number, decimals: number) =>
+  Math.ceil(value * 10 ** decimals) / 10 ** decimals
+const roundDown = (value: number, decimals: number) =>
+  Math.floor(value * 10 ** decimals) / 10 ** decimals
+
+/**
+ * The overview's rectangle around a city's bounds, as the release computes
+ * it: each layout's least zoom is one below the zoom that fits the city,
+ * and the rectangle holds what both layouts show at their least zoom,
+ * around the fitted centres; the context tiles go from the floor of the
+ * lower least zoom (at most 9) to 12, or to the fitted zoom when closer
+ */
+export function contextOf([west, south, east, north]: Summary["bbox"]) {
+  const views = Object.values(contextMaps).map(({ width, height, padding }) => {
+    const fitted = fitBounds({
+      width,
+      height,
+      bounds: [
+        [west, south],
+        [east, north],
+      ],
+      padding,
+      maxZoom: 18,
+    })
+    const corners = getBounds(
+      new WebMercatorViewport({
+        ...fitted,
+        zoom: fitted.zoom - 1,
+        width,
+        height,
+      })
+    )
+    return { zoom: roundUp(fitted.zoom - 1, 2), fitted: fitted.zoom, corners }
+  })
+  const longitudes = views.flatMap(({ corners }) => corners.map(([x]) => x))
+  const latitudes = views.flatMap(({ corners }) => corners.map(([, y]) => y))
+  const [desktop, phone] = views.map(({ zoom }) => zoom)
+  return {
+    context: {
+      bbox: [
+        roundDown(Math.min(...longitudes), 5),
+        roundDown(Math.min(...latitudes), 5),
+        roundUp(Math.max(...longitudes), 5),
+        roundUp(Math.max(...latitudes), 5),
+      ] as Summary["bbox"],
+      min_zoom: { desktop, phone },
+    },
+    zooms: [
+      Math.min(9, Math.floor(Math.min(desktop, phone))),
+      // deck.gl loads the tiles of the rounded zoom
+      Math.max(12, ...views.map((view) => Math.round(view.fitted))),
+    ] as [number, number],
+  }
+}
+
 /** Twice the signed area of a ring: positive when counter-clockwise */
 function signedArea(ring: Array<[number, number]>) {
   let sum = 0
@@ -381,17 +460,21 @@ export function buildStandIn(
       placeholder: true,
     })
     outlines.push(placeholderCityOutline(slug, outline, facts.centre, release))
+    const bbox = outlineBounds(outline, facts.centre)
+    const { context, zooms } = contextOf(bbox)
     summaries.push({
       schema_version: 1,
       release,
       ...common,
       shares,
       suggested: facts.centre,
-      bbox: outlineBounds(outline, facts.centre),
+      bbox,
+      // Its rectangle, as the release would have it, though it has no tiles
+      context,
       area_km2: facts.area,
       // No names are drawn on a placeholder's map
       label_chars: "",
-      zooms: template.zooms,
+      zooms: { ...template.zooms, context: zooms },
       // The sources of a real capital, so the file keeps its shape
       sources: template.sources,
       placeholder: true,
