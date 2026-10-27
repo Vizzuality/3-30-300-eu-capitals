@@ -1,16 +1,13 @@
 # 3-30-300 data processing. `just` lists the recipes.
 #
 # Variables can be set on the command line (`just release=2026-11 run stockholm`) or through the
-# environment (TIPPECANOE_DIR, BUCKET, S3_ENDPOINT, AWS_PROFILE_NAME).
+# environment (TIPPECANOE_DIR).
 
 export KEDRO_DISABLE_TELEMETRY := "true"
 export KEDRO_LOGGING_CONFIG := "conf/logging.yml"
 
 release := "2026-10-all"
 tippecanoe_dir := env("TIPPECANOE_DIR", ".tools/bin")
-bucket := env("BUCKET", "")
-s3_endpoint := env("S3_ENDPOINT", "https://t3.storageapi.dev")
-aws_profile := env("AWS_PROFILE_NAME", "3-30-300")
 
 default:
     @just --list
@@ -62,22 +59,10 @@ check rel=release:
 inspect-evidence capital z x y building="" rel=release:
     uv run python -m data_processing.inspect_evidence {{ rel }} {{ capital }} {{ z }} {{ x }} {{ y }} {{ building }}
 
-# Upload a release to the bucket (refuses to overwrite an existing release). Needs BUCKET and the AWS profile.
+# Cut a corner out of an archive, tiles x0–x1, y0–y1 of zoom z and those under them: `just cut-archive <source> <target> 14 9014 4819 9015 4819 16`
 [group('release')]
-publish rel: (check rel)
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -z "{{ bucket }}" ]; then echo "Set BUCKET (the Railway bucket name)" >&2; exit 1; fi
-    src="data/03_primary/releases/{{ rel }}"
-    dest="s3://{{ bucket }}/releases/{{ rel }}"
-    aws_s3() { aws s3 "$@" --endpoint-url "{{ s3_endpoint }}" --profile "{{ aws_profile }}"; }
-    if [ -n "$(aws_s3 ls "$dest/" 2>/dev/null || true)" ]; then
-        echo "$dest already exists: a release is never overwritten, publish under a new name" >&2
-        exit 1
-    fi
-    aws_s3 sync "$src" "$dest" --exclude "*" --include "*.pmtiles" --content-type application/vnd.pmtiles --no-progress
-    aws_s3 sync "$src" "$dest" --exclude "*" --include "*.json" --content-type application/json --no-progress
-    echo "Published $dest. Set VITE_DATA_RELEASE={{ rel }} in Railway and redeploy to use it."
+cut-archive source target z x0 y0 x1 y1 max_z:
+    uv run python -m data_processing.cut_archive {{ source }} {{ target }} {{ z }} {{ x0 }} {{ y0 }} {{ x1 }} {{ y1 }} {{ max_z }}
 
 # Build felt/tippecanoe v2.82.0 from source into .tools/bin (needs git, make, a C++ compiler, sqlite3 and zlib headers)
 [group('setup')]
