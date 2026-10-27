@@ -5,6 +5,7 @@ import { BitmapLayer } from "@deck.gl/layers"
 import { tileUrlTemplate } from "@/data/api"
 import type { CapitalSlug } from "@/lib/capitals"
 import type { MapColors, Rgba } from "@/map/map-colors"
+import type { OverviewStyle } from "./reveal-extension"
 
 /*
  * The city overview's 10 m grid, from the capital's grid tiles: 512 px
@@ -132,6 +133,7 @@ export function gridLayer({
   zooms,
   extent,
   onViewportLoad,
+  overview,
 }: {
   slug: CapitalSlug
   release: string
@@ -142,6 +144,8 @@ export function gridLayer({
   extent: readonly [number, number, number, number]
   /** Called once the tiles of the area in view are loaded */
   onViewportLoad?: () => void
+  /** At street level, its opacity and its rings */
+  overview?: OverviewStyle
 }) {
   const palette = [
     colors.result0,
@@ -161,8 +165,12 @@ export function gridLayer({
     getTileData: gridTile,
     onViewportLoad,
     onTileUnload: (tile) => tile.content?.close(),
+    opacity: overview?.opacity ?? 1,
+    visible: overview?.visible ?? true,
     // The colour scheme, which draws the tiles again in its colours
-    updateTriggers: { renderSubLayers: palette.map(String).join() },
+    updateTriggers: {
+      renderSubLayers: [palette.map(String).join(), overview?.revealSpacing],
+    },
     renderSubLayers: (props) => {
       if (!props.data) {
         return null
@@ -175,6 +183,9 @@ export function gridLayer({
       }
       return new BitmapLayer<GridPaletteProps>({
         ...props,
+        ...overview,
+        opacity: props.opacity,
+        visible: props.visible,
         data: undefined,
         image: props.data,
         bounds: [west, south, east, north],
@@ -183,7 +194,7 @@ export function gridLayer({
           magFilter: "nearest",
           mipmapFilter: "none",
         },
-        extensions: [gridPalette],
+        extensions: [gridPalette, ...(overview?.extensions ?? [])],
         gridPalette: palette,
       })
     },

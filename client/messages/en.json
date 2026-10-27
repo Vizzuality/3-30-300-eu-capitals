@@ -241,6 +241,7 @@
     "announce": {
       "overview": "City overview",
       "street": "Street level",
+      "building": "Building {index, number} of {count, number} near the centre: {score, number} of 3 rules met",
       "capital": "{capital}, {country}, rank {rank, number} of {count, number}: {share, number, percent} of residents meet all three rules"
     }
   },

@@ -172,6 +172,9 @@ export const typeScale = {
     weight: 600,
     letterSpacing: 0.02,
   },
+  // A street's name along it at street level, drawn on the map with a halo
+  // in the Street colour
+  streetName: { font: "sans", size: 12, lineHeight: 14, weight: 500 },
   // The pulse's tag and the map's hints, in Ink pills
   tag: { font: "sans", size: 13, lineHeight: 20, weight: 600 },
   // A key in the map's key hint ("Tab", "Enter")

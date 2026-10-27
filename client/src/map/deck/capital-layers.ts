@@ -69,15 +69,20 @@ const nameAtlas = { fontSize: 32, radius: 6, buffer: 8, cutoff: 0.15 }
 /** The halo, in atlas pixels: about 1.2 px on screen */
 const nameHalo = 4
 
-/** The text settings of the names, for a screen's pixel ratio */
-export function nameTextSettings(pixelRatio: number) {
+/**
+ * The text settings of the names on the map, for a screen's pixel ratio and
+ * the text's size (the capitals' names by default)
+ */
+export function nameTextSettings(
+  pixelRatio: number,
+  size: number = typeScale.mapName.size
+) {
   const { fontSize, radius } = nameAtlas
   return {
     fontSettings: {
       ...nameAtlas,
       sdf: true,
-      smoothing:
-        (0.5 * fontSize) / (typeScale.mapName.size * pixelRatio * radius),
+      smoothing: (0.5 * fontSize) / (size * pixelRatio * radius),
     },
     outlineWidth: nameHalo,
   }

@@ -69,7 +69,10 @@ export function MapControls({
   }
 
   return (
-    <div className={cn("flex flex-col items-end gap-2", className)}>
+    <div
+      data-map-obstacle=""
+      className={cn("flex flex-col items-end gap-2", className)}
+    >
       <AnimatePresence>
         {onWholeCity && (
           <motion.div

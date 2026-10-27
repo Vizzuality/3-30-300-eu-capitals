@@ -3,6 +3,7 @@ import { GeoJsonLayer, PathLayer, SolidPolygonLayer } from "@deck.gl/layers"
 import type { CityOutline } from "@/data/schemas"
 import { withOpacity, type MapColors, type Rgba } from "@/map/map-colors"
 import { simplifyRing } from "@/map/simplify"
+import type { OverviewStyle } from "./reveal-extension"
 import { screenOffset, type ScreenOffsetProps } from "./screen-offset-extension"
 
 /*
@@ -104,13 +105,18 @@ function band(id: string, paths: Array<Ring>, width: number, color: Rgba) {
   }
 }
 
-/** Under the grid: the city's ground */
-export function cityGroundLayer(city: CityOutline, ground: Rgba) {
+/** Under the grid: the city's ground (hidden under the street) */
+export function cityGroundLayer(
+  city: CityOutline,
+  ground: Rgba,
+  visible = true
+) {
   return new GeoJsonLayer({
     id: `city-${city.slug}`,
     data: city as never,
     getFillColor: ground,
     stroked: false,
+    visible,
     updateTriggers: { getFillColor: ground.join() },
   })
 }
@@ -124,13 +130,17 @@ export function cityEdgeLayers({
   colors,
   size,
   metresPerPixel,
+  overview,
 }: {
   city: CityOutline
   colors: MapColors
   /** The square root of the city's area, in metres; none, no rings */
   size: number | undefined
   metresPerPixel: number | undefined
+  /** At street level, its opacity and its rings */
+  overview?: OverviewStyle
 }) {
+  const visible = overview?.visible ?? true
   const polygons = city.geometry.coordinates as Array<Polygon>
   const line = metresPerPixel === undefined ? 0 : ringWidth * metresPerPixel
   const ringLayers =
@@ -148,8 +158,10 @@ export function cityEdgeLayers({
                 invisible
               ),
               ...masking,
+              visible,
             }),
             new PathLayer<Ring>({
+              ...overview,
               ...band(
                 `city-ring-${index}-${city.slug}`,
                 simplified,
@@ -157,6 +169,7 @@ export function cityEdgeLayers({
                 withOpacity(colors.ink, opacity)
               ),
               ...masked,
+              visible,
             }),
           ]
         })
@@ -168,14 +181,17 @@ export function cityEdgeLayers({
       data: polygons,
       getPolygon: (polygon) => polygon,
       getFillColor: invisible,
+      visible,
     }),
     new SolidPolygonLayer<Polygon, ScreenOffsetProps>({
+      ...overview,
       ...masked,
       id: `city-shadow-${city.slug}`,
       data: polygons,
       getPolygon: (polygon) => polygon,
       getFillColor: colors.shadow,
-      extensions: [screenOffset],
+      visible,
+      extensions: [screenOffset, ...(overview?.extensions ?? [])],
       screenOffset: shadowOffset,
     }),
     ...ringLayers,
@@ -183,8 +199,13 @@ export function cityEdgeLayers({
 }
 
 /** Over the grid and the water: the city's limit line */
-export function cityLimitsLayer(city: CityOutline, colors: MapColors) {
+export function cityLimitsLayer(
+  city: CityOutline,
+  colors: MapColors,
+  overview?: OverviewStyle
+) {
   return new PathLayer<Ring>({
+    ...overview,
     id: `city-limits-${city.slug}`,
     data: outlineRings(city),
     getPath: (ring) => ring,

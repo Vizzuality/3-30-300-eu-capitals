@@ -1,11 +1,16 @@
+import type { CityTileRequest } from "./city-tile-decode"
+
 /*
  * Vector tiles fetched from the data API and decoded off the main thread, by
  * a few workers of the site's own (`tile-worker.ts`), bundled with it: no
  * worker or script is ever loaded from another origin.
  */
 
-/** How a tile is decoded: every layer at once */
-export type TileRequest = { kind: "binary" } | { kind: "geojson" }
+/** How a tile is decoded: every layer at once, or a city tile layer by layer */
+export type TileRequest =
+  | { kind: "binary" }
+  | { kind: "geojson" }
+  | CityTileRequest
 
 export type TileIndex = { x: number; y: number; z: number }
 
@@ -109,4 +114,37 @@ export async function loadTile(
     return null
   }
   return decode(buffer, index, request)
+}
+
+// Tiles drawn by several layers (one per drawing group), by address; the
+// oldest are forgotten first
+const shared = new Map<string, Promise<unknown>>()
+const keptTiles = 384
+
+/**
+ * A tile fetched and decoded once for every layer that draws it, never
+ * cancelled by one of them, since another may be waiting for it
+ */
+export function sharedTile(
+  url: string,
+  index: TileIndex,
+  request: TileRequest
+) {
+  let tile = shared.get(url)
+  if (tile) {
+    // The most recently used last
+    shared.delete(url)
+    shared.set(url, tile)
+    return tile
+  }
+  tile = loadTile(url, index, request)
+  tile.catch(() => shared.delete(url))
+  shared.set(url, tile)
+  if (shared.size > keptTiles) {
+    const oldest = shared.keys().next().value
+    if (oldest !== undefined) {
+      shared.delete(oldest)
+    }
+  }
+  return tile
 }

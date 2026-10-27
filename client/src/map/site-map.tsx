@@ -82,11 +82,12 @@ import {
   type HomeCapital,
   type LngLat,
 } from "./home-capitals"
-import { OverviewPulse, useCityOverview } from "./city-overview"
+import { GuidePulse, useCityOverview } from "./city-overview"
 import { Renderer } from "./load-renderer"
 import { MapCamera, useMapCamera, type MapCameraState } from "./map-camera"
 import { mapColors, useColorScheme } from "./map-colors"
 import type { HomeMap, MapPress } from "./renderer"
+import { useStreetLevel } from "./street-level"
 
 /*
  * The map, in the layout every page shares: made once, it stays on screen
@@ -109,7 +110,9 @@ import type { HomeMap, MapPress } from "./renderer"
  * On a capital's city overview, a click or a tap anywhere zooms in there to
  * the street, and Enter at the centre of the view, marked by a small cross
  * while the map has the keyboard's focus. The guide's pulse sits on the
- * city's suggested place until the visitor moves the map.
+ * city's suggested place until the visitor moves the map. At street level,
+ * it sits on the building with results nearest to where the map zoomed in,
+ * and Tab goes through the buildings with results nearest the centre.
  */
 
 /** The page that sets what the map shows */
@@ -349,13 +352,13 @@ export function SiteMap() {
   const state: GuideState = capitalViewShown
     ? guideState(guideInput(capitalViewShown))
     : "home"
-  const legendView: LegendView = capitalViewShown
-    ? drawnLegend(capitalLegend(capitalViewShown))
-    : { view: "home" }
   const announcement = useViewAnnouncement(slug, capitalViewShown?.view)
 
   // The key hint shows while the map has the keyboard's focus
   const [keyboardFocus, setKeyboardFocus] = useState(false)
+  // How the focus last came into the map: Shift+Tab from what follows it
+  // goes through the capitals, buildings or facades from the last
+  const entered = useRef<"forwards" | "backwards">("forwards")
 
   // The last press on the map, which sends out a ring: a capital, or a
   // place of the city overview zoomed into
@@ -386,6 +389,19 @@ export function SiteMap() {
     onPress: pressAt,
   })
 
+  const streetLevel = useStreetLevel({
+    camera,
+    slug,
+    onStreet: capitalViewShown?.view === "street",
+  })
+
+  const legendView: LegendView = capitalViewShown
+    ? drawnLegend(
+        capitalLegend(capitalViewShown),
+        overview.map?.cityArea !== undefined
+      )
+    : { view: "home" }
+
   const twoFingers = useTwoFingers(root, !desktop)
   const visible = useMapCamera(camera, isOnScreen)
 
@@ -411,7 +427,17 @@ export function SiteMap() {
         aria-describedby={hintId}
         tabIndex={0}
         onKeyDown={(event) => {
-          if (home.onKey(event) || overview.onKey(event)) {
+          // Only the first key after entering the map knows how it came in;
+          // Shift alone, pressed before Tab, is not a key of its own
+          const fromEnd = entered.current === "backwards"
+          if (!["Shift", "Control", "Alt", "Meta"].includes(event.key)) {
+            entered.current = "forwards"
+          }
+          if (
+            home.onKey(event, fromEnd) ||
+            overview.onKey(event) ||
+            streetLevel.onKey(event, fromEnd)
+          ) {
             event.preventDefault()
             return
           }
@@ -421,12 +447,26 @@ export function SiteMap() {
             camera.act(action)
           }
         }}
-        onFocus={(event) =>
+        onFocus={(event) => {
           setKeyboardFocus(event.currentTarget.matches(":focus-visible"))
-        }
+          // Entering the map: backwards from what follows it (Shift+Tab), or
+          // forwards (Tab, a click on the map, focus from nowhere)
+          const from = event.relatedTarget
+          const map = event.currentTarget
+          if (
+            from instanceof Node &&
+            !map.contains(from) &&
+            event.target === map &&
+            map.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING
+          ) {
+            entered.current = "backwards"
+          }
+        }}
         onBlur={() => {
           setKeyboardFocus(false)
+          entered.current = "forwards"
           home.blur()
+          streetLevel.blur()
         }}
         {...twoFingers.handlers}
         className="absolute inset-0 -outline-offset-2 desktop:touch-none"
@@ -440,6 +480,7 @@ export function SiteMap() {
             press={press}
             city={cityOutline}
             capital={overview.map}
+            street={streetLevel.street}
             oneFingerScrolls={!desktop}
             visible={visible}
           />
@@ -463,7 +504,8 @@ export function SiteMap() {
         keyHint={<KeyHint id={hintId} state={state} visible={keyboardFocus} />}
       />
       <CapitalLabel camera={camera} capital={home.labelled} />
-      <OverviewPulse camera={camera} pulse={overview.pulse} />
+      <GuidePulse camera={camera} pulse={overview.pulse} state="overview" />
+      <GuidePulse camera={camera} pulse={streetLevel.pulse} state="street" />
       <CentreMark
         visible={keyboardFocus && overview.map?.onPress !== undefined}
       />
@@ -473,7 +515,9 @@ export function SiteMap() {
       {/* A live region, said politely, as the view changes or a capital is
           pointed at */}
       <output className="sr-only">
-        {shown.map === "home" ? home.announcement : announcement}
+        {shown.map === "home"
+          ? home.announcement
+          : streetLevel.announcement || announcement}
       </output>
     </div>
   )
@@ -582,14 +626,17 @@ function useHomeCapitals({
             share: wholePercent(labelled.share) / 100,
           })
         : "",
-    /** Takes Tab and Enter among the capitals; true when it took the key */
-    onKey: (event: KeyboardEvent<HTMLElement>) => {
+    /**
+     * Takes Tab and Enter among the capitals; true when it took the key.
+     * `fromEnd`: the map was just entered backwards.
+     */
+    onKey: (event: KeyboardEvent<HTMLElement>, fromEnd: boolean) => {
       if (!map || event.altKey || event.ctrlKey || event.metaKey) {
         return false
       }
       if (event.key === "Tab") {
         const order = map.capitals.map(({ slug }) => slug)
-        const step = capitalStep(order, focused, event.shiftKey)
+        const step = capitalStep(order, focused, event.shiftKey, fromEnd)
         if (step.leaves) {
           return false
         }

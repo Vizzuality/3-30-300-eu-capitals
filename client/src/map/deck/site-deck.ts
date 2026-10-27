@@ -189,4 +189,24 @@ export class SiteDeck extends Deck<MapView> {
   get isDrawing() {
     return this.drawing
   }
+
+  /**
+   * Asks for the map to be drawn in its next frame, once however often it
+   * is asked: for what the layers read as they are drawn (an animation's
+   * clock, a lifted building's offset), which changes no layer.
+   * `redraw()` would draw at once, as many times as it is called.
+   */
+  drawSoon(reason: string) {
+    this.layerManager?.setNeedsRedraw(reason)
+  }
+
+  /**
+   * Applies the layers last set, now: deck.gl otherwise applies them at the
+   * start of its next frame. Called from its pointer's handler, which deck.gl
+   * calls in the middle of a frame, just before drawing it, so the layers
+   * and the shared values they read change in the same frame.
+   */
+  applyLayersNow() {
+    this.layerManager?.updateLayers()
+  }
 }

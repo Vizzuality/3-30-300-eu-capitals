@@ -91,7 +91,8 @@ test("a click or a tap on the city overview zooms in to the street there", async
   expect(x).toBeCloseTo(longitude, 4)
   expect(y).toBeCloseTo(latitude, 4)
   await expect(streetGuide(page)).toBeVisible()
-  await expect(pulseTag(page)).toHaveCount(0)
+  // The overview's pulse leaves
+  await expect(page.locator('[data-pulse-tag="overview"]')).toHaveCount(0)
 })
 
 test("Enter zooms in to the street at the centre of the view", async ({

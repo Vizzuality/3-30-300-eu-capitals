@@ -107,18 +107,22 @@ export function nameCharacters(names: ReadonlyArray<string>) {
  * from the one in focus (none while the map itself has focus): to the next
  * capital, back to the map itself (Shift+Tab from the first), or out of the
  * map (`leaves`: Tab after the last, Shift+Tab from the map itself), so the
- * keys never trap the focus
+ * keys never trap the focus. A map just entered backwards (Shift+Tab from
+ * what follows it, `fromEnd`) is gone through from its last item, as Tab
+ * goes through it from its first.
  */
-export function capitalStep(
-  order: ReadonlyArray<CapitalSlug>,
-  current: CapitalSlug | undefined,
-  backwards: boolean
-): { next: CapitalSlug | undefined; leaves: boolean } {
+export function capitalStep<Item = CapitalSlug>(
+  order: ReadonlyArray<Item>,
+  current: Item | undefined,
+  backwards: boolean,
+  fromEnd = false
+): { next: Item | undefined; leaves: boolean } {
   const index = current === undefined ? -1 : order.indexOf(current)
   if (index === -1) {
-    return backwards || order.length === 0
-      ? { next: undefined, leaves: true }
-      : { next: order[0], leaves: false }
+    if (order.length === 0 || (backwards && !fromEnd)) {
+      return { next: undefined, leaves: true }
+    }
+    return { next: backwards ? order.at(-1) : order[0], leaves: false }
   }
   const next = index + (backwards ? -1 : 1)
   if (next >= order.length) {

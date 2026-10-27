@@ -20,6 +20,7 @@ export function CentreMark({ visible }: { visible: boolean }) {
           key="centre"
           aria-hidden="true"
           data-centre-mark=""
+          data-map-obstacle=""
           {...overlayPresence("fade", reduced)}
           className="pointer-events-none absolute top-1/2 left-1/2 size-5.5 -translate-1/2"
         >

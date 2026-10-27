@@ -53,6 +53,7 @@ export function KeyHint({
     <motion.p
       id={id}
       data-key-hint={state}
+      data-map-obstacle=""
       initial={initial}
       // Leaving, it fades out and drops back, ready to rise again
       animate={visible ? animate : { ...exit, y: initial.y }}

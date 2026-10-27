@@ -34,10 +34,19 @@ export function capitalLegend(view: CapitalView): LegendView {
 
 /**
  * The legend of what the map draws so far: on a capital's page, its 10 m
- * grid in every view, until the street and the selected building are drawn
+ * grid, and once zoomed in, the street where the release has the capital's
+ * city map (with a building selected too, until its evidence is drawn)
  */
-export function drawnLegend(view: LegendView): LegendView {
-  return view.view === "home" ? view : { view: "overview" }
+export function drawnLegend(
+  view: LegendView,
+  streetDrawn: boolean
+): LegendView {
+  if (view.view === "home") {
+    return view
+  }
+  return streetDrawn && view.view !== "overview"
+    ? { view: "street" }
+    : { view: "overview" }
 }
 
 /** How an entry is drawn */

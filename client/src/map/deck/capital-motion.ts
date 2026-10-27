@@ -200,7 +200,7 @@ export function useCapitalMotion({
 }
 
 /** The screen's device pixels per CSS pixel, followed as it changes */
-function usePixelRatio() {
+export function usePixelRatio() {
   return useSyncExternalStore(
     (listener) => {
       const media = window.matchMedia(

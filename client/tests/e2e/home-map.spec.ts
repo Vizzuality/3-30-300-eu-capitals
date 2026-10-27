@@ -218,7 +218,7 @@ test("the Home map's tiles are sent with a tag, then not again", async ({
   )
   expect(
     (
-      await request.get("/api/stand-in/capitals/stockholm/tiles/city/14/0/0")
+      await request.get("/api/stand-in/capitals/helsinki/tiles/city/14/0/0")
     ).status()
   ).toBe(404)
 })

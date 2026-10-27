@@ -52,6 +52,7 @@ export function PulseTag({
           key={pulse}
           aria-hidden="true"
           data-pulse-tag={pulse}
+          data-map-obstacle=""
           className="pointer-events-none absolute -translate-y-1/2"
           style={{ left: x + pulseTagOffset, top: y }}
         >

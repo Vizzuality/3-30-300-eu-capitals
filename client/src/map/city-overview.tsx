@@ -6,7 +6,7 @@ import type { Summary } from "@/data/schemas"
 import { env } from "@/env"
 import type { CapitalSlug } from "@/lib/capitals"
 import { streetCamera, viewportOf } from "./camera"
-import { capitalArchives } from "./capital-archives"
+import { capitalArchives, cityTileArea } from "./capital-archives"
 import type { LngLat } from "./home-capitals"
 import { useMapCamera, type MapCamera } from "./map-camera"
 import type { CapitalMap } from "./renderer"
@@ -90,6 +90,8 @@ export function useCityOverview({
             context: summary.context,
             areaKm2: summary.area_km2,
             archives: capitalArchives(summary, env.VITE_DATA_RELEASE),
+            cityArea: cityTileArea(summary, env.VITE_DATA_RELEASE),
+            labelChars: summary.label_chars,
             onPress: onOverview ? zoomIn : undefined,
           }
         : undefined,
@@ -119,13 +121,18 @@ export function useCityOverview({
   }
 }
 
-/** The guide's pulse: its dot and its tag, where the camera shows it */
-export function OverviewPulse({
+/**
+ * The guide's pulse: its dot and its tag, where the camera shows it, on the
+ * city overview or the street
+ */
+export function GuidePulse({
   camera,
   pulse,
+  state,
 }: {
   camera: MapCamera
   pulse: MapPulse | undefined
+  state: "overview" | "street"
 }) {
   // Where the pulse is on screen, to the half pixel; kept as it leaves
   const [last, setLast] = useState(pulse)
@@ -146,7 +153,7 @@ export function OverviewPulse({
   return (
     <>
       <PulseDot x={x} y={y} placed={shown ? pulse.key : undefined} />
-      <PulseTag state="overview" x={x} y={y} visible={shown} />
+      <PulseTag state={state} x={x} y={y} visible={shown} />
     </>
   )
 }

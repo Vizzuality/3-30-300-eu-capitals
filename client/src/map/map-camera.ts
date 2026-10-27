@@ -111,6 +111,11 @@ export class MapCamera {
     }
   }
 
+  /** Where the camera is going: the end of the move under way, or where it is */
+  get destination(): MapViewState | undefined {
+    return this.target ?? this.state.camera
+  }
+
   /** The map's size on screen, as it changes */
   setSize(size: Size) {
     if (

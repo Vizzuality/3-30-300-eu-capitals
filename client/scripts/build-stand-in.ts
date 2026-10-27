@@ -9,7 +9,10 @@
  *   pnpm stand-in ../data-processing/data/03_primary/releases/2026-10-all
  *
  * Stockholm is copied from the real release as it is; every other one of the
- * 27 gets placeholder figures and outline from the reference design.
+ * 27 gets placeholder figures and outline from the reference design. Of
+ * Stockholm's city map (86 MB) it keeps a corner, central Södermalm at zooms
+ * 14 to 16, cut out by the data processing's PMTiles writer (`uv` and the
+ * data processing's environment are needed).
  */
 import {
   copyFileSync,
@@ -18,7 +21,8 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
-import { join } from "node:path"
+import { execFileSync } from "node:child_process"
+import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
@@ -29,6 +33,7 @@ import {
   summarySchema,
   standInRelease,
 } from "@/data/schemas"
+import { standInCityTiles } from "@/map/capital-archives"
 import reference from "@scripts/stand-in/reference-capitals.json" with { type: "json" }
 import {
   buildStandIn,
@@ -93,6 +98,28 @@ for (const slug of standInRealCapitals) {
     const path = join("capitals", slug, archive)
     copyFileSync(join(source, path), join(target, path))
   }
+}
+
+// A corner of Stockholm's city map, for the street level
+{
+  const { slug, z, x, y, maxZoom } = standInCityTiles
+  const path = join("capitals", slug, "city.pmtiles")
+  execFileSync(
+    "uv",
+    [
+      "run",
+      "python",
+      "-m",
+      "data_processing.cut_archive",
+      resolve(source, path),
+      join(target, path),
+      ...[z, x[0], y[0], x[1], y[1], maxZoom].map(String),
+    ],
+    {
+      cwd: fileURLToPath(new URL("../../data-processing", import.meta.url)),
+      stdio: "inherit",
+    }
+  )
 }
 
 const placeholders = standIn.ranking.capitals.filter((row) => row.placeholder)

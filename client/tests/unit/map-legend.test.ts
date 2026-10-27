@@ -2,7 +2,12 @@ import messages from "@messages/en.json"
 import { createTranslator } from "use-intl"
 import { describe, expect, test } from "vitest"
 
-import { legendEntries, legendText, type LegendView } from "@/lib/map-legend"
+import {
+  drawnLegend,
+  legendEntries,
+  legendText,
+  type LegendView,
+} from "@/lib/map-legend"
 import { rules } from "@/lib/rules"
 
 const t = createTranslator({ locale: "en", messages, namespace: "map.legend" })
@@ -117,5 +122,29 @@ describe("the legend of each view", () => {
       shape: "rectangle",
       evidence: true,
     })
+  })
+})
+
+describe("the legend of what the map draws", () => {
+  test("the street once zoomed in, where the release has the city map", () => {
+    expect(drawnLegend({ view: "street" }, true)).toEqual({ view: "street" })
+    // A selected building's evidence is not drawn yet: the street is
+    expect(
+      drawnLegend({ view: "building", rule: 30, facade: false }, true)
+    ).toEqual({ view: "street" })
+    expect(drawnLegend({ view: "overview" }, true)).toEqual({
+      view: "overview",
+    })
+  })
+
+  test("the grid in every view where it has none", () => {
+    expect(drawnLegend({ view: "street" }, false)).toEqual({ view: "overview" })
+    expect(
+      drawnLegend({ view: "building", rule: 3, facade: true }, false)
+    ).toEqual({ view: "overview" })
+  })
+
+  test("Home as it is", () => {
+    expect(drawnLegend({ view: "home" }, true)).toEqual({ view: "home" })
   })
 })

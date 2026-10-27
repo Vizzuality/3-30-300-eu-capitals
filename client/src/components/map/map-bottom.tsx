@@ -41,9 +41,12 @@ export function MapBottom({
         <div className="flex max-w-full justify-center">{keyHint}</div>
       )}
       <div className="flex w-full items-end justify-between gap-2">
-        <div className="pointer-events-auto min-w-0">{attribution}</div>
+        <div data-map-obstacle="" className="pointer-events-auto min-w-0">
+          {attribution}
+        </div>
         {scale && (
           <div
+            data-map-obstacle=""
             className={cn({
               "flex-none": true,
               "max-desktop:hidden": layout === "responsive",

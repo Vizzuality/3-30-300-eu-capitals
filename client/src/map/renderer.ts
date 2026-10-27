@@ -1,6 +1,7 @@
 import type { CapitalTileArchive } from "@/data/api"
 import type { CityOutline, Summary } from "@/data/schemas"
 import type { CapitalSlug } from "@/lib/capitals"
+import type { StreetBuilding } from "@/lib/street-buildings"
 import type { HomeCapital, LngLat } from "./home-capitals"
 import type { MapCamera } from "./map-camera"
 import type { MapColors } from "./map-colors"
@@ -51,8 +52,25 @@ export type CapitalMap = {
   areaKm2: number
   /** Which of its archives of tiles the map draws from */
   archives: Record<CapitalTileArchive, boolean>
+  /**
+   * Where its city map has tiles (west, south, east, north), if the release
+   * has them
+   */
+  cityArea: [number, number, number, number] | undefined
+  /** Every character of its street names, for their font */
+  labelChars: string
   /** On the city overview, a click or a tap zooms in there */
   onPress: ((at: LngLat) => void) | undefined
+}
+
+/** The street level of a capital's map, and what the visitor does there */
+export type StreetMap = {
+  /** The building in keyboard focus, which lifts with a focus ring */
+  focused: number | undefined
+  /** A building with results clicked or tapped */
+  onPress: (id: number) => void
+  /** The buildings with results in view, as their tiles load */
+  onBuildings: (buildings: ReadonlyArray<StreetBuilding>) => void
 }
 
 export type MapRendererProps = {
@@ -71,6 +89,8 @@ export type MapRendererProps = {
   city: CityOutline | undefined
   /** The capital shown, on its page, once its summary is loaded */
   capital: CapitalMap | undefined
+  /** At street level */
+  street: StreetMap | undefined
   /** On the phone's map band, one finger scrolls the page */
   oneFingerScrolls: boolean
   /** Whether the map is on screen; a hidden map draws nothing */

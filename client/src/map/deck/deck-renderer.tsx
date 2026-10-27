@@ -10,12 +10,32 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { motionTokens } from "@/design/tokens"
 import type { CapitalSlug } from "@/lib/capitals"
-import { allZooms, constrain, type ZoomLimits } from "@/map/camera"
+import {
+  allZooms,
+  areaInView,
+  constrain,
+  viewportOf,
+  type ZoomLimits,
+} from "@/map/camera"
 import { useMapCamera, type CameraRequest } from "@/map/map-camera"
 import type { MapRendererProps } from "@/map/renderer"
+import {
+  buildingStride,
+  type CityTileContent,
+} from "@/map/deck/city-tile-decode"
+import { mergeBuildings, type StreetBuilding } from "@/lib/street-buildings"
+import { mapViewOf } from "@/lib/visible-area"
 import { baseLayers } from "./base-layers"
-import { useCapitalMotion, useNameFont } from "./capital-motion"
+import { useCapitalMotion, useNameFont, usePixelRatio } from "./capital-motion"
+import { prefetchCityTiles } from "./city-tile-layer"
 import { MapGestures, SiteDeck } from "./site-deck"
+import { streetLayers } from "./street-layers"
+import { useStreetMotion } from "./street-motion"
+import {
+  streetNamesLayer,
+  useStreetNameFont,
+  useStreetNames,
+} from "./street-names"
 
 /*
  * The map drawn by deck.gl: its camera, its gestures and its layers. The
@@ -63,6 +83,38 @@ let decksMade = 0
 const capitalOf = (object: unknown) =>
   (object as { slug?: CapitalSlug } | null)?.slug
 
+/** What the pointer is over at street level: a building with results */
+function buildingOf(info: { layer?: { id: string } | null; object?: unknown }) {
+  if (!info.layer?.id.startsWith("street-objects")) {
+    return undefined
+  }
+  const properties = (
+    info.object as { properties?: { id?: number; scored?: number } } | null
+  )?.properties
+  return properties?.scored === 1 ? properties.id : undefined
+}
+
+/** The buildings with results of the tiles in view, as one list */
+function buildingsOf(
+  tiles: ReadonlyArray<CityTileContent>
+): Array<StreetBuilding> {
+  return mergeBuildings(
+    tiles.map(({ buildings }) => {
+      const found: Array<StreetBuilding> = []
+      for (let at = 0; at < buildings.length; at += buildingStride) {
+        found.push({
+          id: buildings[at],
+          score: buildings[at + 1],
+          longitude: buildings[at + 2],
+          latitude: buildings[at + 3],
+          area: buildings[at + 4],
+        })
+      }
+      return found
+    })
+  )
+}
+
 export default function DeckRenderer({
   camera,
   colors,
@@ -71,11 +123,13 @@ export default function DeckRenderer({
   press,
   city,
   capital,
+  street,
   oneFingerScrolls,
   visible,
 }: MapRendererProps) {
   const parent = useRef<HTMLDivElement>(null)
   const [deck, setDeck] = useState<SiteDeck>()
+  const deckRef = useRef<SiteDeck | undefined>(undefined)
   const [loaded, setLoaded] = useState(false)
 
   // The capitals under the pointer and clicked, told to the map around
@@ -85,6 +139,13 @@ export default function DeckRenderer({
   // The city overview zoomed into where it is clicked or tapped
   const zoomInRef = useRef(capital?.onPress)
   zoomInRef.current = capital?.onPress
+  // The street level, and the building with results under the pointer
+  const streetRef = useRef(street)
+  streetRef.current = street
+  const [hoveredBuilding, setHoveredBuilding] = useState<number>()
+  const hoveredRef = useRef(hoveredBuilding)
+  const streetHoverRef = useRef<(id: number | undefined) => void>(() => {})
+  hoveredRef.current = hoveredBuilding
 
   // Made once, never again: navigating, changing the language or resizing
   // the window keeps it, its WebGL context and what it has loaded
@@ -131,26 +192,38 @@ export default function DeckRenderer({
       getCursor: ({ isDragging, isHovering }) =>
         isDragging
           ? "grabbing"
-          : isHovering
+          : isHovering && (homeRef.current || hoveredRef.current !== undefined)
             ? "pointer"
             : zoomInRef.current
               ? "zoom-in"
               : "grab",
-      onHover: ({ object }) => {
-        const slug = homeRef.current ? capitalOf(object) : undefined
+      onHover: (info) => {
+        const slug = homeRef.current ? capitalOf(info.object) : undefined
         if (slug !== hovered.current) {
           hovered.current = slug
           homeRef.current?.onHover(slug)
         }
+        const building = streetRef.current ? buildingOf(info) : undefined
+        if (building !== hoveredRef.current) {
+          hoveredRef.current = building
+          // Lifted at once, then the cursor follows React's render
+          streetHoverRef.current(building)
+          setHoveredBuilding(building)
+          element.dataset.hoveredBuilding = String(building ?? "")
+        }
       },
-      onClick: ({ object, coordinate }) => {
+      onClick: (info) => {
+        const { object, coordinate } = info
         if (!coordinate) {
           return
         }
         const at: [number, number] = [coordinate[0], coordinate[1]]
         const slug = capitalOf(object)
+        const building = streetRef.current ? buildingOf(info) : undefined
         if (slug && homeRef.current) {
           homeRef.current.onPress(slug, at)
+        } else if (building !== undefined) {
+          streetRef.current?.onPress(building)
         } else {
           zoomInRef.current?.(at)
         }
@@ -247,6 +320,7 @@ export default function DeckRenderer({
     }
 
     setDeck(instance)
+    deckRef.current = instance
     return () => {
       unsubscribe()
       instance.finalize()
@@ -273,6 +347,10 @@ export default function DeckRenderer({
   )
   const nameFont = useNameFont(names)
   const drawn = useRef<() => void>(() => {})
+  const redrawNow = useCallback(() => {
+    drawn.current()
+    deckRef.current?.applyLayersNow()
+  }, [])
   const queued = useRef(false)
   const redraw = useCallback(() => {
     if (!queued.current) {
@@ -302,7 +380,135 @@ export default function DeckRenderer({
     zoomStep === undefined || latitude === undefined
       ? undefined
       : 2 ** (getMeterZoom({ latitude }) - zoomStep)
-  drawn.current = () =>
+  // The street level: drawn once the area in view is narrower than the
+  // street level's width, from the city tiles the release has
+  const cityArea = capital?.archives.city ? capital.cityArea : undefined
+  const streetView = useMapCamera(
+    camera,
+    ({ camera: shown, size }) =>
+      shown !== undefined &&
+      size.width > 0 &&
+      mapViewOf(areaInView(shown, size)) === "street"
+  )
+  const onStreet = streetView && cityArea !== undefined
+  // The buildings lifted, for the tests to follow, as they are drawn
+  const liftedRef = useRef<ReadonlyArray<{ id: number }>>([])
+  const noteLifted = useCallback(() => {
+    if (parent.current) {
+      parent.current.dataset.liftedBuildings = liftedRef.current
+        .filter(({ id }) => id !== -1)
+        .map(({ id }) => id)
+        .join()
+    }
+  }, [])
+  const repaint = useCallback(() => {
+    deck?.drawSoon("street")
+    noteLifted()
+  }, [deck, noteLifted])
+  const streetMotion = useStreetMotion({
+    camera,
+    street: onStreet,
+    press,
+    hovered: onStreet ? hoveredBuilding : undefined,
+    focused: onStreet ? street?.focused : undefined,
+    redraw,
+    redrawNow,
+    repaint,
+  })
+  const mapRoot = useCallback(
+    () => parent.current?.closest<HTMLElement>("[data-map]") ?? null,
+    []
+  )
+  liftedRef.current = streetMotion.lifted
+  streetHoverRef.current = streetMotion.hover
+  const streetNames = useStreetNames({
+    camera,
+    root: mapRoot,
+    shown: onStreet,
+    redraw,
+  })
+  const streetFont = useStreetNameFont(cityArea && capital?.labelChars)
+  const pixelRatio = usePixelRatio()
+  // The buildings in view, told again to a street level that starts after
+  // they have loaded (its address is written once the camera rests)
+  const streetBuildings = useRef<Array<StreetBuilding>>([])
+  const onBuildings = street?.onBuildings
+  useEffect(() => {
+    onBuildings?.(streetBuildings.current)
+  }, [onBuildings])
+  const onTilesLoaded = useCallback(
+    (tiles: Array<CityTileContent>) => {
+      streetMotion.onTilesLoaded()
+      streetNames.setTiles(tiles)
+      streetBuildings.current = buildingsOf(tiles)
+      // How many street tiles are in view, for the tests to follow
+      if (parent.current) {
+        parent.current.dataset.streetTiles = String(tiles.length)
+      }
+      streetRef.current?.onBuildings(streetBuildings.current)
+    },
+    // The callbacks it calls are stable
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+    [streetMotion.onTilesLoaded, streetNames.setTiles]
+  )
+  // Leaving the street, its tiles stay those of the area last in view while
+  // the overview fades back over them
+  const [frozenArea, setFrozenArea] = useState<
+    [number, number, number, number] | undefined
+  >()
+  const [wasOnStreet, setWasOnStreet] = useState(onStreet)
+  if (wasOnStreet !== onStreet) {
+    setWasOnStreet(onStreet)
+    const { camera: shown, size } = camera.state
+    const area = shown && areaInView(shown, size)
+    setFrozenArea(
+      onStreet || !area || !cityArea
+        ? undefined
+        : [
+            Math.max(area.west, cityArea[0]),
+            Math.max(area.south, cityArea[1]),
+            Math.min(area.east, cityArea[2]),
+            Math.min(area.north, cityArea[3]),
+          ]
+    )
+  }
+  // The tiles where the camera lands, asked for as it glides in from the
+  // overview, so the street is ready when it arrives
+  useEffect(() => {
+    if (!press || press.slug !== undefined || !capital?.archives.city) {
+      return
+    }
+    const landing = camera.destination
+    const { size } = camera.state
+    if (landing && size.width > 0) {
+      prefetchCityTiles({
+        slug: capital.slug,
+        release,
+        viewport: viewportOf(landing, size),
+      })
+    }
+  }, [press, camera, capital, release])
+  // Arriving from the overview, the street waits for the camera to land:
+  // the tiles of the zooms it glides through are never asked for, only
+  // those where it lands (asked for as the glide starts)
+  const landed = useMapCamera(camera, ({ camera: shown }) => {
+    const destination = camera.destination
+    return (
+      !shown || !destination || Math.abs(destination.zoom - shown.zoom) < 0.01
+    )
+  })
+  // How far apart the waves of the arrival are: a third of the way from the
+  // centre to a corner
+  const size = useMapCamera(camera, (state) => state.size)
+  const waveSpacing = Math.hypot(size.width, size.height) / 2 / 3
+
+  drawn.current = () => {
+    const gliding = streetMotion.reveal.phase === "armed" && !landed
+    // The arrival at street level, for the tests to follow
+    if (parent.current) {
+      parent.current.dataset.streetArrival = streetMotion.reveal.phase
+    }
+    noteLifted()
     deck?.setProps({
       layers: baseLayers({
         colors,
@@ -319,8 +525,42 @@ export default function DeckRenderer({
           nameFont,
         },
         ring: motion.ring,
+        street:
+          capital && cityArea && streetMotion.drawn && !gliding
+            ? {
+                layers: streetLayers({
+                  slug: capital.slug,
+                  release,
+                  colors,
+                  extent: frozenArea ?? cityArea,
+                  latitude: (cityArea[1] + cityArea[3]) / 2,
+                  reveal: streetMotion.reveal,
+                  hidden: streetMotion.hidden,
+                  lifted: streetMotion.lifted,
+                  waveSpacing,
+                  onTilesLoaded,
+                }),
+                overview: streetMotion.overview,
+              }
+            : undefined,
+        reveal: streetMotion.reveal,
+        waveSpacing,
+        // Made as soon as the capital's font is ready, shown at street
+        // level only: its shaders are ready before the street arrives
+        streetNames:
+          cityArea && streetFont
+            ? streetNamesLayer({
+                labels: onStreet ? streetNames.current().labels : [],
+                version: streetNames.current().version,
+                colors,
+                characterSet: streetFont,
+                pixelRatio,
+                opacity: onStreet ? streetMotion.names : 0,
+              })
+            : null,
       }),
     })
+  }
   useEffect(redraw, [
     redraw,
     deck,
@@ -333,6 +573,12 @@ export default function DeckRenderer({
     home?.capitals,
     home?.focused,
     nameFont,
+    streetMotion.lifted,
+    streetFont,
+    frozenArea,
+    waveSpacing,
+    onStreet,
+    landed,
   ])
 
   // The capital lifted, for the tests to follow

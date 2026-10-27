@@ -30,6 +30,8 @@ import { capitalView, guideInput } from "@/lib/capital-view"
 import { isCapitalSlug } from "@/lib/capitals"
 import { guideState } from "@/lib/guide"
 import { capitalLegend, drawnLegend } from "@/lib/map-legend"
+import { cityTileArea } from "@/map/capital-archives"
+import { env } from "@/env"
 import type { Rule } from "@/lib/rules"
 import { assertLocale } from "@/routes/$locale/-guards"
 
@@ -167,7 +169,10 @@ function CapitalAfterBand() {
     <>
       {/* The map's legend, under its band on phones */}
       <MapLegend
-        view={drawnLegend(capitalLegend(view))}
+        view={drawnLegend(
+          capitalLegend(view),
+          cityTileArea(summary, env.VITE_DATA_RELEASE) !== undefined
+        )}
         variant="band"
         className="desktop:hidden"
       />

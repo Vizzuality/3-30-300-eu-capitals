@@ -68,6 +68,12 @@ export function PulseDot({
           style={{ left: x, top: y }}
           {...overlayPresence("fade", reduced)}
         >
+          {/* The room it takes, which the map's names keep clear of */}
+          <span
+            data-map-obstacle=""
+            className={ringClass}
+            style={{ opacity: 0 }}
+          />
           <Pulse reduced={reduced} />
         </motion.span>
       )}

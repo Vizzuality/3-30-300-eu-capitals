@@ -185,6 +185,7 @@ export function MapLegend({
         <motion.div
           key="legend"
           {...presence}
+          data-map-obstacle=""
           className={cn({
             "w-fit max-w-95": true,
             "rounded-control bg-surface px-3.5 py-2.5 shadow-lift":

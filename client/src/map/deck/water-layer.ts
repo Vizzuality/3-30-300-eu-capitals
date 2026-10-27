@@ -2,6 +2,7 @@ import { tileUrlTemplate } from "@/data/api"
 import type { CapitalSlug } from "@/lib/capitals"
 import type { MapColors } from "@/map/map-colors"
 import { LocalMVTLayer } from "./local-mvt-layer"
+import type { OverviewStyle } from "./reveal-extension"
 
 /*
  * The water of the city overview: the sea, lakes and rivers of the map
@@ -17,6 +18,7 @@ export function waterLayer({
   colors,
   zooms,
   extent,
+  overview,
 }: {
   slug: CapitalSlug
   release: string
@@ -25,8 +27,11 @@ export function waterLayer({
   zooms: readonly [number, number]
   /** The overview's rectangle: west, south, east, north */
   extent: readonly [number, number, number, number]
+  /** At street level, its opacity and its rings */
+  overview?: OverviewStyle
 }) {
   return new LocalMVTLayer({
+    ...overview,
     id: `water-${slug}`,
     data: tileUrlTemplate({ kind: "context", slug }, release),
     minZoom: zooms[0],

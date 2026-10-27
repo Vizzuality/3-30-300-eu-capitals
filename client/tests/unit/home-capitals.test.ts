@@ -124,6 +124,22 @@ describe("Tab and Shift+Tab among the capitals", () => {
     })
   })
 
+  test("a map just entered with Shift+Tab is gone through from the last", () => {
+    expect(capitalStep(order, undefined, true, true)).toEqual({
+      next: "nicosia",
+      leaves: false,
+    })
+    // Tab still starts from the first, and an empty map still lets go
+    expect(capitalStep(order, undefined, false, true)).toEqual({
+      next: "helsinki",
+      leaves: false,
+    })
+    expect(capitalStep([], undefined, true, true)).toEqual({
+      next: undefined,
+      leaves: true,
+    })
+  })
+
   test("with no capitals, or one no longer shown, Tab starts again", () => {
     expect(capitalStep([], undefined, false)).toEqual({
       next: undefined,

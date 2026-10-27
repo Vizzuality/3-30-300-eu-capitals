@@ -17,6 +17,9 @@ export default defineConfig({
   testDir: ".",
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // The browsers draw WebGL on the processor, so more workers starve the pages
+  // (CI keeps Playwright's default: half its cores)
+  workers: process.env.CI ? undefined : 4,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
