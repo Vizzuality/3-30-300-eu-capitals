@@ -1,4 +1,5 @@
 import type { CityTileRequest } from "./city-tile-decode"
+import type { ContextTileRequest } from "./context-tile-decode"
 
 /*
  * Vector tiles fetched from the data API and decoded off the main thread, by
@@ -11,6 +12,7 @@ export type TileRequest =
   | { kind: "binary" }
   | { kind: "geojson" }
   | CityTileRequest
+  | ContextTileRequest
 
 export type TileIndex = { x: number; y: number; z: number }
 

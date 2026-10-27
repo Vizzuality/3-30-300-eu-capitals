@@ -2,9 +2,10 @@
  * Writes the stand-in release, the development and test data, to
  * `tests/fixtures/release/` from a real release folder written by the
  * pipeline (its JSON files, the capitals' outlines, the Home map's tiles,
- * `europe.pmtiles`, about 1 MB, and Stockholm's 10 m grid and the water of
- * its overview, `grid.pmtiles` and `context.pmtiles`, 2.9 MB, copied as they
- * are; the cities' other archives are too large to keep with the tests):
+ * `europe.pmtiles`, about 1 MB, and Stockholm's 10 m grid and the map of
+ * its overview (water, main roads, district names), `grid.pmtiles` and
+ * `context.pmtiles`, 3.2 MB together, copied as they are; the cities' other
+ * archives are too large to keep with the tests):
  *
  *   pnpm stand-in ../data-processing/data/03_primary/releases/2026-10-all
  *

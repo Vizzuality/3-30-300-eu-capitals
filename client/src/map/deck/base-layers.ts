@@ -14,7 +14,8 @@ import { europeLayer } from "./europe-layer"
 import { gridLayer } from "./grid-layer"
 import type { RevealClock } from "./reveal-extension"
 import { arrivalRings, revealOverview } from "./street-layers"
-import { waterLayer } from "./water-layer"
+import type { ContextTileContent } from "./context-tile-decode"
+import { roadLayers, waterLayer } from "./water-layer"
 
 /*
  * What the map draws: on Home, the muted map of Europe and the 27 capitals
@@ -29,7 +30,8 @@ import { waterLayer } from "./water-layer"
  *
  * At street level the street is drawn under the overview, which gives way
  * to it in rings around where the visitor zoomed in, or fades out, and
- * fades back over it on the way out; the street names come over all.
+ * fades back over it on the way out; the street names come over all. The
+ * overview's main roads and district names help visitors find their way.
  */
 
 /** The street level, under the overview */
@@ -53,6 +55,8 @@ export type BaseLayersInput = {
   gridDrawn: boolean
   /** Metres on the ground per CSS pixel, for the rings around the city */
   metresPerPixel: number | undefined
+  /** The main roads' opacity on the overview: they fade out near the street level */
+  roadOpacity: number
   /** Called once the grid has drawn the area in view */
   onGridDrawn: () => void
   /** The ring of a press: a capital, or a place zoomed into */
@@ -65,6 +69,10 @@ export type BaseLayersInput = {
   waveSpacing: number
   /** The street names, over everything */
   streetNames?: Layer | null
+  /** The district names on the overview */
+  placeNames?: Layer | null
+  /** Called with the overview's context tiles in view once they are loaded */
+  onContextTilesLoaded?: (tiles: Array<ContextTileContent>) => void
 }
 
 export function baseLayers({
@@ -75,14 +83,26 @@ export function baseLayers({
   capitals,
   gridDrawn,
   metresPerPixel,
+  roadOpacity,
   onGridDrawn,
   ring,
   street,
   reveal,
   waveSpacing,
   streetNames,
+  placeNames,
+  onContextTilesLoaded,
 }: BaseLayersInput) {
   const shown = capital && city?.slug === capital.slug ? capital : undefined
+  const context = capital?.archives.context
+    ? {
+        slug: capital.slug,
+        release,
+        colors,
+        zooms: capital.zooms.context,
+        extent: capital.context.bbox,
+      }
+    : undefined
   // The overview over the street: faded, or giving way in rings
   const overview = {
     opacity: street?.overview ?? 1,
@@ -113,15 +133,8 @@ export function baseLayers({
         onViewportLoad: onGridDrawn,
         overview,
       }),
-    capital?.archives.context &&
-      waterLayer({
-        slug: capital.slug,
-        release,
-        colors,
-        zooms: capital.zooms.context,
-        extent: capital.context.bbox,
-        overview,
-      }),
+    context &&
+      waterLayer({ ...context, overview, onTilesLoaded: onContextTilesLoaded }),
     // Outside the city, over the water: its shadow and soft rings, then its
     // limit line
     ...(city
@@ -133,7 +146,10 @@ export function baseLayers({
           overview,
         })
       : []),
+    // The main roads, over the city's soft rings, under its limit line
+    ...(context ? roadLayers({ ...context, overview, fade: roadOpacity }) : []),
     city && cityLimitsLayer(city, colors, overview),
+    placeNames ?? null,
     streetNames ?? null,
     ring && pressRingLayer(ring, colors),
   ]

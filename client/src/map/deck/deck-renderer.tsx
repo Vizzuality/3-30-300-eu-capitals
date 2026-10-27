@@ -23,14 +23,16 @@ import {
   buildingStride,
   type CityTileContent,
 } from "@/map/deck/city-tile-decode"
+import { roadFade } from "@/lib/overview-roads"
 import { mergeBuildings, type StreetBuilding } from "@/lib/street-buildings"
-import { mapViewOf } from "@/lib/visible-area"
+import { groundWidth, mapViewOf } from "@/lib/visible-area"
 import { baseLayers } from "./base-layers"
 import { useCapitalMotion, useNameFont, usePixelRatio } from "./capital-motion"
 import { prefetchCityTiles } from "./city-tile-layer"
 import { MapGestures, SiteDeck } from "./site-deck"
 import { streetLayers } from "./street-layers"
 import { useStreetMotion } from "./street-motion"
+import { placeNamesLayer, usePlaceNames } from "./place-names"
 import {
   streetNamesLayer,
   useStreetNameFont,
@@ -391,6 +393,13 @@ export default function DeckRenderer({
       mapViewOf(areaInView(shown, size)) === "street"
   )
   const onStreet = streetView && cityArea !== undefined
+  // The overview's main roads, fading out as the street level nears, to a
+  // twentieth of their opacity
+  const roadOpacity = useMapCamera(camera, ({ camera: shown, size }) =>
+    shown !== undefined && size.width > 0
+      ? Math.round(roadFade(groundWidth(areaInView(shown, size))) * 20) / 20
+      : 1
+  )
   // The buildings lifted, for the tests to follow, as they are drawn
   const liftedRef = useRef<ReadonlyArray<{ id: number }>>([])
   const noteLifted = useCallback(() => {
@@ -428,6 +437,12 @@ export default function DeckRenderer({
     redraw,
   })
   const streetFont = useStreetNameFont(cityArea && capital?.labelChars)
+  const placeNames = usePlaceNames({
+    camera,
+    root: mapRoot,
+    shown: capital?.archives.context === true && !onStreet,
+    redraw,
+  })
   const pixelRatio = usePixelRatio()
   // The buildings in view, told again to a street level that starts after
   // they have loaded (its address is written once the camera rests)
@@ -517,6 +532,7 @@ export default function DeckRenderer({
         capital,
         gridDrawn: capital !== undefined && gridDrawnFor === capital.slug,
         metresPerPixel,
+        roadOpacity,
         onGridDrawn,
         capitals: home && {
           capitals: home.capitals,
@@ -545,6 +561,17 @@ export default function DeckRenderer({
             : undefined,
         reveal: streetMotion.reveal,
         waveSpacing,
+        onContextTilesLoaded: placeNames.setTiles,
+        placeNames:
+          capital?.archives.context && placeNames.characterSet
+            ? placeNamesLayer({
+                ...placeNames.current(),
+                colors,
+                characterSet: placeNames.characterSet,
+                pixelRatio,
+                opacity: onStreet ? 0 : streetMotion.overview,
+              })
+            : null,
         // Made as soon as the capital's font is ready, shown at street
         // level only: its shaders are ready before the street arrives
         streetNames:
@@ -570,6 +597,7 @@ export default function DeckRenderer({
     capital,
     gridDrawnFor,
     metresPerPixel,
+    roadOpacity,
     home?.capitals,
     home?.focused,
     nameFont,
@@ -579,6 +607,7 @@ export default function DeckRenderer({
     waveSpacing,
     onStreet,
     landed,
+    placeNames.characterSet,
   ])
 
   // The capital lifted, for the tests to follow

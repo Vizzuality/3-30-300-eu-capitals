@@ -240,3 +240,111 @@ for (const scheme of ["light", "dark"] as const) {
       .toBe(true)
   })
 }
+
+/**
+ * The district names written on the map, their boxes measured in the page's
+ * own font (text and halo), and what lies over the map
+ */
+function nameBoxes(page: Page) {
+  return page.evaluate(() => {
+    const root = document.querySelector<HTMLElement>("[data-map]")
+    if (!root) {
+      return { names: 0, overlaps: 0, touching: 0, outside: 0 }
+    }
+    const placed = JSON.parse(root.dataset.placeNames || "[]") as Array<
+      [string, number, number]
+    >
+    const origin = root.getBoundingClientRect()
+    const span = document.createElement("span")
+    span.style.cssText =
+      'position:absolute;visibility:hidden;white-space:pre;font:600 11px "Figtree Variable","Noto Sans Variable"'
+    document.body.append(span)
+    type Box = { left: number; right: number; top: number; bottom: number }
+    const boxes: Array<Box> = placed.map(([text, x, y]) => {
+      span.textContent = text
+      const width = span.getBoundingClientRect().width + 3
+      return {
+        left: x - width / 2,
+        right: x + width / 2,
+        top: y - 7,
+        bottom: y + 7,
+      }
+    })
+    span.remove()
+    const meet = (a: Box, b: Box) =>
+      a.left < b.right &&
+      b.left < a.right &&
+      a.top < b.bottom &&
+      b.top < a.bottom
+    const overlays: Array<Box> = [
+      ...root.querySelectorAll("[data-map-obstacle]"),
+    ]
+      .filter((element) =>
+        element.checkVisibility({ visibilityProperty: true })
+      )
+      .map((element) => {
+        const rect = element.getBoundingClientRect()
+        return {
+          left: rect.left - origin.left,
+          right: rect.right - origin.left,
+          top: rect.top - origin.top,
+          bottom: rect.bottom - origin.top,
+        }
+      })
+    let overlaps = 0
+    for (const [index, box] of boxes.entries()) {
+      overlaps += boxes
+        .slice(index + 1)
+        .filter((other) => meet(box, other)).length
+    }
+    return {
+      names: boxes.length,
+      overlaps,
+      touching: boxes.filter((box) =>
+        overlays.some((overlay) => meet(box, overlay))
+      ).length,
+      outside: boxes.filter(
+        (box) =>
+          box.left < 0 ||
+          box.top < 0 ||
+          box.right > origin.width ||
+          box.bottom > origin.height
+      ).length,
+    }
+  })
+}
+
+test("the district names never overlap, nor touch what lies over the map", async ({
+  page,
+}) => {
+  await page.goto(stockholm)
+  await mapDrawn(page)
+  await mapOf(page).scrollIntoViewIfNeeded()
+  await expect
+    .poll(async () => (await nameBoxes(page)).names)
+    .toBeGreaterThan(2)
+  expect(await nameBoxes(page)).toMatchObject({
+    overlaps: 0,
+    touching: 0,
+    outside: 0,
+  })
+
+  // One level in, once the names have been placed again
+  const before = await page
+    .locator("[data-map]")
+    .getAttribute("data-place-names")
+  await mapOf(page).focus()
+  await page.keyboard.press("+")
+  await expect(page.locator("[data-map]")).not.toHaveAttribute(
+    "data-place-names",
+    before ?? ""
+  )
+  await expect
+    .poll(async () => (await nameBoxes(page)).names)
+    .toBeGreaterThan(2)
+  expect(await nameBoxes(page)).toMatchObject({
+    overlaps: 0,
+    touching: 0,
+    outside: 0,
+  })
+})
