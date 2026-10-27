@@ -1,6 +1,6 @@
 import { MVTLoader } from "@loaders.gl/mvt"
 
-import { cityTile } from "./city-tile-decode"
+import { buildingTile, cityTile } from "./city-tile-decode"
 import { contextTile } from "./context-tile-decode"
 import type {
   TileRequest,
@@ -47,6 +47,8 @@ function decode(buffer: ArrayBuffer, index: TileIndex, request: TileRequest) {
       return wholeTile(buffer, index, false)
     case "city":
       return cityTile(buffer, index, request)
+    case "building":
+      return buildingTile(buffer, index, request)
     case "context":
       return contextTile(buffer, index, request)
   }

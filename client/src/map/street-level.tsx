@@ -1,8 +1,9 @@
+import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useCallback, useMemo, useState, type KeyboardEvent } from "react"
 import { useTranslations } from "use-intl"
 
-import { standInBuilding } from "@/data/stand-in-buildings"
+import { buildingTileQuery, evidenceTileOf } from "@/data/building-query"
 import type { CapitalSlug } from "@/lib/capitals"
 import {
   nearestBuildings,
@@ -10,7 +11,7 @@ import {
   type StreetBuilding,
 } from "@/lib/street-buildings"
 import type { MapPulse } from "./city-overview"
-import { capitalStep } from "./home-capitals"
+import { capitalStep, type LngLat } from "./home-capitals"
 import { useMapCamera, type MapCamera } from "./map-camera"
 import type { StreetMap } from "./renderer"
 
@@ -21,30 +22,40 @@ import type { StreetMap } from "./renderer"
  * the centre of the view (up to 12, nearest first), each lifted with a focus
  * ring and read out with its result, then Tab leaves the map; moving the map
  * starts the list again from the new centre. Enter, or a click, selects the
- * building.
+ * building, which wobbles and sends out a ring.
  *
- * Selecting is the next step's (reading a building's evidence from the
- * tiles); until then, only the stand-in release's few buildings with
- * figures can be opened, through the address, as from a link.
+ * With a building selected, the street stays: clicking another building
+ * selects it instead, keeping the rule shown, and clicking the selected
+ * building goes back from its facade to the whole building. The keyboard is
+ * the selection's then.
  */
 export function useStreetLevel({
   camera,
   slug,
   onStreet,
+  selected,
+  onPress,
 }: {
   camera: MapCamera
   /** The capital shown, on its page */
   slug: CapitalSlug | undefined
-  /** Whether the map shows the street, with no building selected */
+  /** Whether the map shows the street (a building selected or not) */
   onStreet: boolean
+  /** The selected building, and its facade selected */
+  selected: { id: number; facade: number | undefined } | undefined
+  /** A building pressed, which sends out a ring there */
+  onPress: (at: LngLat, building: number) => void
 }) {
   const t = useTranslations("map.announce")
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [buildings, setBuildings] = useState<ReadonlyArray<StreetBuilding>>([])
   const moves = useMapCamera(camera, (state) => state.visitorMoves)
 
   // Each visit to the street places the pulse once, where the map then is;
-  // it leaves as soon as the visitor moves the map
+  // it leaves as soon as the visitor moves the map. A selected building has
+  // the guide alone.
+  const browsing = onStreet && selected === undefined
   const place = slug !== undefined && onStreet ? slug : undefined
   const [visit, setVisit] = useState<{
     place: CapitalSlug | undefined
@@ -81,6 +92,7 @@ export function useStreetLevel({
   const pulse = useMemo<MapPulse | undefined>(
     () =>
       place !== undefined &&
+      browsing &&
       visit.place === place &&
       visit.at !== undefined &&
       moves === visit.moves
@@ -89,7 +101,7 @@ export function useStreetLevel({
             at: [visit.at[0], visit.at[1]],
           }
         : undefined,
-    [place, visit, moves]
+    [place, browsing, visit, moves]
   )
 
   // The buildings Tab goes through, from the centre of the view when the
@@ -99,12 +111,31 @@ export function useStreetLevel({
     moves: number
     focused: number | undefined
   }>()
-  const current = focus && focus.moves === moves && onStreet ? focus : undefined
+  const current = focus && focus.moves === moves && browsing ? focus : undefined
   const focused = current?.focused
 
+  // The selected building is the address's: each a step in the history
+  const chosenId = selected?.id
+  const chosenFacade = selected?.facade
   const select = useCallback(
-    (id: number) => {
-      if (!slug || !standInBuilding(slug, id)) {
+    (id: number, at?: LngLat) => {
+      if (!slug) {
+        return
+      }
+      const building = buildings.find((item) => item.id === id)
+      const pressed: LngLat | undefined =
+        at ?? (building ? [building.longitude, building.latitude] : undefined)
+      if (pressed) {
+        onPress(pressed, id)
+      }
+      // Its evidence is in the tile of its representative point
+      if (building) {
+        queryClient.setQueryData(
+          buildingTileQuery(slug, id).queryKey,
+          evidenceTileOf([building.longitude, building.latitude])
+        )
+      }
+      if (chosenId === id && chosenFacade === undefined) {
         return
       }
       void navigate({
@@ -112,11 +143,12 @@ export function useStreetLevel({
         search: (previous: Record<string, unknown>) => ({
           ...previous,
           building: id,
+          facade: undefined,
         }),
         resetScroll: false,
       } as never)
     },
-    [navigate, slug]
+    [navigate, slug, queryClient, onPress, buildings, chosenId, chosenFacade]
   )
 
   const street = useMemo<StreetMap | undefined>(
@@ -144,7 +176,7 @@ export function useStreetLevel({
       : "",
     /** Takes Tab and Enter among the buildings; true when it took the key */
     onKey: (event: KeyboardEvent<HTMLElement>, fromEnd: boolean) => {
-      if (!onStreet || event.altKey || event.ctrlKey || event.metaKey) {
+      if (!browsing || event.altKey || event.ctrlKey || event.metaKey) {
         return false
       }
       if (event.key === "Tab") {

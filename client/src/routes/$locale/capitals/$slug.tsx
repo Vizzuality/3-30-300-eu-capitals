@@ -19,7 +19,7 @@ import {
   useRanking,
   useSummary,
 } from "@/data/queries"
-import { standInBuilding } from "@/data/stand-in-buildings"
+import { useBuildingSelection } from "@/data/building-query"
 import { pageHead } from "@/i18n/head"
 import { nameIn } from "@/i18n/names"
 import {
@@ -30,7 +30,7 @@ import { capitalView, guideInput } from "@/lib/capital-view"
 import { isCapitalSlug } from "@/lib/capitals"
 import { guideState } from "@/lib/guide"
 import { capitalLegend, drawnLegend } from "@/lib/map-legend"
-import { cityTileArea } from "@/map/capital-archives"
+import { capitalArchives, cityTileArea } from "@/map/capital-archives"
 import { env } from "@/env"
 import type { Rule } from "@/lib/rules"
 import { assertLocale } from "@/routes/$locale/-guards"
@@ -82,23 +82,29 @@ export const Route = createFileRoute("/$locale/capitals/$slug")({
 
 /**
  * What the page shows, from its address: the city overview, the street or a
- * selected building. Until the map reads a building's figures from the
- * city's tiles, only the stand-in release's buildings can be selected.
+ * selected building, once its figures are read from the capital's tiles
+ * (the same ones the map reads)
  */
 function useCapitalView() {
   const { slug } = Route.useRouteContext()
   const search = Route.useSearch()
+  const summary = useSummary(slug)
+  const selection = useBuildingSelection({
+    slug,
+    id: search.building,
+    at: search.at,
+    enabled: capitalArchives(summary, env.VITE_DATA_RELEASE).evidence,
+  })
 
-  return useMemo(
-    () =>
-      capitalView(
-        search,
-        search.building === undefined
-          ? undefined
-          : standInBuilding(slug, search.building)
-      ),
-    [slug, search]
+  const view = useMemo(
+    () => capitalView(search, selection?.record),
+    [search, selection]
   )
+  return {
+    view,
+    // Its building is still being read from the tiles
+    loading: search.building !== undefined && selection === undefined,
+  }
 }
 
 // The parts of the page that float in, one after the other: the header,
@@ -107,12 +113,25 @@ function useCapitalView() {
 function Capital() {
   const { slug } = Route.useRouteContext()
   const summary = useSummary(slug)
-  const view = useCapitalView()
+  const { view, loading } = useCapitalView()
+  const search = Route.useSearch()
 
   return (
     <>
       <CapitalHeader summary={summary} />
-      <NextStepGuide state={guideState(guideInput(view))} />
+      {/* A building opened with the page has its step from the start */}
+      <NextStepGuide
+        state={guideState(
+          loading
+            ? {
+                page: "capital",
+                building: search.building,
+                rule: search.rule,
+                facade: search.facade,
+              }
+            : guideInput(view)
+        )}
+      />
     </>
   )
 }
@@ -122,7 +141,7 @@ function CapitalAfterBand() {
   const summary = useSummary(slug)
   const ranking = useRanking()
   const { capitals } = useCapitals()
-  const view = useCapitalView()
+  const { view, loading } = useCapitalView()
   const navigate = Route.useNavigate()
   const selected = view.view === "building"
 
@@ -176,8 +195,11 @@ function CapitalAfterBand() {
         variant="band"
         className="desktop:hidden"
       />
+      {/* A building opened with the page shows once it is read, as the page's
+          own content rather than swapped in for the street */}
       <MiddleBlock
         view={view}
+        hidden={loading}
         shares={summary.shares.rules}
         language={summary.language}
         onRuleChange={showRule}

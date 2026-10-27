@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { hydrated } from "./page-ready"
+import { hydrated, selectionDrawn } from "./page-ready"
+import { southern } from "./buildings"
 
 /*
  * About, opened from the top bar, leads back to the page it was opened from,
@@ -54,16 +55,13 @@ test("About opened from Home leads back to Home, on the tab left open", async ({
 test("About opened from a capital leads back to its building and rule", async ({
   page,
 }) => {
-  await page.goto("/en/capitals/stockholm?building=31947&rule=30")
+  await page.goto(`${southern}&rule=30`)
   await hydrated(page)
+  await selectionDrawn(page, "31947")
 
   await openAbout(page)
   await backLink(page, "Back to the map").click()
-  await expectPage(
-    page,
-    "/en/capitals/stockholm?building=31947&rule=30",
-    "Stockholm"
-  )
+  await expectPage(page, `${southern}&rule=30`, "Stockholm")
   await expect(
     page.getByRole("radio", { name: "30 % canopy not met" })
   ).toBeChecked()

@@ -1,4 +1,4 @@
-import type { CityTileRequest } from "./city-tile-decode"
+import type { BuildingTileRequest, CityTileRequest } from "./city-tile-decode"
 import type { ContextTileRequest } from "./context-tile-decode"
 
 /*
@@ -7,11 +7,15 @@ import type { ContextTileRequest } from "./context-tile-decode"
  * worker or script is ever loaded from another origin.
  */
 
-/** How a tile is decoded: every layer at once, or a city tile layer by layer */
+/**
+ * How a tile is decoded: every layer at once, a city tile layer by layer,
+ * or only what it holds of one building
+ */
 export type TileRequest =
   | { kind: "binary" }
   | { kind: "geojson" }
   | CityTileRequest
+  | BuildingTileRequest
   | ContextTileRequest
 
 export type TileIndex = { x: number; y: number; z: number }

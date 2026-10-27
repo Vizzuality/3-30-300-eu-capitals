@@ -14,7 +14,8 @@ import { dampingRatio, naturalFrequency } from "@/design/tokens-motion"
  *
  * Every feature works out its own delay from its distance to the click, on
  * screen, then its scale about its centre (the Pop spring, as the motion
- * tokens define it) and its opacity. The animation's state is a shared
+ * tokens define it) and its opacity. The same centre holds a selected
+ * building's wobble (Squash), a shape on screen changed in place. The animation's state is a shared
  * clock, read each time the layer is drawn: animating only asks deck.gl to
  * draw again, and no layer is recreated. Three kinds of layers:
  * - `features`: polygons scaled about a centre given per feature (a
@@ -72,6 +73,11 @@ export type RevealProps<Data = unknown> = {
   revealDuration?: number
   /** `area` only: 1 appears, −1 gives way */
   revealDirection?: number
+  /**
+   * `features` only: a wobble's shape on screen, about each feature's centre
+   * (1, 1 at rest); changed in place, read as the layer is drawn
+   */
+  revealSquash?: readonly [number, number]
 }
 
 // The Pop spring, as its token defines it (a duration and an overshoot)
@@ -92,6 +98,7 @@ layout(std140) uniform revealUniforms {
   float direction;
   float ratio;
   float frequency;
+  vec2 squash;
 } reveal;
 `
 
@@ -112,6 +119,7 @@ const revealModule = {
     direction: "f32",
     ratio: "f32",
     frequency: "f32",
+    squash: "vec2<f32>",
   },
 } as const
 
@@ -157,6 +165,12 @@ const popVertex = (centre: string) => /* glsl */ `
       reveal_alpha = clamp(local / 90.0, 0.0, 1.0);
     }
   }
+  if (reveal.squash != vec2(1.0)) {
+    vec4 squashClip = project_position_to_clipspace(${centre}, vec3(0.0), vec3(0.0));
+    vec2 squashNdc = squashClip.xy / squashClip.w;
+    vec2 vertexNdc = position.xy / position.w;
+    position.xy = (squashNdc + (vertexNdc - squashNdc) * reveal.squash) * position.w;
+  }
 `
 
 export class RevealExtension extends LayerExtension<{ kind: RevealKind }> {
@@ -169,6 +183,7 @@ export class RevealExtension extends LayerExtension<{ kind: RevealKind }> {
     revealDelay: 0,
     revealDuration: 280,
     revealDirection: 1,
+    revealSquash: { type: "array", value: [1, 1], compare: false },
   }
   static extensionName = "RevealExtension"
 
@@ -263,6 +278,7 @@ ${springFunction}
         direction: props.revealDirection ?? 1,
         ratio: popRatio,
         frequency: popFrequency,
+        squash: props.revealSquash ?? [1, 1],
       },
     })
   }

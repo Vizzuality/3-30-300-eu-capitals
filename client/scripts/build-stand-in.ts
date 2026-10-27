@@ -12,8 +12,9 @@
  * Stockholm is copied from the real release as it is; every other one of the
  * 27 gets placeholder figures and outline from the reference design. Of
  * Stockholm's city map (86 MB) it keeps a corner, central Södermalm at zooms
- * 14 to 16, cut out by the data processing's PMTiles writer (`uv` and the
- * data processing's environment are needed).
+ * 14 to 16, and the evidence of the same corner (zoom 15), cut out by the
+ * data processing's PMTiles writer (`uv` and the data processing's
+ * environment are needed).
  */
 import {
   copyFileSync,
@@ -101,26 +102,42 @@ for (const slug of standInRealCapitals) {
   }
 }
 
-// A corner of Stockholm's city map, for the street level
+// A corner of Stockholm's city map, for the street level, and the evidence
+// of its buildings, for a selected building (one zoom, 15, on the same grid)
 {
   const { slug, z, x, y, maxZoom } = standInCityTiles
-  const path = join("capitals", slug, "city.pmtiles")
-  execFileSync(
-    "uv",
-    [
-      "run",
-      "python",
-      "-m",
-      "data_processing.cut_archive",
-      resolve(source, path),
-      join(target, path),
-      ...[z, x[0], y[0], x[1], y[1], maxZoom].map(String),
+  const evidenceZoom = 15
+  const scale = 2 ** (evidenceZoom - z)
+  const corners = {
+    city: [z, x[0], y[0], x[1], y[1], maxZoom],
+    evidence: [
+      evidenceZoom,
+      x[0] * scale,
+      y[0] * scale,
+      (x[1] + 1) * scale - 1,
+      (y[1] + 1) * scale - 1,
+      evidenceZoom,
     ],
-    {
-      cwd: fileURLToPath(new URL("../../data-processing", import.meta.url)),
-      stdio: "inherit",
-    }
-  )
+  }
+  for (const [archive, corner] of Object.entries(corners)) {
+    const path = join("capitals", slug, `${archive}.pmtiles`)
+    execFileSync(
+      "uv",
+      [
+        "run",
+        "python",
+        "-m",
+        "data_processing.cut_archive",
+        resolve(source, path),
+        join(target, path),
+        ...corner.map(String),
+      ],
+      {
+        cwd: fileURLToPath(new URL("../../data-processing", import.meta.url)),
+        stdio: "inherit",
+      }
+    )
+  }
 }
 
 const placeholders = standIn.ranking.capitals.filter((row) => row.placeholder)

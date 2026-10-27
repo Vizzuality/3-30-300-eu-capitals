@@ -1,6 +1,8 @@
 import type { CapitalTileArchive } from "@/data/api"
 import type { CityOutline, Summary } from "@/data/schemas"
+import type { BuildingSelection } from "@/lib/building-evidence"
 import type { CapitalSlug } from "@/lib/capitals"
+import type { Rule } from "@/lib/rules"
 import type { StreetBuilding } from "@/lib/street-buildings"
 import type { HomeCapital, LngLat } from "./home-capitals"
 import type { MapCamera } from "./map-camera"
@@ -15,14 +17,16 @@ import type { MapColors } from "./map-colors"
 
 /**
  * A press on the map, which sends out a ring: a capital (clicked, tapped,
- * or Enter in keyboard focus), which also wobbles, or a place of the city
- * overview zoomed into
+ * or Enter in keyboard focus), which also wobbles, a place of the city
+ * overview zoomed into, or a building selected at street level
  */
 export type MapPress = {
   /** A new press has a new id */
   id: number
   /** The capital pressed, on Home */
   slug?: CapitalSlug
+  /** The building pressed, at street level */
+  building?: number
   /** Where it was pressed (the middle of the capital or of the map, with the keyboard) */
   at: LngLat
 }
@@ -67,10 +71,26 @@ export type CapitalMap = {
 export type StreetMap = {
   /** The building in keyboard focus, which lifts with a focus ring */
   focused: number | undefined
-  /** A building with results clicked or tapped */
-  onPress: (id: number) => void
+  /** A building with results clicked or tapped, and where */
+  onPress: (id: number, at: LngLat) => void
   /** The buildings with results in view, as their tiles load */
   onBuildings: (buildings: ReadonlyArray<StreetBuilding>) => void
+}
+
+/** A selected building, and what the visitor does with it */
+export type SelectionMap = {
+  building: BuildingSelection
+  rule: Rule
+  /** Its facade selected, with the 3 trees rule */
+  facade: number | undefined
+  /** Its facade in keyboard focus */
+  focusedFacade: number | undefined
+  /** Opened with the page: there at once */
+  instant: boolean
+  /** One of its facades clicked or tapped (with the 3 trees rule) */
+  onFacadePress: (sid: number) => void
+  /** Anywhere else on the map clicked or tapped */
+  onElsewhere: () => void
 }
 
 export type MapRendererProps = {
@@ -91,6 +111,8 @@ export type MapRendererProps = {
   capital: CapitalMap | undefined
   /** At street level */
   street: StreetMap | undefined
+  /** A selected building */
+  selection: SelectionMap | undefined
   /** On the phone's map band, one finger scrolls the page */
   oneFingerScrolls: boolean
   /** Whether the map is on screen; a hidden map draws nothing */

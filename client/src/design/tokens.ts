@@ -57,6 +57,9 @@ export const colors = {
   streetCasing: { light: "#e6dac3", dark: "#24211d" },
   building: { light: "#e8dfcf", dark: "#3d3932" },
   shadow: { light: "#2e2a2529", dark: "#00000029" }, // Ink, then black, at 16%
+  // The spotlight's veil over the street around a selected building: the
+  // Land colour at 62%, then a dark paper at 66%
+  veil: { light: "#f6f0e39e", dark: "#2c2924a8" },
   treeRim: { light: "#5b7440", dark: "#3d5130" },
   waterLines: { light: "#6f8c93", dark: "#7f9aa1" },
 

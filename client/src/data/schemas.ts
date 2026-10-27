@@ -294,7 +294,8 @@ export const sourcesSchema = z.object({
   capitals: z.partialRecord(capitalSlugSchema, capitalSourcesSchema),
 })
 
-// `capitals/<slug>/evidence.pmtiles`: one building of a tile
+// `capitals/<slug>/evidence.pmtiles`: the buildings of a tile, and what
+// they share
 
 /** A reference to a tree or a point listed once in the tile */
 const tileRef = z.int().nonnegative()
@@ -341,6 +342,32 @@ export const evidenceParkSchema = z.object({
   ha: z.number().positive(),
 })
 
+/**
+ * A place in an evidence tile: whole decimetres from its north-west corner,
+ * x east, y south, in ground metres
+ */
+const tilePointSchema = z.tuple([z.int(), z.int()])
+
+/**
+ * An evidence tile (zoom 15): the buildings whose representative point lies
+ * in it, keyed by their id, and the trees, points (routes and viewpoints)
+ * and green spaces they refer to, each listed once
+ */
+export const evidenceTileSchema = z.object({
+  v: z.literal(1),
+  tile: z.tuple([z.literal(15), z.int().nonnegative(), z.int().nonnegative()]),
+  trees: z.array(tilePointSchema),
+  points: z.array(tilePointSchema),
+  parks: z.record(
+    z.string(),
+    evidenceParkSchema.extend({
+      // The outside of its largest part, closed
+      ring: z.array(tilePointSchema),
+    })
+  ),
+  buildings: z.record(z.string(), evidenceBuildingSchema),
+})
+
 // `capitals/<slug>/city.pmtiles`, layer `facades`: one facade's attributes
 
 /** Where a facade looks, from true north */
@@ -379,6 +406,7 @@ export type CityOutline = z.infer<typeof outlineSchema>
 export type Sources = z.infer<typeof sourcesSchema>
 export type EvidenceBuilding = z.infer<typeof evidenceBuildingSchema>
 export type EvidencePark = z.infer<typeof evidenceParkSchema>
+export type EvidenceTile = z.infer<typeof evidenceTileSchema>
 export type FacadeAttributes = z.infer<typeof facadeAttributesSchema>
 export type Orientation = (typeof orientations)[number]
 

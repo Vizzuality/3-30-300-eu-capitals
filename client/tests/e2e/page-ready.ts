@@ -19,3 +19,27 @@ export async function hydrated(page: Page) {
     { timeout: 15_000 }
   )
 }
+
+/**
+ * Waits for the map to draw the selected building, read from its tiles,
+ * and the evidence of its rule (the address's, unless given) to finish
+ * arriving: the street's first frames, and the evidence's, make their
+ * shaders as they are first drawn, which takes seconds on Chrome's software
+ * renderer while other tests run alongside
+ */
+export async function selectionDrawn(
+  page: Page,
+  building: string,
+  rule = new URL(page.url()).searchParams.get("rule") ?? "3"
+) {
+  const deck = page.locator("[data-deck-instance]")
+  await expect(deck).toHaveAttribute("data-selected-building", building, {
+    timeout: 15_000,
+  })
+  await expect(deck).toHaveAttribute("data-selection-rule", rule, {
+    timeout: 15_000,
+  })
+  await expect(deck).toHaveAttribute("data-selection-settled", "true", {
+    timeout: 15_000,
+  })
+}

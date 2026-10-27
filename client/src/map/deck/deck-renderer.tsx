@@ -3,6 +3,7 @@ import {
   LinearInterpolator,
   MapView,
   type MapViewState,
+  type PickingInfo,
 } from "@deck.gl/core"
 import { getMeterZoom } from "@math.gl/web-mercator"
 import { cubicBezier } from "motion"
@@ -23,6 +24,7 @@ import {
   buildingStride,
   type CityTileContent,
 } from "@/map/deck/city-tile-decode"
+import { keyboardFacades } from "@/lib/building-evidence"
 import { roadFade } from "@/lib/overview-roads"
 import { mergeBuildings, type StreetBuilding } from "@/lib/street-buildings"
 import { groundWidth, mapViewOf } from "@/lib/visible-area"
@@ -30,6 +32,8 @@ import { baseLayers } from "./base-layers"
 import { useCapitalMotion, useNameFont, usePixelRatio } from "./capital-motion"
 import { prefetchCityTiles } from "./city-tile-layer"
 import { MapGestures, SiteDeck } from "./site-deck"
+import { facadeHitId, selectionLayers } from "./selection-layers"
+import { useSelectionMotion } from "./selection-motion"
 import { streetLayers } from "./street-layers"
 import { useStreetMotion } from "./street-motion"
 import { placeNamesLayer, usePlaceNames } from "./place-names"
@@ -78,12 +82,27 @@ function controller(oneFingerScrolls: boolean, zoomLimits: ZoomLimits) {
   }
 }
 
+/**
+ * How far a press may move and still select at street level, in CSS
+ * pixels: under deck.gl's pan threshold (1 px), past which a mouse or pen
+ * drags the map; a finger on the phone's band never moves the map, so it
+ * keeps deck.gl's own allowance for a tap (9 px)
+ */
+const pressSlop = { drag: 1, tap: 9 } as const
+
 // How many deck.gl instances this page has made, to tell each one apart
 let decksMade = 0
 
 /** What the pointer is over: a capital's outline, on Home */
 const capitalOf = (object: unknown) =>
   (object as { slug?: CapitalSlug } | null)?.slug
+
+/** What the pointer is over: a facade of the selected building */
+function facadeOf(info: { layer?: { id: string } | null; object?: unknown }) {
+  return info.layer?.id === facadeHitId
+    ? (info.object as { sid?: number } | null)?.sid
+    : undefined
+}
 
 /** What the pointer is over at street level: a building with results */
 function buildingOf(info: { layer?: { id: string } | null; object?: unknown }) {
@@ -126,6 +145,7 @@ export default function DeckRenderer({
   city,
   capital,
   street,
+  selection,
   oneFingerScrolls,
   visible,
 }: MapRendererProps) {
@@ -148,6 +168,15 @@ export default function DeckRenderer({
   const hoveredRef = useRef(hoveredBuilding)
   const streetHoverRef = useRef<(id: number | undefined) => void>(() => {})
   hoveredRef.current = hoveredBuilding
+  // A selected building, and the facade under the pointer
+  const selectionRef = useRef(selection)
+  selectionRef.current = selection
+  const hoveredFacade = useRef<number | undefined>(undefined)
+  // Presses on the map, counted, so a press read late is dropped
+  const presses = useRef(0)
+  const oneFingerRef = useRef(oneFingerScrolls)
+  oneFingerRef.current = oneFingerScrolls
+  const noteSelectionRef = useRef<() => void>(() => {})
 
   // Made once, never again: navigating, changing the language or resizing
   // the window keeps it, its WebGL context and what it has loaded
@@ -160,6 +189,9 @@ export default function DeckRenderer({
     // A count, not a random id, which only secure origins have
     decksMade += 1
     element.dataset.deckInstance = String(decksMade)
+    // Nothing under the pointer yet, for the tests to follow
+    element.dataset.hoveredBuilding = ""
+    element.dataset.hoveredFacade = ""
 
     const instance = new SiteDeck({
       parent: element,
@@ -194,7 +226,10 @@ export default function DeckRenderer({
       getCursor: ({ isDragging, isHovering }) =>
         isDragging
           ? "grabbing"
-          : isHovering && (homeRef.current || hoveredRef.current !== undefined)
+          : isHovering &&
+              (homeRef.current ||
+                hoveredRef.current !== undefined ||
+                hoveredFacade.current !== undefined)
             ? "pointer"
             : zoomInRef.current
               ? "zoom-in"
@@ -205,7 +240,14 @@ export default function DeckRenderer({
           hovered.current = slug
           homeRef.current?.onHover(slug)
         }
-        const building = streetRef.current ? buildingOf(info) : undefined
+        hoveredFacade.current = selectionRef.current
+          ? facadeOf(info)
+          : undefined
+        element.dataset.hoveredFacade = String(hoveredFacade.current ?? "")
+        const building =
+          streetRef.current && hoveredFacade.current === undefined
+            ? buildingOf(info)
+            : undefined
         if (building !== hoveredRef.current) {
           hoveredRef.current = building
           // Lifted at once, then the cursor follows React's render
@@ -221,11 +263,12 @@ export default function DeckRenderer({
         }
         const at: [number, number] = [coordinate[0], coordinate[1]]
         const slug = capitalOf(object)
-        const building = streetRef.current ? buildingOf(info) : undefined
+        // At street level, presses are the map's own (see `onPress`)
+        if (streetRef.current) {
+          return
+        }
         if (slug && homeRef.current) {
           homeRef.current.onPress(slug, at)
-        } else if (building !== undefined) {
-          streetRef.current?.onPress(building)
         } else {
           zoomInRef.current?.(at)
         }
@@ -237,20 +280,26 @@ export default function DeckRenderer({
       onAfterRender: () => {
         frames += 1
         element.dataset.frames = String(frames)
+        noteSelectionRef.current()
       },
-      // The camera rests only once deck.gl has finished moving it
+      // The camera rests only once deck.gl has finished moving it; a drag
+      // or a pan drops a press still being resolved
       onInteractionStateChange: ({
         isDragging,
         isPanning,
         isZooming,
         isRotating,
         inTransition,
-      }) =>
+      }) => {
+        if (isDragging || isPanning) {
+          presses.current += 1
+        }
         camera.setMoving(
           Boolean(
             isDragging || isPanning || isZooming || isRotating || inTransition
           )
-        ),
+        )
+      },
       onViewStateChange: ({ viewState, oldViewState, interactionState }) => {
         let next = viewState
         // A drag, a scroll or a pinch; deck.gl also reports the camera when
@@ -278,6 +327,83 @@ export default function DeckRenderer({
         return next
       },
     })
+
+    // At street level, a building or a facade is chosen by the map itself,
+    // not by deck.gl's click: a press and a release of the same pointer that
+    // has not moved the map, then what lies under it, read back from the
+    // GPU without waiting (`pickObjectAsync`). A later press, or a drag,
+    // drops an earlier press still being read.
+    let pressed:
+      | { pointer: number; x: number; y: number; slop: number; seq: number }
+      | undefined
+    const onPointerDown = (event: PointerEvent) => {
+      presses.current += 1
+      pressed =
+        streetRef.current && event.isPrimary && event.button === 0
+          ? {
+              pointer: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+              slop:
+                event.pointerType === "touch" && oneFingerRef.current
+                  ? pressSlop.tap
+                  : pressSlop.drag,
+              seq: presses.current,
+            }
+          : undefined
+    }
+    const onPointerUp = (event: PointerEvent) => {
+      const down = pressed
+      pressed = undefined
+      if (
+        !down ||
+        down.pointer !== event.pointerId ||
+        down.seq !== presses.current ||
+        Math.hypot(event.clientX - down.x, event.clientY - down.y) >= down.slop
+      ) {
+        return
+      }
+      const box = element.getBoundingClientRect()
+      const x = event.clientX - box.left
+      const y = event.clientY - box.top
+      const slug = capitalRef.current?.slug
+      void instance
+        .pickObjectAsync({
+          x,
+          y,
+          layerIds: [`street-objects-${slug}`, facadeHitId],
+        })
+        .then((info) => {
+          if (down.seq !== presses.current || !streetRef.current) {
+            return
+          }
+          onPress(info, x, y)
+        })
+        .catch(() => undefined)
+    }
+    const onPress = (info: PickingInfo | null, x: number, y: number) => {
+      const viewport = instance.getViewports()[0]
+      const point = info?.coordinate ?? viewport?.unproject([x, y])
+      if (!point) {
+        return
+      }
+      const at: [number, number] = [point[0], point[1]]
+      const facade = info && selectionRef.current ? facadeOf(info) : undefined
+      const building = info ? buildingOf(info) : undefined
+      if (facade !== undefined) {
+        selectionRef.current?.onFacadePress(facade)
+      } else if (building !== undefined) {
+        streetRef.current?.onPress(building, at)
+      } else {
+        selectionRef.current?.onElsewhere()
+      }
+    }
+    const onPointerCancel = () => {
+      pressed = undefined
+    }
+    element.addEventListener("pointerdown", onPointerDown)
+    element.addEventListener("pointerup", onPointerUp)
+    element.addEventListener("pointercancel", onPointerCancel)
 
     // The canvas is not a focus stop of its own: the map's element is.
     // deck.gl's event handling makes it one once WebGL is ready.
@@ -325,6 +451,9 @@ export default function DeckRenderer({
     deckRef.current = instance
     return () => {
       unsubscribe()
+      element.removeEventListener("pointerdown", onPointerDown)
+      element.removeEventListener("pointerup", onPointerUp)
+      element.removeEventListener("pointercancel", onPointerCancel)
       instance.finalize()
       // Its canvas too, which deck.gl leaves while its WebGL context is
       // still being made (React's strict mode, in development, unmounts
@@ -392,7 +521,9 @@ export default function DeckRenderer({
       size.width > 0 &&
       mapViewOf(areaInView(shown, size)) === "street"
   )
-  const onStreet = streetView && cityArea !== undefined
+  // A selected building keeps the street, even zoomed out to its circle
+  const onStreet =
+    (streetView || selection !== undefined) && cityArea !== undefined
   // The overview's main roads, fading out as the street level nears, to a
   // twentieth of their opacity
   const roadOpacity = useMapCamera(camera, ({ camera: shown, size }) =>
@@ -414,15 +545,72 @@ export default function DeckRenderer({
     deck?.drawSoon("street")
     noteLifted()
   }, [deck, noteLifted])
+  // The selected building and what is drawn of it, for the tests to follow:
+  // its id, rule and facade while their evidence shows, whether it has
+  // finished arriving, the facade ringed in keyboard focus, and where its
+  // facades are on screen, in the keyboard's order
+  const noteSelection = () => {
+    const element = parent.current
+    if (!element) {
+      return
+    }
+    const { shown } = scene
+    const arrived = shown !== undefined && scene.evidence > 0
+    element.dataset.selectedBuilding = arrived
+      ? String(shown.building.record.id)
+      : ""
+    element.dataset.selectionRule = arrived ? String(shown.rule) : ""
+    element.dataset.selectionFacade =
+      arrived && shown.facade !== undefined ? String(shown.facade) : ""
+    element.dataset.selectionSettled = String(arrived && scene.settled)
+    element.dataset.focusedFacade = String(selection?.focusedFacade ?? "")
+    const view = camera.state.camera
+    element.dataset.facades =
+      arrived && shown.rule === 3 && view
+        ? JSON.stringify(
+            keyboardFacades(shown.building).flatMap(
+              ({ sid, passes, pieces }) => {
+                const piece = pieces[0]
+                if (!piece || piece.length < 2) {
+                  return []
+                }
+                const viewport = viewportOf(view, camera.state.size)
+                const [x0, y0] = viewport.project(piece[0])
+                const [x1, y1] = viewport.project(piece[1])
+                return [
+                  {
+                    sid,
+                    passes,
+                    x: Math.round((x0 + x1) / 2),
+                    y: Math.round((y0 + y1) / 2),
+                  },
+                ]
+              }
+            )
+          )
+        : ""
+  }
+  noteSelectionRef.current = noteSelection
   const streetMotion = useStreetMotion({
     camera,
     street: onStreet,
     press,
     hovered: onStreet ? hoveredBuilding : undefined,
     focused: onStreet ? street?.focused : undefined,
+    selected: onStreet ? selection?.building.record.id : undefined,
     redraw,
     redrawNow,
     repaint,
+  })
+  // A selected building's evidence, arriving and leaving
+  const scene = useSelectionMotion({
+    target: selection && {
+      building: selection.building,
+      rule: selection.rule,
+      facade: selection.facade,
+    },
+    instant: selection?.instant ?? false,
+    redraw,
   })
   const mapRoot = useCallback(
     () => parent.current?.closest<HTMLElement>("[data-map]") ?? null,
@@ -490,7 +678,12 @@ export default function DeckRenderer({
   // The tiles where the camera lands, asked for as it glides in from the
   // overview, so the street is ready when it arrives
   useEffect(() => {
-    if (!press || press.slug !== undefined || !capital?.archives.city) {
+    if (
+      !press ||
+      press.slug !== undefined ||
+      press.building !== undefined ||
+      !capital?.archives.city
+    ) {
       return
     }
     const landing = camera.destination
@@ -524,6 +717,16 @@ export default function DeckRenderer({
       parent.current.dataset.streetArrival = streetMotion.reveal.phase
     }
     noteLifted()
+    const evidence =
+      capital && (scene.shown || scene.veil > 0)
+        ? selectionLayers({
+            scene,
+            colors,
+            offset: streetMotion.lifted[3].offset,
+            bounds: capital.context.bbox,
+            focusedFacade: selection?.focusedFacade,
+          })
+        : undefined
     deck?.setProps({
       layers: baseLayers({
         colors,
@@ -555,6 +758,7 @@ export default function DeckRenderer({
                   lifted: streetMotion.lifted,
                   waveSpacing,
                   onTilesLoaded,
+                  selection: evidence,
                 }),
                 overview: streetMotion.overview,
               }
@@ -608,6 +812,7 @@ export default function DeckRenderer({
     onStreet,
     landed,
     placeNames.characterSet,
+    selection?.focusedFacade,
   ])
 
   // The capital lifted, for the tests to follow

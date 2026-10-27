@@ -95,13 +95,19 @@ export function releaseFilePath(file: ReleaseFile) {
  *   GET /api/{release}/capitals/{slug}/tiles/grid/{z}/{x}/{y}  capitals/{slug}/grid.pmtiles
  *   GET /api/{release}/capitals/{slug}/tiles/city/{z}/{x}/{y}  capitals/{slug}/city.pmtiles
  *   GET /api/{release}/capitals/{slug}/tiles/context/{z}/{x}/{y}  capitals/{slug}/context.pmtiles
+ *   GET /api/{release}/capitals/{slug}/tiles/evidence/{z}/{x}/{y}  capitals/{slug}/evidence.pmtiles
  */
 
 /**
- * A capital's archives of tiles: its 10 m grid, its city map, and the water
- * of the map around it
+ * A capital's archives of tiles: its 10 m grid, its city map, the map of
+ * the overview around it, and the evidence behind each building
  */
-export const capitalTileArchives = ["grid", "city", "context"] as const
+export const capitalTileArchives = [
+  "grid",
+  "city",
+  "context",
+  "evidence",
+] as const
 
 export type CapitalTileArchive = (typeof capitalTileArchives)[number]
 
@@ -205,9 +211,13 @@ export function tileUrlTemplate(archive: TileArchive, release: string) {
 /**
  * The `Content-Type` of an archive's tiles, from the type its header gives
  * (the numbers of the PMTiles format): vector tiles for the maps, PNG images
- * for the grid. Any other type cannot be served.
+ * for the grid, and JSON for the evidence, whose archive gives no type of
+ * its own (0, unknown). Any other type cannot be served.
  */
-export function tileContentType(tileType: number) {
+export function tileContentType(tileType: number, archive: TileArchive) {
+  if (tileType === 0 && archive.kind === "evidence") {
+    return "application/json"
+  }
   switch (tileType) {
     case 1:
       return "application/vnd.mapbox-vector-tile"

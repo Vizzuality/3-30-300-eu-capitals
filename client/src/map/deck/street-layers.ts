@@ -1,3 +1,4 @@
+import { MaskExtension } from "@deck.gl/extensions"
 import { GeoJsonLayer } from "@deck.gl/layers"
 import type { Layer } from "@deck.gl/core"
 
@@ -21,9 +22,10 @@ import { StippleExtension } from "./stipple-extension"
  * tile's features are drawn in its own coordinates, where deck.gl takes
  * metres for common units. Line widths are in pixels.
  *
- * The buildings under the pointer or in keyboard focus are drawn again,
- * lifted, by a group of their own over the others, with a longer shadow;
- * their resting copies are left out (`HideExtension`).
+ * The buildings under the pointer or in keyboard focus, and the selected
+ * one, are drawn again, lifted, by a group of their own over the others,
+ * with a longer shadow; their resting copies are left out (`HideExtension`).
+ * A selected building's spotlight and evidence go around them.
  */
 
 /** The zooms of the city tiles drawn at street level */
@@ -76,8 +78,12 @@ export type LiftedBuilding = {
   /** The building's screen offset and its shadow's, mutated as it rises */
   offset: [number, number]
   shadow: [number, number]
+  /** Its wobble's shape on screen, mutated as it wobbles */
+  squash: [number, number]
   /** In keyboard focus: its edge is the 2 px focus ring */
   focused: boolean
+  /** Selected: an Ink outline, on the Surface colour with the 3 trees rule */
+  selected: boolean
   /** Its id, alone, for its copy to show only it */
   only: HiddenIds
 }
@@ -97,6 +103,18 @@ export type StreetLayersInput = {
   waveSpacing: number
   /** Called with the tiles in view once they are loaded */
   onTilesLoaded: (tiles: Array<CityTileContent>) => void
+  /**
+   * A selected building: whether it takes the Surface colour (with the 3
+   * trees rule), the layers drawn under it and over it (its evidence), and
+   * the canopy in full green within its 500 m circle (rule 30), masked by
+   * the layer `maskId`, with its opacity
+   */
+  selection?: {
+    surface: boolean
+    under: Array<Layer | null>
+    over: Array<Layer | null>
+    canopy?: { maskId: string; opacity: number }
+  }
 }
 
 export type SubLayerProps = Record<string, unknown> & {
@@ -136,6 +154,10 @@ const hide = new HideExtension()
 const revealArea = new RevealExtension("area")
 const revealBuildings = new RevealExtension("features")
 const revealTrees = new RevealExtension("points")
+const mask = new MaskExtension()
+
+/** The Ink outline of a selected building, in pixels */
+const selectedEdge = 1.6
 
 /**
  * Where a tile lies in the park stipple: its corner's place in the
@@ -213,7 +235,7 @@ export function streetLayers(input: StreetLayersInput): Array<Layer | null> {
     lifted[0]?.id ?? -1,
     lifted[1]?.id ?? -1,
     lifted[2]?.id ?? -1,
-    -1,
+    lifted[3]?.id ?? -1,
   ]
   const inUse = lifted.map(({ id }) => id !== -1)
   const unit = commonPerMetre(latitude)
@@ -426,19 +448,21 @@ export function streetLayers(input: StreetLayersInput): Array<Layer | null> {
   // tiles by its id, over the others, its shadow a group of its own (two
   // layers shifted by different offsets never share a group, or a shadow
   // from one tile is drawn over the building lifted from the next)
+  const surface = input.selection?.surface === true
   const liftTriggers = {
-    updateTriggers: { renderSubLayers: [scheme, inUse.join()] },
+    updateTriggers: { renderSubLayers: [scheme, inUse.join(), surface] },
   }
   const liftShadows = group(
     "lift-shadows",
     (props) =>
-      lifted.map(({ only, shadow }, index) =>
+      lifted.map(({ only, shadow, squash }, index) =>
         sub(props, `shadow-${index}`, buildingsOf(props), {
           ...onlyThis(only, props),
           visible: inUse[index],
           stroked: false,
           getFillColor: colors.shadow,
           screenOffset: shadow,
+          revealSquash: squash,
           extensions: [revealBuildings, hide, screenOffset],
         })
       ),
@@ -447,31 +471,58 @@ export function streetLayers(input: StreetLayersInput): Array<Layer | null> {
   const lifts = group(
     "lifts",
     (props) =>
-      lifted.map(({ only, offset, focused }, index) =>
+      lifted.map(({ only, offset, squash, focused, selected }, index) =>
         sub(props, `lift-${index}`, buildingsOf(props), {
           ...onlyThis(only, props),
           visible: inUse[index],
-          getFillColor: fillOf,
+          getFillColor: selected && surface ? colors.surface : fillOf,
           getLineColor: colors.ink,
-          getLineWidth: focused ? 2 : 1,
+          getLineWidth: focused ? 2 : selected ? selectedEdge : 1,
           lineWidthUnits: "pixels",
           lineJointRounded: true,
           screenOffset: offset,
-          updateTriggers: { getFillColor: scheme },
+          revealSquash: squash,
+          updateTriggers: { getFillColor: [scheme, surface] },
           extensions: [revealBuildings, hide, screenOffset],
         })
       ),
     liftTriggers
   )
 
+  // Within a selected building's 500 m circle, the canopy in full green
+  const canopy = input.selection?.canopy
+  const evidenceCanopy =
+    canopy &&
+    group(
+      "selection-canopy",
+      (props, layers) => [
+        sub(props, "canopy", layers.canopy, {
+          stroked: false,
+          getFillColor: colors.tree,
+          opacity: canopy.opacity,
+          maskId: canopy.maskId,
+          extensions: [mask],
+        }),
+      ],
+      {
+        updateTriggers: {
+          renderSubLayers: [scheme, Math.round(canopy.opacity * 20)],
+        },
+      }
+    )
+
   return [
     ground,
     shadows,
     objects,
+    // The spotlight's veil and the evidence under the selected building
+    ...(input.selection?.under ?? []),
+    evidenceCanopy ?? null,
     // Always there, with their tiles loaded, and the same layers whatever
     // buildings they lift: a lifted copy is drawn in the very frame its
     // resting copy is left out
     liftShadows,
     lifts,
+    ...(input.selection?.over ?? []),
   ]
 }

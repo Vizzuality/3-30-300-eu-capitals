@@ -105,7 +105,7 @@ describe("the data API's addresses", () => {
 })
 
 describe("the data API's tile addresses", () => {
-  test("a tile of the Home map, of a capital's grid and of its city map", () => {
+  test("a tile of the Home map, of a capital's grid, city map and evidence", () => {
     expect(matchTileRequest(`${RELEASE}/europe/tiles/3/4/2`, RELEASE)).toEqual({
       archive: { kind: "europe" },
       z: 3,
@@ -134,6 +134,17 @@ describe("the data API's tile addresses", () => {
       x: 562,
       y: 300,
     })
+    expect(
+      matchTileRequest(
+        `${RELEASE}/capitals/stockholm/tiles/evidence/15/18029/9639`,
+        RELEASE
+      )
+    ).toEqual({
+      archive: { kind: "evidence", slug: "stockholm" },
+      z: 15,
+      x: 18029,
+      y: 9639,
+    })
     expect(matchTileRequest(`${RELEASE}/europe/tiles/0/0/0`, RELEASE)).toEqual({
       archive: { kind: "europe" },
       z: 0,
@@ -147,7 +158,6 @@ describe("the data API's tile addresses", () => {
       "2026-09-stockholm/europe/tiles/3/4/2",
       `${RELEASE}/capitals/london/tiles/city/14/9006/4810`,
       `${RELEASE}/capitals/Stockholm/tiles/city/14/9006/4810`,
-      `${RELEASE}/capitals/stockholm/tiles/evidence/15/18013/9620`,
       `${RELEASE}/capitals/stockholm/tiles/Grid/10/562/300`,
       `${RELEASE}/capitals/stockholm/tiles/../../europe/tiles/3/4/2`,
       `${RELEASE}/world/tiles/3/4/2`,
@@ -284,10 +294,14 @@ describe("tiles, as stored", () => {
   })
 
   test("each type of the archive is the tile's content type", () => {
-    expect(tileContentType(1)).toBe("application/vnd.mapbox-vector-tile")
-    expect(tileContentType(2)).toBe("image/png")
-    expect(() => tileContentType(0)).toThrow("unknown")
-    expect(() => tileContentType(6)).toThrow("unknown")
+    const city = { kind: "city", slug: "stockholm" } as const
+    const evidence = { kind: "evidence", slug: "stockholm" } as const
+    expect(tileContentType(1, city)).toBe("application/vnd.mapbox-vector-tile")
+    expect(tileContentType(2, city)).toBe("image/png")
+    // The evidence archive's tiles are JSON, of no standard tile type
+    expect(tileContentType(0, evidence)).toBe("application/json")
+    expect(() => tileContentType(0, city)).toThrow("unknown")
+    expect(() => tileContentType(6, evidence)).toThrow("unknown")
   })
 
   test("a tile is sent as stored, still compressed, with its type and tag", async () => {

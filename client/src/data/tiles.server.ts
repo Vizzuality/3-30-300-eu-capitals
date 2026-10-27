@@ -40,9 +40,10 @@ const asStored = async (data: ArrayBuffer) => data
 
 /*
  * In production, one reader per archive for the life of the process, so
- * each archive's header and index are read once (at most 82 archives:
- * Europe, and the 27 capitals' grid, city and context archives). In development, a reader per request, so a
- * rebuilt archive shows on the next reload, as the JSON files do.
+ * each archive's header and index are read once (at most 109 archives:
+ * Europe, and the 27 capitals' grid, city, context and evidence archives).
+ * In development, a reader per request, so a rebuilt archive shows on the
+ * next reload, as the JSON files do.
  */
 const readers = new Map<string, PMTiles>()
 
@@ -102,7 +103,7 @@ export async function readTile({
     return {
       kind: "tile",
       body: tile.data,
-      contentType: tileContentType(header.tileType),
+      contentType: tileContentType(header.tileType, archive),
       encoding: tileEncoding(header.tileCompression),
       etag: await entityTag(tile.data),
     }

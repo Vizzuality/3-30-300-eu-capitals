@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { motionTokens } from "@/design/tokens"
+import { motionDetails, motionTokens } from "@/design/tokens"
 import { prefersReducedMotion } from "@/design/reduced-motion"
 import { tween, type Tween } from "@/design/tween"
+import { interpolate } from "motion"
 import type { LngLat } from "@/map/home-capitals"
 import { viewportOf } from "@/map/camera"
 import { useMapCamera, type MapCamera } from "@/map/map-camera"
@@ -23,7 +24,9 @@ import { buildingShadowOffset, type LiftedBuilding } from "./street-layers"
  *   has;
  * - the building under the pointer or in keyboard focus lifts (Lift), its
  *   shadow growing, and the one it leaves settles back. Under reduced
- *   motion it does not rise: its edge only turns Ink.
+ *   motion it does not rise: its edge only turns Ink;
+ * - a selected building wobbles once (Squash) and stays lifted until it is
+ *   closed, then settles back.
  *
  * The values live in shared objects the layers read as they are drawn:
  * `repaint` draws again, `redraw` makes the layers again.
@@ -60,6 +63,7 @@ export function useStreetMotion({
   press,
   hovered,
   focused,
+  selected,
   redraw,
   redrawNow,
   repaint,
@@ -72,6 +76,8 @@ export function useStreetMotion({
   /** The building under the pointer, and the one in keyboard focus */
   hovered: number | undefined
   focused: number | undefined
+  /** The selected building, lifted while it is selected */
+  selected: number | undefined
   redraw: () => void
   /** Makes the layers again at once */
   redrawNow: () => void
@@ -229,21 +235,27 @@ export function useStreetMotion({
     }
   }, [run])
 
-  // The lifted buildings, in three fixed places (the one leaving, the one
-  // under the pointer, the one in keyboard focus), each drawn by its own
-  // layers, whose data never changes: a new building in a place only
-  // changes the ids and offsets they read as they are drawn, so hovering
-  // from building to building computes no attribute.
+  // The lifted buildings, in four fixed places (the one leaving, the one
+  // under the pointer, the one in keyboard focus, the one selected), each
+  // drawn by its own layers, whose data never changes: a new building in a
+  // place only changes the ids and offsets they read as they are drawn, so
+  // hovering from building to building computes no attribute.
   // Only one building leaves at a time: when another one leaves, the one
   // still settling back rests at once. The layers of an empty place are not
-  // drawn.
+  // drawn. The selected building is never lifted a second time under the
+  // pointer or in focus.
   const [slots] = useState(makeSlots)
   const motions = useRef(
     slots.map(() => ({ value: 0, tween: undefined as Tween | undefined }))
   )
+  const squash = useRef<Tween | undefined>(undefined)
   const liftTo = useCallback(
-    (underPointer: number | undefined, inKeyboardFocus: number | undefined) => {
-      const [leaving, under, inFocus] = [0, 1, 2]
+    (
+      underPointer: number | undefined,
+      inKeyboardFocus: number | undefined,
+      chosen: number | undefined
+    ) => {
+      const [leaving, under, inFocus, picked] = [0, 1, 2, 3]
       const reduced = prefersReducedMotion()
       // Where a place's building is drawn, as it rises from 0 to 1
       const place = (index: number) => {
@@ -286,11 +298,47 @@ export function useStreetMotion({
           },
         })
       }
-      // A change of building makes the layers again at once, not after the
-      // frame under way: deck.gl calls the pointer's handler in the middle of
-      // its frame, and draws right after. The layers of a place, its building
-      // and the resting copies left out then always change in the same frame.
-      const hoveredId = underPointer ?? -1
+      const chosenId = chosen ?? -1
+      // The selected building: it wobbles once and stays lifted, or settles
+      // back, still drawn in its place until it rests
+      if (slots[picked].id !== chosenId) {
+        squash.current?.cancel()
+        slots[picked].squash[0] = 1
+        slots[picked].squash[1] = 1
+        if (chosenId === -1) {
+          rise(picked, 0)
+        } else {
+          // From where it was lifted under the pointer or in focus, if it was
+          const lifted = [under, inFocus].find(
+            (index) => slots[index].id === chosenId
+          )
+          show(
+            picked,
+            chosenId,
+            lifted === undefined ? 0 : motions.current[lifted].value
+          )
+          rise(picked, 1)
+          if (!reduced) {
+            const { times, x, y } = motionDetails.squashKeyframes
+            const width = interpolate([...times], [...x])
+            const height = interpolate([...times], [...y])
+            squash.current = tween({
+              from: 0,
+              to: 1,
+              token: "squash",
+              onUpdate: (progress) => {
+                slots[picked].squash[0] = width(progress)
+                slots[picked].squash[1] = height(progress)
+                repaint()
+              },
+            })
+          }
+        }
+      }
+      const hoveredId =
+        underPointer === undefined || underPointer === chosenId
+          ? -1
+          : underPointer
       if (slots[under].id !== hoveredId) {
         const previous = slots[under].id
         const previousValue = motions.current[under].value
@@ -302,7 +350,7 @@ export function useStreetMotion({
         } else {
           show(under, hoveredId, 0)
         }
-        if (previous !== -1) {
+        if (previous !== -1 && previous !== chosenId) {
           show(leaving, previous, previousValue)
           rise(leaving, 0)
         }
@@ -310,7 +358,10 @@ export function useStreetMotion({
           rise(under, 1)
         }
       }
-      const focusedId = inKeyboardFocus ?? -1
+      const focusedId =
+        inKeyboardFocus === undefined || inKeyboardFocus === chosenId
+          ? -1
+          : inKeyboardFocus
       if (slots[inFocus].id !== focusedId) {
         show(inFocus, focusedId, 0)
         if (focusedId !== -1) {
@@ -321,14 +372,19 @@ export function useStreetMotion({
     },
     [slots, redrawNow, repaint]
   )
-  useEffect(() => liftTo(hovered, focused), [liftTo, hovered, focused])
+  useEffect(
+    () => liftTo(hovered, focused, selected),
+    [liftTo, hovered, focused, selected]
+  )
+  useEffect(() => () => squash.current?.cancel(), [])
   // At once, as the pointer moves: no React render in between
-  const focusedRef = useRef(focused)
+  const keptRef = useRef({ focused, selected })
   useEffect(() => {
-    focusedRef.current = focused
-  }, [focused])
+    keptRef.current = { focused, selected }
+  }, [focused, selected])
   const hover = useCallback(
-    (id: number | undefined) => liftTo(id, focusedRef.current),
+    (id: number | undefined) =>
+      liftTo(id, keptRef.current.focused, keptRef.current.selected),
     [liftTo]
   )
 
@@ -350,13 +406,18 @@ export function useStreetMotion({
   }
 }
 
-/** The three places of lifted buildings, empty (−1) at first */
+/**
+ * The four places of lifted buildings (leaving, under the pointer, in
+ * keyboard focus, selected), empty (−1) at first
+ */
 function makeSlots(): Array<LiftedBuilding> {
-  return [false, false, true].map((focused) => ({
+  return [0, 1, 2, 3].map((index) => ({
     id: -1,
     offset: [0, 0],
     shadow: [...buildingShadowOffset],
-    focused,
+    squash: [1, 1],
+    focused: index === 2,
+    selected: index === 3,
     only: { ids: [-1, -1, -1, -1] },
   }))
 }

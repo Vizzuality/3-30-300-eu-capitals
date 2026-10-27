@@ -21,9 +21,8 @@ import { OtherCapitals } from "@/components/capital/other-capitals"
 import { RankingList } from "@/components/ranking/ranking-list"
 import { Button } from "@/components/ui/button"
 import { capitalsSchema, rankingSchema, summarySchema } from "@/data/schemas"
-import { standInBuilding } from "@/data/stand-in-buildings"
 import { timeZone } from "@/i18n/locales"
-import { selectedBuilding, type SelectedBuilding } from "@/lib/building"
+import type { SelectedBuilding } from "@/lib/building"
 import type { CapitalView } from "@/lib/capital-view"
 import type { Rule } from "@/lib/rules"
 import { cn } from "@/lib/utils"
@@ -31,6 +30,14 @@ import capitalsFile from "@fixtures/release/capitals.json"
 import stockholmFile from "@fixtures/release/capitals/stockholm/summary.json"
 import vallettaFile from "@fixtures/release/capitals/valletta/summary.json"
 import rankingFile from "@fixtures/release/ranking.json"
+import {
+  green,
+  nearPark,
+  southern,
+  touching,
+  unnamedPark,
+  unreachable,
+} from "./kit-buildings"
 import { ReducedMotionSwitch } from "./kit-motion"
 import { ThemePair } from "./kit-theme"
 
@@ -47,26 +54,6 @@ const above =
   ranking.capitals[
     ranking.capitals.findIndex(({ slug }) => slug === stockholm.slug) - 1
   ] ?? first
-
-/** A building of the stand-in release, as the panel describes it */
-function buildingOf(id: number): SelectedBuilding {
-  const record = standInBuilding("stockholm", id)
-  if (!record) {
-    throw new Error(`Building ${id} is not in the stand-in release`)
-  }
-  return selectedBuilding(record)
-}
-
-// Real buildings of Stockholm: rule 3 met, the others not (Södermalm)…
-const southern = buildingOf(31947)
-// …rule 300 met, the others not (Södermalm)…
-const nearPark = buildingOf(4176)
-// …all three met (Bromma), the nearest park without a name…
-const green = buildingOf(1227)
-const unnamedPark = buildingOf(2677)
-// …next to a wood (Kungsholmen), and with no path to a park
-const touching = buildingOf(43031)
-const unreachable = buildingOf(64634)
 
 const facadeOf = (selected: SelectedBuilding, id: number) => {
   const facade = selected.facades.find((item) => item.id === id)
@@ -164,16 +151,16 @@ export function CapitalKit() {
           title="Middle block · try it"
           note={
             <>
-              A real building of Stockholm, as <code>?building=31947</code>{" "}
-              opens it. Choose a rule with a click, or reach the switcher with
-              Tab and choose with the arrow keys (no squash) or Space; the
-              chosen chip has the 2 px Ink edge and the card swaps: the old one
-              fades out in 160 ms, then the new one floats up 8 px (Float).
-              Pressing a chip or the close button squashes it while held, with a
-              ring (Squash held, Ring, Press). Close (or Escape on the page)
-              returns to the street: the block swaps the same way; a button
-              brings the building back. Under reduced motion every swap is a
-              fade.
+              A real building of Stockholm, as{" "}
+              <code>?building=31947&amp;at=…</code> opens it. Choose a rule with
+              a click, or reach the switcher with Tab and choose with the arrow
+              keys (no squash) or Space; the chosen chip has the 2 px Ink edge
+              and the card swaps: the old one fades out in 160 ms, then the new
+              one floats up 8 px (Float). Pressing a chip or the close button
+              squashes it while held, with a ring (Squash held, Ring, Press).
+              Close (or Escape on the page) returns to the street: the block
+              swaps the same way; a button brings the building back. Under
+              reduced motion every swap is a fade.
             </>
           }
         >
@@ -192,7 +179,7 @@ export function CapitalKit() {
               meeting each rule, each a whole percent (Stockholm). At street
               level, one sentence. Opened from an address: the overview by
               default, the street with <code>?at=</code> narrower than 1.5 km, a
-              building with <code>?building=</code>.
+              building with <code>?building=</code> in that area.
             </>
           }
         >

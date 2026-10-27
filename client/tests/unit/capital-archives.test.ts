@@ -12,6 +12,7 @@ describe("the archives a capital's map draws from", () => {
       grid: true,
       context: true,
       city: true,
+      evidence: true,
     })
   })
 
@@ -20,14 +21,16 @@ describe("the archives a capital's map draws from", () => {
       grid: true,
       context: true,
       city: false,
+      evidence: false,
     })
   })
 
-  test("Stockholm in the stand-in release: also its corner of the city map", () => {
+  test("Stockholm in the stand-in release: also its corner of the city map and evidence", () => {
     expect(capitalArchives({ slug: "stockholm" }, "stand-in")).toEqual({
       grid: true,
       context: true,
       city: true,
+      evidence: true,
     })
   })
 
@@ -37,6 +40,7 @@ describe("the archives a capital's map draws from", () => {
         grid: false,
         context: false,
         city: false,
+        evidence: false,
       })
     }
   })

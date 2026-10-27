@@ -1,6 +1,8 @@
 import { beforeEach, inject, vi } from "vitest"
 import { page } from "vitest/browser"
 
+import { serveStandInTiles } from "./stand-in-tiles"
+
 declare module "vitest" {
   interface ProvidedContext {
     setup: string
@@ -50,3 +52,6 @@ vi.mock("@/data/tiles.server", () => ({
 vi.mock("@/map/load-renderer", async () => ({
   Renderer: (await import("@/map/stand-in-renderer")).default,
 }))
+
+// A selected building is read from Stockholm's tiles, served in the page
+serveStandInTiles()

@@ -238,11 +238,17 @@
       "explore": "<key>←</key> <key>→</key> switch rules · <key>↑</key> <key>↓</key> move · <key>+</key> <key>−</key> zoom · <key>Esc</key> close"
     },
     "twoFingers": "Use two fingers to move the map",
+    "parkUnnamed": "Nearest park",
     "announce": {
       "overview": "City overview",
       "street": "Street level",
       "building": "Building {index, number} of {count, number} near the centre: {score, number} of 3 rules met",
-      "capital": "{capital}, {country}, rank {rank, number} of {count, number}: {share, number, percent} of residents meet all three rules"
+      "capital": "{capital}, {country}, rank {rank, number} of {count, number}: {share, number, percent} of residents meet all three rules",
+      "selected": "Selected building: {score, number} of 3 rules met. {rule, select, 3 {{rule, number} trees} 30 {{rule, number} % canopy} other {{rule, number} m to a park}}: {met, select, yes {met} other {not met}}",
+      "rule": "{rule, select, 3 {{rule, number} trees} 30 {{rule, number} % canopy} other {{rule, number} m to a park}}: {met, select, yes {met} other {not met}}",
+      "facade": "Facade {index, number} of {count, number}: {orientation, select, N {North} NE {North-east} E {East} SE {South-east} S {South} SW {South-west} W {West} other {North-west}} facade, {trees, plural, =0 {sees no trees} one {sees # tree} other {sees # trees}}, {met, select, yes {met} other {not met}}",
+      "facadeSelected": "{orientation, select, N {North} NE {North-east} E {East} SE {South-east} S {South} SW {South-west} W {West} other {North-west}} facade selected: {trees, plural, =0 {sees no trees} one {sees # tree} other {sees # trees}}, {met, select, yes {met} other {not met}}",
+      "wholeBuilding": "Whole building"
     }
   },
   "notFound": {

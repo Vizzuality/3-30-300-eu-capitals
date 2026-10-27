@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { hydrated } from "./page-ready"
+import { southern } from "./buildings"
 
 /*
  * The Next step guide follows what the visitor does on a page and tells
@@ -77,7 +78,7 @@ test("the guide follows the visitor through a capital", async ({
   await expect(guide(page)).toHaveAttribute("aria-live", "polite")
 
   // A building selected
-  await goTo(page, "/en/capitals/stockholm?building=31947")
+  await goTo(page, `${southern}`)
   await expectGuide(page, isMobile, "Next · 3 of 3", {
     click:
       "Switch rules with 3 · 30 · 300, or click a facade to see the trees it sees",
@@ -85,14 +86,14 @@ test("the guide follows the visitor through a capital", async ({
   })
 
   // One of its facades
-  await goTo(page, "/en/capitals/stockholm?building=31947&facade=102293")
+  await goTo(page, `${southern}&facade=102293`)
   await expectGuide(page, isMobile, "Facade selected", {
     click: "Click the facade again to see the whole building",
     tap: "Tap the facade again to see the whole building",
   })
 
   // Another rule
-  await goTo(page, "/en/capitals/stockholm?building=31947&rule=30")
+  await goTo(page, `${southern}&rule=30`)
   await expectGuide(page, isMobile, "Explore", {
     click:
       "Click another building to compare it, or press Esc to go back to the street",
@@ -111,7 +112,7 @@ test(
   "a new page is announced by its name, and its guide stays quiet",
   { tag: "@motion" },
   async ({ page, isMobile }) => {
-    await page.goto("/en/capitals/stockholm?building=31947")
+    await page.goto(`${southern}`)
     await hydrated(page)
     await watchArrivingGuides(page)
 
@@ -149,7 +150,7 @@ test("a shared link opens on the guide of its building", async ({
     }
   })
 
-  await page.goto("/en/capitals/stockholm?building=31947&rule=300")
+  await page.goto(`${southern}&rule=300`)
   await hydrated(page)
 
   await expectGuide(page, isMobile, "Explore", {
@@ -231,21 +232,6 @@ test(
   }
 )
 
-test(
-  "the guide nudges again from its next step",
-  { tag: "@motion" },
-  async ({ page }) => {
-    await page.clock.install()
-    await page.goto("/en/capitals/stockholm")
-    await hydrated(page)
-    await goTo(page, "/en/capitals/stockholm?building=31947")
-    await expect(
-      page.locator("main [data-guide-state='building']")
-    ).toBeVisible()
-    await expectNudging(page)
-  }
-)
-
 /** The pointer stays at rest over `duration` ms of the page's clock */
 async function expectStill(page: Page, duration: number) {
   for (let elapsed = 0; elapsed < duration; elapsed += 250) {
@@ -262,12 +248,35 @@ async function expectStill(page: Page, duration: number) {
  * rests until its step changes. The page's clock is run forward, so the test
  * does not wait for it.
  */
+/*
+ * A capital with placeholder figures (Helsinki, in the stand-in release),
+ * whose map has no tiles: its street step is reached without drawing a
+ * street, which on Chrome's software renderer would hold the page's paused
+ * clock back for many seconds
+ */
+const helsinki = "/en/capitals/helsinki"
+// About 600 m across, in the middle of the city: the street
+const helsinkiStreet = "24.9278%2C60.1713%2C24.9387%2C60.1743"
+
+test(
+  "the guide nudges again from its next step",
+  { tag: "@motion" },
+  async ({ page }) => {
+    await page.clock.install()
+    await page.goto(helsinki)
+    await hydrated(page)
+    await goTo(page, `${helsinki}?at=${helsinkiStreet}`)
+    await expect(page.locator("main [data-guide-state='street']")).toBeVisible()
+    await expectNudging(page)
+  }
+)
+
 test(
   "the guide nudges three times, then rests until its next step",
   { tag: "@motion" },
   async ({ page }) => {
     await page.clock.install()
-    await page.goto("/en/capitals/stockholm")
+    await page.goto(helsinki)
     await hydrated(page)
     await expectNudging(page)
 
@@ -275,11 +284,9 @@ test(
     await page.clock.runFor(10_000)
     await expectStill(page, 3_000)
 
-    // A new step nudges three times again, then rests
-    await goTo(page, "/en/capitals/stockholm?building=31947")
-    await expect(
-      page.locator("main [data-guide-state='building']")
-    ).toBeVisible()
+    // A new step (the street) nudges three times again, then rests
+    await goTo(page, `${helsinki}?at=${helsinkiStreet}`)
+    await expect(page.locator("main [data-guide-state='street']")).toBeVisible()
     await expectNudging(page)
     await page.clock.runFor(10_000)
     await expectStill(page, 3_000)

@@ -29,6 +29,9 @@ export type CityLayer = (typeof cityLayers)[number]
 
 export type CityTileRequest = { kind: "city" }
 
+/** One building's part of a city tile: its place, and its facades */
+export type BuildingTileRequest = { kind: "building"; id: number }
+
 /** loaders.gl's binary features, as deck.gl's `GeoJsonLayer` draws them */
 export type BinaryFeatures = {
   shape: "binary-feature-collection"
@@ -314,4 +317,115 @@ export function cityTile(
     buildings: scoredBuildings(layers.buildings, index),
     labels: streetLabels(buffer, index),
   }
+}
+
+/** A facade of a building, or the part of it in one tile */
+export type FacadePiece = {
+  /** The facade's id, unique in the capital */
+  sid: number
+  /** Whether it sees 3 trees or more, and how many it sees */
+  ok: number
+  n: number
+  /** Where it looks, from true north */
+  orient: string
+  /** Its share of the building's residents */
+  res: number
+  /** Its line, as longitude and latitude pairs, the building on its left */
+  path: Array<[number, number]>
+}
+
+/** What a city tile holds of one building */
+export type BuildingInTile = {
+  /**
+   * Its representative point, and the bounds of its part in the tile (west,
+   * south, east, north); null when the tile has none of it
+   */
+  place: {
+    longitude: number
+    latitude: number
+    bounds: [number, number, number, number]
+  } | null
+  /** The parts of its facades in the tile (zoom 16 only) */
+  facades: Array<FacadePiece>
+}
+
+/**
+ * The part of one building in a city tile, decoded off the main thread for
+ * a selected building: where its representative point is, how far its
+ * outline reaches in the tile, and its facades, in longitude and latitude
+ */
+export function buildingTile(
+  buffer: ArrayBuffer,
+  index: TileIndex,
+  { id }: BuildingTileRequest
+): BuildingInTile {
+  const toLonLat = (x: number, y: number): [number, number] => [
+    longitudeOf(index.z, index.x + x),
+    latitudeOf(index.z, index.y + y),
+  ]
+  let place: BuildingInTile["place"] = null
+  const buildings = decodeLayer(buffer, index, "buildings")
+  if (buildings) {
+    const { polygons } = buildings
+    const positions = polygons.positions.value
+    const size = polygons.positions.size
+    const ids = polygons.numericProps.id?.value ?? []
+    let [west, south, east, north] = [Infinity, Infinity, -Infinity, -Infinity]
+    for (let vertex = 0; vertex < ids.length; vertex += 1) {
+      if (ids[vertex] !== id) {
+        continue
+      }
+      const [longitude, latitude] = toLonLat(
+        positions[vertex * size],
+        positions[vertex * size + 1]
+      )
+      west = Math.min(west, longitude)
+      east = Math.max(east, longitude)
+      south = Math.min(south, latitude)
+      north = Math.max(north, latitude)
+      if (!place) {
+        place = {
+          longitude: numeric(polygons, "cx", vertex),
+          latitude: numeric(polygons, "cy", vertex),
+          bounds: [0, 0, 0, 0],
+        }
+      }
+    }
+    if (place) {
+      place.bounds = [west, south, east, north]
+    }
+  }
+
+  const facades: Array<FacadePiece> = []
+  const decoded = decodeLayer(buffer, index, "facades")
+  if (decoded) {
+    const lines = decoded.lines as BinaryGeometry & {
+      pathIndices: BinaryAttribute
+    }
+    const paths = lines.pathIndices.value
+    const positions = lines.positions.value
+    const size = lines.positions.size
+    for (let line = 0; line + 1 < paths.length; line += 1) {
+      const start = paths[line]
+      if (numeric(lines, "b", start) !== id) {
+        continue
+      }
+      const feature = lines.featureIds.value[start]
+      const path: Array<[number, number]> = []
+      for (let vertex = start; vertex < paths[line + 1]; vertex += 1) {
+        path.push(
+          toLonLat(positions[vertex * size], positions[vertex * size + 1])
+        )
+      }
+      facades.push({
+        sid: numeric(lines, "sid", start),
+        ok: numeric(lines, "ok", start),
+        n: numeric(lines, "n", start),
+        orient: String(lines.properties[feature]?.orient ?? ""),
+        res: numeric(lines, "res", start),
+        path,
+      })
+    }
+  }
+  return { place, facades }
 }

@@ -29,6 +29,7 @@
   --street-casing: #e6dac3;
   --building: #e8dfcf;
   --shadow: #2e2a2529;
+  --veil: #f6f0e39e;
   --tree-rim: #5b7440;
   --water-lines: #6f8c93;
   --europe-land-1: #f5efe2;
@@ -69,6 +70,7 @@
     --street-casing: #24211d;
     --building: #3d3932;
     --shadow: #00000029;
+    --veil: #2c2924a8;
     --tree-rim: #3d5130;
     --water-lines: #7f9aa1;
     --europe-land-1: #2f2b25;
@@ -221,6 +223,7 @@
   --color-street-casing: var(--street-casing);
   --color-building: var(--building);
   --color-shadow: var(--shadow);
+  --color-veil: var(--veil);
   --color-tree-rim: var(--tree-rim);
   --color-water-lines: var(--water-lines);
   --color-europe-land-1: var(--europe-land-1);

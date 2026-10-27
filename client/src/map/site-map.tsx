@@ -26,6 +26,7 @@ import { MapAttribution } from "@/components/map/map-attribution"
 import { MapBottom, mapBottomRow } from "@/components/map/map-bottom"
 import { MapControls } from "@/components/map/map-controls"
 import { MapLegend } from "@/components/map/map-legend"
+import { ParkLabel } from "@/components/map/park-label"
 import { overlayPlacement } from "@/components/map/placement"
 import { ScaleBar } from "@/components/map/scale-bar"
 import {
@@ -39,7 +40,7 @@ import {
   sourcesQuery,
   summaryQuery,
 } from "@/data/queries"
-import { standInBuilding } from "@/data/stand-in-buildings"
+import { useBuildingSelection } from "@/data/building-query"
 import { prefersReducedMotion } from "@/design/reduced-motion"
 import {
   motionDetails,
@@ -51,6 +52,7 @@ import { env } from "@/env"
 import { useDesktopLayout } from "@/hooks/use-desktop-layout"
 import { nameIn } from "@/i18n/names"
 import type { Capital, Ranking } from "@/data/schemas"
+import { parkAnchor } from "@/lib/building-evidence"
 import type { CapitalSearch } from "@/lib/capital-search"
 import { capitalView, guideInput } from "@/lib/capital-view"
 import type { CapitalSlug } from "@/lib/capitals"
@@ -59,9 +61,11 @@ import { capitalLegend, drawnLegend, type LegendView } from "@/lib/map-legend"
 import { wholePercent } from "@/lib/ranking"
 import { cn } from "@/lib/utils"
 import {
+  groundWidth,
   mapViewOf,
   parseVisibleArea,
   polygonsArea,
+  streetLevelWidth,
   type VisibleArea,
 } from "@/lib/visible-area"
 import {
@@ -82,11 +86,13 @@ import {
   type HomeCapital,
   type LngLat,
 } from "./home-capitals"
+import { capitalArchives } from "./capital-archives"
 import { GuidePulse, useCityOverview } from "./city-overview"
 import { Renderer } from "./load-renderer"
 import { MapCamera, useMapCamera, type MapCameraState } from "./map-camera"
 import { mapColors, useColorScheme } from "./map-colors"
-import type { HomeMap, MapPress } from "./renderer"
+import type { HomeMap, MapPress, SelectionMap } from "./renderer"
+import { useSelectedBuildingMap } from "./selected-building"
 import { useStreetLevel } from "./street-level"
 
 /*
@@ -112,7 +118,11 @@ import { useStreetLevel } from "./street-level"
  * while the map has the keyboard's focus. The guide's pulse sits on the
  * city's suggested place until the visitor moves the map. At street level,
  * it sits on the building with results nearest to where the map zoomed in,
- * and Tab goes through the buildings with results nearest the centre.
+ * and Tab goes through the buildings with results nearest the centre. A
+ * building selected there is read from the capital's tiles, its evidence
+ * drawn around it; the arrows switch its rules, Tab goes through its
+ * facades, and Escape, a click elsewhere, or zooming out past the street
+ * closes it.
  */
 
 /** The page that sets what the map shows */
@@ -254,6 +264,15 @@ export function SiteMap() {
   // rectangle, no farther out than its least zoom for the layout, which the
   // camera waits for
   const capitalSummary = slug && summary?.slug === slug ? summary : undefined
+  // The building its address names, read from the capital's tiles
+  const selection = useBuildingSelection({
+    slug: slug ?? "stockholm",
+    id: shown.map === "capital" ? shown.search.building : undefined,
+    at,
+    enabled:
+      capitalSummary !== undefined &&
+      capitalArchives(capitalSummary, env.VITE_DATA_RELEASE).evidence,
+  })
   const limitsReady = shown.map === "home" || capitalSummary !== undefined
   const layout = desktop ? "desktop" : "phone"
   const limits = useMemo<CameraLimits>(
@@ -301,8 +320,12 @@ export function SiteMap() {
   // Once the visitor's moves settle, the address keeps the area in view,
   // in place of the last one (no new step in the history). Only on the
   // page that sets the map: About and Methodology have no map state.
+  // Zooming out past the street, or wider than the selection's own view (its
+  // 500 m circle), closes a selected building.
   const current = useRef({ page, shown })
   current.current = { page, shown }
+  const selectionWidth = useRef<{ current: number }>({ current: 0 })
+  const closedByZoom = useRef<{ current: boolean }>({ current: false })
   useEffect(() => {
     camera.onSettle = () => {
       const { page: now, shown: drawn } = current.current
@@ -311,15 +334,22 @@ export function SiteMap() {
       }
       const { camera: shownCamera, size } = camera.state
       const next = shownCamera && addressArea(shownCamera, size)
-      if (!next || next === atOf(now)) {
+      if (!shownCamera || !next || next === atOf(now)) {
         return
       }
+      const zoomedOut =
+        now.map === "capital" &&
+        now.search.building !== undefined &&
+        groundWidth(areaInView(shownCamera, size)) >
+          Math.max(streetLevelWidth, selectionWidth.current.current * 1.02)
+      closedByZoom.current.current = zoomedOut
       written.current = `${placeOf(now)}|${next}`
       void navigate({
         to: ".",
         search: (previous: Record<string, unknown>) => ({
           ...previous,
           at: next,
+          ...(zoomedOut && { building: undefined, facade: undefined }),
         }),
         replace: true,
         resetScroll: false,
@@ -340,14 +370,9 @@ export function SiteMap() {
   const capitalViewShown = useMemo(
     () =>
       shown.map === "capital"
-        ? capitalView(
-            shown.search,
-            shown.search.building === undefined
-              ? undefined
-              : standInBuilding(shown.slug, shown.search.building)
-          )
+        ? capitalView(shown.search, selection?.record)
         : undefined,
-    [shown]
+    [shown, selection]
   )
   const state: GuideState = capitalViewShown
     ? guideState(guideInput(capitalViewShown))
@@ -364,13 +389,19 @@ export function SiteMap() {
   // place of the city overview zoomed into
   const [press, setPress] = useState<MapPress>()
   const pressAt = useCallback(
-    (pressed: LngLat, capital?: CapitalSlug) =>
+    (pressed: LngLat, capital?: CapitalSlug, building?: number) =>
       setPress((last) => ({
         id: (last?.id ?? 0) + 1,
         slug: capital,
+        building,
         at: pressed,
       })),
     []
+  )
+  const pressBuilding = useCallback(
+    (pressed: LngLat, building: number) =>
+      pressAt(pressed, undefined, building),
+    [pressAt]
   )
 
   const home = useHomeCapitals({
@@ -389,10 +420,48 @@ export function SiteMap() {
     onPress: pressAt,
   })
 
+  const selected = useSelectedBuildingMap({
+    camera,
+    slug,
+    search: shown.map === "capital" ? shown.search : undefined,
+    selection,
+    padding,
+  })
+  selectionWidth.current = selected.fitWidth
+  closedByZoom.current = selected.closedByZoom
+
+  // A building its address names that the tiles do not hold (or an address
+  // without the area to look for it in) is left out of the address
+  const missing =
+    selection === null &&
+    page?.map === "capital" &&
+    page.search.building !== undefined
+  useEffect(() => {
+    if (missing) {
+      void navigate({
+        to: ".",
+        search: (previous: Record<string, unknown>) => ({
+          ...previous,
+          building: undefined,
+          facade: undefined,
+        }),
+        replace: true,
+        resetScroll: false,
+      } as never)
+    }
+  }, [missing, navigate])
+
   const streetLevel = useStreetLevel({
     camera,
     slug,
-    onStreet: capitalViewShown?.view === "street",
+    onStreet:
+      capitalViewShown?.view === "street" ||
+      capitalViewShown?.view === "building",
+    selected: selected.map && {
+      id: selected.map.building.record.id,
+      facade: selected.map.facade,
+    },
+    onPress: pressBuilding,
   })
 
   const legendView: LegendView = capitalViewShown
@@ -436,6 +505,7 @@ export function SiteMap() {
           if (
             home.onKey(event, fromEnd) ||
             overview.onKey(event) ||
+            selected.onKey(event, fromEnd) ||
             streetLevel.onKey(event, fromEnd)
           ) {
             event.preventDefault()
@@ -466,6 +536,7 @@ export function SiteMap() {
           setKeyboardFocus(false)
           entered.current = "forwards"
           home.blur()
+          selected.blur()
           streetLevel.blur()
         }}
         {...twoFingers.handlers}
@@ -481,6 +552,7 @@ export function SiteMap() {
             city={cityOutline}
             capital={overview.map}
             street={streetLevel.street}
+            selection={selected.map}
             oneFingerScrolls={!desktop}
             visible={visible}
           />
@@ -504,6 +576,11 @@ export function SiteMap() {
         keyHint={<KeyHint id={hintId} state={state} visible={keyboardFocus} />}
       />
       <CapitalLabel camera={camera} capital={home.labelled} />
+      <SelectionParkLabel
+        camera={camera}
+        selection={selected.map}
+        language={capitalSummary?.language ?? "en"}
+      />
       <GuidePulse camera={camera} pulse={overview.pulse} state="overview" />
       <GuidePulse camera={camera} pulse={streetLevel.pulse} state="street" />
       <CentreMark
@@ -517,7 +594,7 @@ export function SiteMap() {
       <output className="sr-only">
         {shown.map === "home"
           ? home.announcement
-          : streetLevel.announcement || announcement}
+          : selected.announcement || streetLevel.announcement || announcement}
       </output>
     </div>
   )
@@ -702,6 +779,46 @@ function CapitalLabel({
       y={y ?? 0}
       bottom={bottom}
       map={{ width: width ?? 0, height: height ?? 0 }}
+    />
+  )
+}
+
+/** When the park's name shows, after the walk has drawn itself, in seconds */
+const parkNameDelay = 1.1
+
+/**
+ * The name of the park a selected building's walk reaches, with rule 300,
+ * above the end of the walk, following the camera
+ */
+function SelectionParkLabel({
+  camera,
+  selection,
+  language,
+}: {
+  camera: MapCamera
+  selection: SelectionMap | undefined
+  language: string
+}) {
+  const anchor =
+    selection?.rule === 300 ? parkAnchor(selection.building) : undefined
+  // Where it is on screen, to the half pixel
+  const placed = useMapCamera(camera, ({ camera: shown, size }) => {
+    if (!anchor || !shown) {
+      return ""
+    }
+    const [x, y] = viewportOf(shown, size).project(anchor)
+    return [Math.round(x * 2) / 2, Math.round(y * 2) / 2].join()
+  })
+  const [x, y] = placed ? placed.split(",").map(Number) : [0, 0]
+
+  return (
+    <ParkLabel
+      name={selection?.building.park?.name ?? null}
+      language={language}
+      x={x}
+      y={y}
+      visible={placed !== ""}
+      delay={selection?.instant ? 0 : parkNameDelay}
     />
   )
 }

@@ -40,11 +40,13 @@ describe("About", () => {
   })
 
   test("opened from a capital page", async () => {
-    await renderPage("/en/capitals/stockholm?building=31947&rule=30")
+    const building =
+      "/en/capitals/stockholm?building=31947&rule=30&at=18.0813%2C59.3101%2C18.0866%2C59.3127"
+    await renderPage(building)
     await openAbout()
     await expect
       .element(page.getByRole("link", { name: "Back to the map" }))
-      .toHaveAttribute("href", "/en/capitals/stockholm?building=31947&rule=30")
+      .toHaveAttribute("href", building)
 
     await expect(document.body).toHaveNoA11yViolations()
   })

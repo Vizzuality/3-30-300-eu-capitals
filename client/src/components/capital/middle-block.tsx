@@ -31,12 +31,15 @@ import { gridCell, ruleThresholds } from "@/lib/rules"
 
 export function MiddleBlock({
   view,
+  hidden = false,
   shares,
   language,
   onRuleChange,
   onClose,
 }: {
   view: CapitalView
+  /** Nothing yet: the view is still being read (a building, from the tiles) */
+  hidden?: boolean
   // The capital's share of residents meeting each rule
   shares: Shares["rules"]
   // The capital's language, for the local names quoted (a park's)
@@ -63,6 +66,9 @@ export function MiddleBlock({
     }
   }, [blockKey])
 
+  if (hidden) {
+    return null
+  }
   return (
     <div ref={block} tabIndex={-1} className="outline-none">
       <Swap swapKey={blockKey}>

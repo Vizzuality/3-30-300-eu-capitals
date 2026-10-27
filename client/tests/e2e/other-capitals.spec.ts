@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import { hydrated } from "./page-ready"
+import { southern } from "./buildings"
 
 /*
  * Moving on from a capital's page: "All capitals" and "All 27" go back to
@@ -96,7 +97,7 @@ test("a capital opens from Other capitals, without the building", async ({
   page,
   isMobile,
 }) => {
-  await page.goto("/en/capitals/stockholm?building=31947&rule=30")
+  await page.goto(`${southern}&rule=30`)
   await hydrated(page)
 
   // Stockholm, between the capitals ranked just above and just below it

@@ -7,9 +7,9 @@ import type { CapitalSlug } from "@/lib/capitals"
  * asks for tiles the release does not have. A capital with placeholder
  * figures has no tiles at all: its outline and figures are made up. The
  * stand-in release, the development and test data, keeps the real capitals'
- * grids and overview water, and of their city maps only a corner of
- * Stockholm (central Södermalm): the whole map is too large to keep with
- * the tests.
+ * grids and overview water, and of their city maps and evidence only a
+ * corner of Stockholm (central Södermalm): the whole archives are too large
+ * to keep with the tests.
  */
 
 /**
@@ -69,11 +69,10 @@ export function capitalArchives(
   release: string
 ): Record<CapitalTileArchive, boolean> {
   const real = summary.placeholder !== true
-  return {
-    grid: real,
-    context: real,
-    city: real && (release !== standInRelease || standInCity(summary, release)),
-  }
+  // The evidence covers the same ground as the city map
+  const city =
+    real && (release !== standInRelease || standInCity(summary, release))
+  return { grid: real, context: real, city, evidence: city }
 }
 
 /**

@@ -128,10 +128,10 @@ describe("the legend of each view", () => {
 describe("the legend of what the map draws", () => {
   test("the street once zoomed in, where the release has the city map", () => {
     expect(drawnLegend({ view: "street" }, true)).toEqual({ view: "street" })
-    // A selected building's evidence is not drawn yet: the street is
+    // A selected building's evidence, drawn from the city's tiles
     expect(
       drawnLegend({ view: "building", rule: 30, facade: false }, true)
-    ).toEqual({ view: "street" })
+    ).toEqual({ view: "building", rule: 30, facade: false })
     expect(drawnLegend({ view: "overview" }, true)).toEqual({
       view: "overview",
     })
