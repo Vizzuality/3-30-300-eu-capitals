@@ -26,8 +26,10 @@ import { screenOffset, type ScreenOffsetProps } from "./screen-offset-extension"
  * away from a neighbour have a thin line back to their true position.
  *
  * Each capital has its own layers (shadow, fill, edge), so each can lift,
- * squash and, later, sink on its own: its outline is drawn in metres around
- * where it is shown, and its `modelMatrix` enlarges (and squashes) it.
+ * squash and sink on its own: its outline is drawn in metres around where it
+ * is shown, and its `modelMatrix` enlarges (and squashes) it. As a capital
+ * opens, the others sink and its outline grows into the city; back on Home,
+ * they rise back into place.
  */
 
 /** What moves on the capitals, frame by frame */
@@ -43,6 +45,23 @@ export type CapitalMotion = {
 }
 
 export type PressRing = { at: LngLat; scale: number; opacity: number }
+
+/**
+ * The capitals as the map leaves Home or comes back to it: how far each
+ * other capital has dropped, shrunk and faded, the one opened (or left)
+ * enlarged and moved from where Home shows it, and the leader lines' and
+ * names' opacity
+ */
+export type CapitalsTransit = {
+  away: ReadonlyMap<
+    CapitalSlug,
+    { drop: number; shrink: number; opacity: number }
+  >
+  grown:
+    | { slug: CapitalSlug; scale: number; origin: LngLat; opacity: number }
+    | undefined
+  extras: number
+}
 
 /**
  * The names' font: its family, the characters of the names, and the
@@ -148,6 +167,8 @@ export type CapitalLayersInput = {
   motion: CapitalMotion
   /** Until the font is ready, the names wait */
   nameFont: NameFont | undefined
+  /** As the map leaves Home or comes back to it */
+  transit?: CapitalsTransit
 }
 
 /**
@@ -159,23 +180,30 @@ export type CapitalLayersInput = {
  */
 function capitalLayers(
   capital: HomeCapital,
-  { colors, focused, motion }: CapitalLayersInput
+  { colors, focused, motion, transit }: CapitalLayersInput
 ) {
+  const away = transit?.away.get(capital.slug)
+  const grown =
+    transit?.grown?.slug === capital.slug ? transit.grown : undefined
+  const opacity = away?.opacity ?? grown?.opacity ?? 1
+  if (opacity <= 0) {
+    return []
+  }
   const lift = motion.lift.get(capital.slug) ?? 0
   const squash =
     motion.squash?.slug === capital.slug ? motion.squash : { x: 1, y: 1 }
   const { polygons, areas, rings } = shapesOf(capital)
-  const rise = -motionDetails.liftMap * lift
+  const drop = away?.drop ?? 0
+  const rise = -motionDetails.liftMap * lift + drop
+  const scale = (grown?.scale ?? capital.scale) * (away?.shrink ?? 1)
+  const origin = grown?.origin ?? capital.display
   const placement = {
     coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
-    coordinateOrigin: [capital.display[0], capital.display[1], 0] as [
-      number,
-      number,
-      number,
-    ],
+    coordinateOrigin: [origin[0], origin[1], 0] as [number, number, number],
     // Enlarged, and squashed about its centre while it wobbles
-    modelMatrix: scaled(capital.scale * squash.x, capital.scale * squash.y),
+    modelMatrix: scaled(scale * squash.x, scale * squash.y),
     extensions: [screenOffset],
+    opacity,
   }
   const edgeAmount = unit(lift)
 
@@ -191,7 +219,7 @@ function capitalLayers(
       ),
       screenOffset: [
         mix(shadowAtRest[0], shadowLifted[0], lift),
-        mix(shadowAtRest[1], shadowLifted[1], lift),
+        mix(shadowAtRest[1], shadowLifted[1], lift) + drop,
       ],
     }),
     new SolidPolygonLayer<Polygon, ScreenOffsetProps>({
@@ -223,8 +251,10 @@ function capitalLayers(
       data: areas,
       getPolygon: (polygon: Polygon) => polygon.rings,
       getFillColor: [0, 0, 0, 0],
+      coordinateOrigin: [capital.display[0], capital.display[1], 0],
       modelMatrix: scaled(capital.scale, capital.scale),
-      pickable: true,
+      // Only on Home, at rest
+      pickable: transit === undefined,
     }),
   ]
 }
@@ -235,7 +265,8 @@ const scaled = (x: number, y: number) =>
 
 /** Every layer of the capitals, from the leader lines to their names */
 export function capitalsLayers(input: CapitalLayersInput) {
-  const { capitals, colors, motion, nameFont } = input
+  const { capitals, colors, motion, nameFont, transit } = input
+  const extras = transit?.extras ?? 1
   const moved = capitals.filter((capital) => capital.leader)
   // The capitals that rise come last, over their neighbours
   const byLift = [...capitals]
@@ -258,6 +289,8 @@ export function capitalsLayers(input: CapitalLayersInput) {
       widthUnits: "pixels",
       getDashArray: leaderDashes,
       extensions: [dashed],
+      opacity: extras,
+      visible: extras > 0,
     }),
     new ScatterplotLayer<HomeCapital>({
       id: "capital-leader-ends",
@@ -266,6 +299,8 @@ export function capitalsLayers(input: CapitalLayersInput) {
       getRadius: 2,
       radiusUnits: "pixels",
       getFillColor: colors.ink2,
+      opacity: extras,
+      visible: extras > 0,
     }),
     ...byLift.flatMap((capital) => capitalLayers(capital, input)),
     nameFont &&
@@ -291,8 +326,8 @@ export function capitalsLayers(input: CapitalLayersInput) {
         // A halo in the paper's colour
         ...nameTextSettings(nameFont.pixelRatio),
         outlineColor: colors.europeLand1,
-        opacity: motion.names,
-        visible: motion.names > 0,
+        opacity: motion.names * extras,
+        visible: motion.names * extras > 0,
         updateTriggers: { getColor: [liftKey, colors.ink.join()] },
       }),
   ]

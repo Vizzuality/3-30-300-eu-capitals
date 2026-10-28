@@ -7,6 +7,7 @@ import type { StreetBuilding } from "@/lib/street-buildings"
 import type { HomeCapital, LngLat } from "./home-capitals"
 import type { MapCamera } from "./map-camera"
 import type { MapColors } from "./map-colors"
+import type { MapTransition } from "./view-transition"
 
 /*
  * What draws the map: deck.gl in the site, loaded only with the map, or a
@@ -105,14 +106,21 @@ export type MapRendererProps = {
    * even as its page opens
    */
   press: MapPress | undefined
-  /** The city limits of the capital shown, on its page, once loaded */
-  city: CityOutline | undefined
+  /**
+   * The city limits of the capital shown, on its page, once loaded; null
+   * when the release has none
+   */
+  city: CityOutline | null | undefined
   /** The capital shown, on its page, once its summary is loaded */
   capital: CapitalMap | undefined
   /** At street level */
   street: StreetMap | undefined
   /** A selected building */
   selection: SelectionMap | undefined
+  /** The transition under way between two places of the map */
+  transition?: MapTransition
+  /** Called once a transition has been drawn to its end */
+  onTransitionEnd?: (id: number) => void
   /** On the phone's map band, one finger scrolls the page */
   oneFingerScrolls: boolean
   /** Whether the map is on screen; a hidden map draws nothing */

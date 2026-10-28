@@ -1,10 +1,12 @@
 import { GeoJsonLayer, PathLayer, SolidPolygonLayer } from "@deck.gl/layers"
 
 import type { CityOutline } from "@/data/schemas"
+import { linePart } from "@/lib/building-evidence"
 import { withOpacity, type MapColors, type Rgba } from "@/map/map-colors"
 import { simplifyRing } from "@/map/simplify"
 import type { OverviewStyle } from "./reveal-extension"
 import { screenOffset, type ScreenOffsetProps } from "./screen-offset-extension"
+import type { CityShow } from "./view-motion"
 
 /*
  * The city on its overview, as the reference draws it: its ground under the
@@ -14,6 +16,10 @@ import { screenOffset, type ScreenOffsetProps } from "./screen-offset-extension"
  * and over everything the limit line. Holes in the city (Frederiksberg in
  * Copenhagen, the Vatican in Rome) are outside the city: no ground and no
  * grid, with the edge along them as along the outer limits.
+ *
+ * As the city arrives, each part comes in on its own (`CityShow`): the limit
+ * line drawing itself, along its simplified rings, before the whole line
+ * takes its place.
  */
 
 /**
@@ -109,14 +115,16 @@ function band(id: string, paths: Array<Ring>, width: number, color: Rgba) {
 export function cityGroundLayer(
   city: CityOutline,
   ground: Rgba,
-  visible = true
+  visible = true,
+  opacity = 1
 ) {
   return new GeoJsonLayer({
     id: `city-${city.slug}`,
     data: city as never,
     getFillColor: ground,
     stroked: false,
-    visible,
+    visible: visible && opacity > 0,
+    opacity,
     updateTriggers: { getFillColor: ground.join() },
   })
 }
@@ -131,6 +139,7 @@ export function cityEdgeLayers({
   size,
   metresPerPixel,
   overview,
+  show,
 }: {
   city: CityOutline
   colors: MapColors
@@ -139,8 +148,14 @@ export function cityEdgeLayers({
   metresPerPixel: number | undefined
   /** At street level, its opacity and its rings */
   overview?: OverviewStyle
+  /** As the city arrives */
+  show?: CityShow
 }) {
   const visible = overview?.visible ?? true
+  const shownOpacity = overview?.opacity ?? 1
+  const ringsShown = show?.rings ?? 1
+  const shadow = show?.shadow ?? 1
+  const shadowOut = show?.shadowOut ?? 1
   const polygons = city.geometry.coordinates as Array<Polygon>
   const line = metresPerPixel === undefined ? 0 : ringWidth * metresPerPixel
   const ringLayers =
@@ -169,7 +184,8 @@ export function cityEdgeLayers({
                 withOpacity(colors.ink, opacity)
               ),
               ...masked,
-              visible,
+              visible: visible && ringsShown > 0,
+              opacity: shownOpacity * ringsShown,
             }),
           ]
         })
@@ -190,28 +206,43 @@ export function cityEdgeLayers({
       data: polygons,
       getPolygon: (polygon) => polygon,
       getFillColor: colors.shadow,
-      visible,
+      visible: visible && shadow > 0,
+      opacity: shownOpacity * shadow,
       extensions: [screenOffset, ...(overview?.extensions ?? [])],
-      screenOffset: shadowOffset,
+      screenOffset: [shadowOffset[0] * shadowOut, shadowOffset[1] * shadowOut],
     }),
     ...ringLayers,
   ]
 }
 
-/** Over the grid and the water: the city's limit line */
+/**
+ * Over the grid and the water: the city's limit line. While it draws itself
+ * (`show.drawn` below 1), the first part of each of its rings, simplified
+ * as the soft rings are (`size`, the square root of the city's area in
+ * metres), each ring drawing from its start.
+ */
 export function cityLimitsLayer(
   city: CityOutline,
   colors: MapColors,
-  overview?: OverviewStyle
+  overview?: OverviewStyle,
+  show?: CityShow,
+  size?: number
 ) {
+  const opacity = (overview?.opacity ?? 1) * (show?.limits ?? 1)
+  const drawn = show?.drawn ?? 1
+  const drawing = drawn < 1 && size !== undefined
   return new PathLayer<Ring>({
     ...overview,
-    id: `city-limits-${city.slug}`,
-    data: outlineRings(city),
+    id: `city-limits-${drawing ? "drawing-" : ""}${city.slug}`,
+    data: drawing
+      ? softRings(city, size).map((ring) => linePart(ring, drawn))
+      : outlineRings(city),
     getPath: (ring) => ring,
     getColor: withOpacity(colors.ink, limitOpacity),
     getWidth: limitWidth,
     widthUnits: "pixels",
     jointRounded: true,
+    visible: (overview?.visible ?? true) && opacity > 0,
+    opacity,
   })
 }

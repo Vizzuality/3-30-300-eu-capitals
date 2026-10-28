@@ -132,7 +132,10 @@ export function useSelectedBuildingMap({
       return
     }
     fitted.current = key
-    const { camera: view, size } = camera.state
+    // From where the camera goes: a move still under way (a glide, or a
+    // dip under reduced motion) ends there
+    const view = camera.destination
+    const { size } = camera.state
     if (!view || size.width <= 0) {
       return
     }
@@ -191,7 +194,8 @@ export function useSelectedBuildingMap({
     }
     const centre = lastCentre.current
     lastCentre.current = undefined
-    const { camera: view, size, limits } = camera.state
+    const view = camera.destination
+    const { size, limits } = camera.state
     if (
       !centre ||
       closedByZoom.current ||

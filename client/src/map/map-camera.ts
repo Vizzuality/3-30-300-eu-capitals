@@ -2,6 +2,7 @@ import type { MapViewState } from "@deck.gl/core"
 import { useSyncExternalStore } from "react"
 
 import { prefersReducedMotion } from "@/design/reduced-motion"
+import { motionDetails } from "@/design/tokens"
 import type { VisibleArea } from "@/lib/visible-area"
 
 import {
@@ -44,6 +45,11 @@ export type CameraRequest = {
   duration: number
   /** A flight that rises and comes down, for far moves */
   flight: boolean
+  /**
+   * Under reduced motion, a jump made behind a quick dip of the map to a
+   * faded map and back
+   */
+  dip: boolean
 }
 
 export type MapCameraState = {
@@ -83,7 +89,9 @@ export class MapCamera {
   // Where the move asked for ends, so keys pressed during it add up
   private target: MapViewState | undefined
   // A move asked for before the map had a size
-  private waiting: { target: CameraTarget; source: MoveSource } | undefined
+  private waiting:
+    | { target: CameraTarget; source: MoveSource; jump: boolean }
+    | undefined
   private source: MoveSource = "page"
   // When the move asked for ends (its duration from when it was asked),
   // in milliseconds since 1970
@@ -126,9 +134,9 @@ export class MapCamera {
     }
     this.update({ size, limits: limitsFor(this.mapLimits, size) })
     if (this.waiting && hasSize(size)) {
-      const { target, source } = this.waiting
+      const { target, source, jump } = this.waiting
       this.waiting = undefined
-      this.go(target, source)
+      this.go(target, source, { jump })
     }
   }
 
@@ -142,14 +150,20 @@ export class MapCamera {
 
   /**
    * Takes the camera to a target: it glides there (or flies, from far away),
-   * or jumps under reduced motion and when the map first appears. A move
-   * asked for by the page forgets the visitor's last moves, so they are
-   * never written to the next page's address.
+   * or jumps under reduced motion (behind a quick dip of the map) and when
+   * the map first appears. `jump` jumps at once, as when another city takes
+   * the place of the one that has just sunk. A move asked for by the page
+   * forgets the visitor's last moves, so they are never written to the next
+   * page's address.
    */
-  go(target: CameraTarget, source: MoveSource) {
+  go(
+    target: CameraTarget,
+    source: MoveSource,
+    { jump = false }: { jump?: boolean } = {}
+  ) {
     const { size, camera: from } = this.state
     if (!hasSize(size)) {
-      this.waiting = { target, source }
+      this.waiting = { target, source, jump }
       return
     }
     const fitted =
@@ -161,9 +175,11 @@ export class MapCamera {
     if (source === "page") {
       this.forgetMoves()
     }
-    const move = from
-      ? cameraMove(from, camera, size, prefersReducedMotion())
-      : { duration: 0, flight: false }
+    const reduced = prefersReducedMotion()
+    const move =
+      from && !jump
+        ? { ...cameraMove(from, camera, size, reduced), dip: reduced }
+        : { duration: 0, flight: false, dip: false }
     this.request(camera, move, source)
   }
 
@@ -185,24 +201,22 @@ export class MapCamera {
     ) {
       return
     }
-    const move = cameraMove(
-      from,
-      camera,
-      this.state.size,
-      prefersReducedMotion()
-    )
+    const reduced = prefersReducedMotion()
+    const move = cameraMove(from, camera, this.state.size, reduced)
     // Keys and buttons always glide, however far a zoom level goes
-    this.request(camera, { ...move, flight: false }, "visitor")
+    this.request(camera, { ...move, flight: false, dip: reduced }, "visitor")
   }
 
   private request(
     camera: MapViewState,
-    move: { duration: number; flight: boolean },
+    move: { duration: number; flight: boolean; dip: boolean },
     source: MoveSource
   ) {
     this.target = camera
     this.source = source
-    this.moveEnds = Date.now() + move.duration
+    // A dip jumps once the map has faded
+    this.moveEnds =
+      Date.now() + move.duration + (move.dip ? motionDetails.dip.down : 0)
     this.requests += 1
     this.update({
       request: { id: this.requests, camera, ...move },

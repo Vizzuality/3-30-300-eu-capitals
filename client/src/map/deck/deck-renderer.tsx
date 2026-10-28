@@ -6,10 +6,14 @@ import {
   type PickingInfo,
 } from "@deck.gl/core"
 import { getMeterZoom } from "@math.gl/web-mercator"
-import { cubicBezier } from "motion"
+import {
+  animate,
+  cubicBezier,
+  type AnimationPlaybackControlsWithThen,
+} from "motion"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import { motionTokens } from "@/design/tokens"
+import { motionDetails, motionTokens } from "@/design/tokens"
 import type { CapitalSlug } from "@/lib/capitals"
 import {
   allZooms,
@@ -36,6 +40,7 @@ import { facadeHitId, selectionLayers } from "./selection-layers"
 import { useSelectionMotion } from "./selection-motion"
 import { streetLayers } from "./street-layers"
 import { useStreetMotion } from "./street-motion"
+import { useViewMotion } from "./view-motion"
 import { placeNamesLayer, usePlaceNames } from "./place-names"
 import {
   streetNamesLayer,
@@ -47,6 +52,8 @@ import {
  * The map drawn by deck.gl: its camera, its gestures and its layers. The
  * instance is made once and lives as long as the page, whatever the page
  * shown, so the map never reloads; it only stops drawing while hidden.
+ * Under reduced motion, a camera move is a quick dip of the map to a faded
+ * map, the jump, and back.
  */
 
 const glide = cubicBezier(...motionTokens.glide.curve)
@@ -146,9 +153,14 @@ export default function DeckRenderer({
   capital,
   street,
   selection,
+  transition,
+  onTransitionEnd,
   oneFingerScrolls,
   visible,
 }: MapRendererProps) {
+  // What holds the canvas, which sinks and lifts as one sheet between
+  // places, and the canvas's own element, which dips under reduced motion
+  const stage = useRef<HTMLDivElement>(null)
   const parent = useRef<HTMLDivElement>(null)
   const [deck, setDeck] = useState<SiteDeck>()
   const deckRef = useRef<SiteDeck | undefined>(undefined)
@@ -177,6 +189,8 @@ export default function DeckRenderer({
   const oneFingerRef = useRef(oneFingerScrolls)
   oneFingerRef.current = oneFingerScrolls
   const noteSelectionRef = useRef<() => void>(() => {})
+  // Told of each frame drawn, for the transitions between places
+  const afterDrawRef = useRef<() => void>(() => {})
 
   // Made once, never again: navigating, changing the language or resizing
   // the window keeps it, its WebGL context and what it has loaded
@@ -281,6 +295,7 @@ export default function DeckRenderer({
         frames += 1
         element.dataset.frames = String(frames)
         noteSelectionRef.current()
+        afterDrawRef.current()
       },
       // The camera rests only once deck.gl has finished moving it; a drag
       // or a pan drops a press still being resolved
@@ -419,7 +434,13 @@ export default function DeckRenderer({
     let last: CameraRequest | undefined
     const carryOut = (request: CameraRequest) => {
       // A hidden map draws no frames, so it cannot glide
-      const jump = request.duration === 0 || !instance.isDrawing
+      if (request.dip && instance.isDrawing) {
+        dip()
+        return
+      }
+      move(request, request.duration === 0 || !instance.isDrawing)
+    }
+    const move = (request: CameraRequest, jump: boolean) => {
       instance.setProps({
         initialViewState: {
           ...distinctFrom(camera.state.camera, request.camera),
@@ -434,6 +455,59 @@ export default function DeckRenderer({
       if (jump) {
         camera.report(request.camera, { gesture: false })
       }
+    }
+    // The dip: the map fades, the camera jumps to the last move asked for,
+    // and the map comes back. Moves asked for while it fades jump together.
+    // It jumps once the fade has ended: the fade starts on the next frame,
+    // which the page changing can hold up (a capital's page opening), and a
+    // jump on time would then come with the map barely faded. It jumps no
+    // later than the whole dip takes, though: a slow device's stalled frames
+    // (the map's first on a capital's page, on Chrome's software renderer)
+    // would hold the fade, and the camera with it, while nothing is drawn.
+    let dipping: AnimationPlaybackControlsWithThen | undefined
+    let dipPhase: "down" | "up" | undefined
+    let dipTimer: ReturnType<typeof setTimeout> | undefined
+    // Each dip's own number, so a dip left behind never moves the camera
+    let dips = 0
+    const dip = () => {
+      if (dipPhase === "down") {
+        return
+      }
+      const { opacity, down, up } = motionDetails.dip
+      const ease = [...motionTokens.fade.curve] as [
+        number,
+        number,
+        number,
+        number,
+      ]
+      dipping?.stop()
+      clearTimeout(dipTimer)
+      dipPhase = "down"
+      const dipped = ++dips
+      const jump = () => {
+        if (dipped !== dips || dipPhase !== "down") {
+          return
+        }
+        clearTimeout(dipTimer)
+        if (last) {
+          move(last, true)
+        }
+        dipPhase = "up"
+        dipping?.stop()
+        dipping = animate(
+          element,
+          { opacity: 1 },
+          { duration: up / 1000, ease }
+        )
+        void dipping.then(() => {
+          if (dipped === dips) {
+            dipPhase = undefined
+          }
+        })
+      }
+      dipping = animate(element, { opacity }, { duration: down / 1000, ease })
+      void dipping.then(jump)
+      dipTimer = setTimeout(jump, down + up)
     }
     const unsubscribe = camera.subscribe(() => {
       const { request } = camera.state
@@ -451,6 +525,10 @@ export default function DeckRenderer({
     deckRef.current = instance
     return () => {
       unsubscribe()
+      dipPhase = undefined
+      dips += 1
+      clearTimeout(dipTimer)
+      dipping?.stop()
       element.removeEventListener("pointerdown", onPointerDown)
       element.removeEventListener("pointerup", onPointerUp)
       element.removeEventListener("pointercancel", onPointerCancel)
@@ -501,6 +579,7 @@ export default function DeckRenderer({
     () => setGridDrawnFor(capitalRef.current?.slug),
     []
   )
+  const gridDrawn = capital !== undefined && gridDrawnFor === capital.slug
   // Metres per pixel at the city, to a twentieth of a zoom level: the width
   // of the rings' lines on the ground
   const zoomStep = useMapCamera(camera, ({ camera: shown }) =>
@@ -654,6 +733,28 @@ export default function DeckRenderer({
     // oxlint-disable-next-line react-hooks/exhaustive-deps
     [streetMotion.onTilesLoaded, streetNames.setTiles]
   )
+  // The transitions between places: what is left behind sinks, and what
+  // comes arrives
+  const view = useViewMotion(camera, redraw, {
+    transition,
+    onTransitionEnd,
+    home: home?.capitals,
+    capital,
+    city,
+    gridDrawn,
+    onStreet,
+    stage,
+  })
+  afterDrawRef.current = () => view.afterDraw()
+  // The transition under way, for the tests to follow
+  useEffect(() => {
+    if (parent.current) {
+      parent.current.dataset.transition = transition
+        ? `${transition.kind}:${transition.phase}`
+        : ""
+    }
+  }, [transition])
+
   // Leaving the street, its tiles stay those of the area last in view while
   // the overview fades back over them
   const [frozenArea, setFrozenArea] = useState<
@@ -711,6 +812,8 @@ export default function DeckRenderer({
   const waveSpacing = Math.hypot(size.width, size.height) / 2 / 3
 
   drawn.current = () => {
+    // On Home, and the capitals left behind as a capital opens
+    const drawnCapitals = home?.capitals ?? view.leftBehind
     const gliding = streetMotion.reveal.phase === "armed" && !landed
     // The arrival at street level, for the tests to follow
     if (parent.current) {
@@ -731,18 +834,21 @@ export default function DeckRenderer({
       layers: baseLayers({
         colors,
         release,
-        city,
+        city: city ?? undefined,
         capital,
-        gridDrawn: capital !== undefined && gridDrawnFor === capital.slug,
+        gridDrawn,
         metresPerPixel,
         roadOpacity,
         onGridDrawn,
-        capitals: home && {
-          capitals: home.capitals,
-          focused: home.focused,
+        capitals: drawnCapitals && {
+          capitals: drawnCapitals,
+          focused: home?.focused,
           motion,
           nameFont,
+          transit: view.transit,
         },
+        europe: view.europe,
+        show: onStreet ? undefined : view.city,
         ring: motion.ring,
         street:
           capital && cityArea && streetMotion.drawn && !gliding
@@ -773,7 +879,7 @@ export default function DeckRenderer({
                 colors,
                 characterSet: placeNames.characterSet,
                 pixelRatio,
-                opacity: onStreet ? 0 : streetMotion.overview,
+                opacity: onStreet ? 0 : streetMotion.overview * view.city.names,
               })
             : null,
         // Made as soon as the capital's font is ready, shown at street
@@ -839,7 +945,11 @@ export default function DeckRenderer({
     }
   }, [deck, loaded, visible])
 
-  return <div ref={parent} className="absolute inset-0" />
+  return (
+    <div ref={stage} className="absolute inset-0">
+      <div ref={parent} className="absolute inset-0" />
+    </div>
+  )
 }
 
 /**

@@ -338,6 +338,25 @@ export const motionDetails = {
   // How far and how fast what is left behind drops (Sink)
   sinkDrop: 7,
   sinkRipple: 300,
+  // What is left behind shrinks as it sinks, to this share of its size: a
+  // capital on Home, a city (Sink)
+  sinkShrink: { capital: 0.9, city: 0.96 },
+  // A city opened from another rises into place from this far below and
+  // this share of its size, its shadow growing (Lift)
+  cityRise: { drop: 10, scale: 0.97 },
+  // Back on Home, the capitals rise back into place after this long, in a
+  // ripple outwards from the city left, in milliseconds (Lift)
+  riseDelay: 200,
+  // Once the camera has landed on a city opened from Home, its 10 m grid
+  // opens from the centre over this long, in milliseconds (Draw's curve)
+  gridOpening: 1000,
+  // A city finishing loading: its limits draw themselves (Draw), then its
+  // soft rings, its ground, the rest of the city (Pop) and its shadow come
+  // in, this long after the drawing starts, in milliseconds
+  cityLoad: { draw: 1000, rings: 300, ground: 700, content: 800, shadow: 900 },
+  // Under reduced motion, a camera move is a quick dip of the map to this
+  // opacity, the jump, and back, each fade this long in milliseconds
+  dip: { opacity: 0.2, down: 140, up: 240 },
   // Delay between the waves of things popping in (Pop)
   popWaves: { count: 3, apart: 120 }, // 110–140 ms apart
   // Panel content: leaving content fades out, then the new content rises

@@ -33,6 +33,8 @@ export type HomeCapital = {
   share: number | undefined
   /** Where its outline is drawn */
   display: LngLat
+  /** Where the city really is: the centre of its outline at its true size */
+  centre: LngLat
   /** The outline, in metres from its centre, drawn `scale` times larger */
   outline: Capital["outline"]
   scale: number
@@ -86,6 +88,7 @@ export function homeCapitals(
       rank: row?.rank ?? index + 1,
       share: row?.shares.met[3],
       display: capital.display,
+      centre: capital.centre,
       outline: capital.outline,
       scale: capital.scale,
       leader: capital.leader ? [capital.centre, capital.leader] : undefined,

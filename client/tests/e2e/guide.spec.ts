@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { hydrated } from "./page-ready"
+import { homeArrived, hydrated, selectionDrawn } from "./page-ready"
 import { southern } from "./buildings"
 
 /*
@@ -106,38 +106,39 @@ test("the guide follows the visitor through a capital", async ({
   await expect(announcer(page)).toHaveText("")
 })
 
-// With motion for now: the announcement waits for the leaving page to fade
-// out, and the reduced-motion version of that fade comes later
-test(
-  "a new page is announced by its name, and its guide stays quiet",
-  { tag: "@motion" },
-  async ({ page, isMobile }) => {
-    await page.goto(`${southern}`)
-    await hydrated(page)
-    await watchArrivingGuides(page)
+test("a new page is announced by its name, and its guide stays quiet", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto(`${southern}`)
+  await hydrated(page)
+  await selectionDrawn(page, "31947")
+  await watchArrivingGuides(page)
 
-    await page
-      .getByRole("banner")
-      .getByRole("link", { name: "3-30-300, back to Home" })
-      .click()
-    await expect(page).toHaveURL("/en")
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "3-30-300, back to Home" })
+    .click()
+  await expect(page).toHaveURL("/en")
+  // The name is announced once the page left has faded out, as the map
+  // moves back to Home
+  await homeArrived(page)
 
-    await expect(announcer(page)).toHaveText(
-      "How green is your capital? The 3-30-300 rule in the 27 EU capitals"
+  await expect(announcer(page)).toHaveText(
+    "How green is your capital? The 3-30-300 rule in the 27 EU capitals"
+  )
+  await expectGuide(page, isMobile, "Start here", {
+    click: "Click a capital on the map, or a row in the ranking",
+    tap: "Tap a capital on the map, or a row in the ranking",
+  })
+  // Home's guide arrived silent, then became live for later changes
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { guideArrivals: unknown }).guideArrivals
     )
-    await expectGuide(page, isMobile, "Start here", {
-      click: "Click a capital on the map, or a row in the ranking",
-      tap: "Tap a capital on the map, or a row in the ranking",
-    })
-    // Home's guide arrived silent, then became live for later changes
-    expect(
-      await page.evaluate(
-        () => (window as unknown as { guideArrivals: unknown }).guideArrivals
-      )
-    ).toEqual([null])
-    await expect(guide(page)).toHaveAttribute("aria-live", "polite")
-  }
-)
+  ).toEqual([null])
+  await expect(guide(page)).toHaveAttribute("aria-live", "polite")
+})
 
 test("a shared link opens on the guide of its building", async ({
   page,

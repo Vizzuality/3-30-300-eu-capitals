@@ -20,6 +20,7 @@ import {
   zoomRoom,
   type Size,
 } from "@/map/camera"
+import { simulateReducedMotion } from "@/design/reduced-motion"
 import { MapCamera, settleDelay } from "@/map/map-camera"
 import { toRgba } from "@/map/map-colors"
 import {
@@ -302,6 +303,34 @@ describe("the camera shared around the map", () => {
     const limits = { min: 9, max: 18, bounds }
     const centred = { longitude: 18.07, latitude: 59.33, zoom: 12 }
     expect(constrain(centred, limits, desktop)).toEqual(centred)
+  })
+
+  test("under reduced motion, a move jumps behind a dip of the map", () => {
+    const { camera } = mapCamera()
+    camera.go({ area: sodermalm }, "page")
+    simulateReducedMotion(true)
+    try {
+      camera.act({ kind: "zoom", by: 1 })
+      expect(camera.state.request).toMatchObject({ duration: 0, dip: true })
+      camera.go({ area: sodermalm }, "page")
+      expect(camera.state.request).toMatchObject({ duration: 0, dip: true })
+    } finally {
+      simulateReducedMotion(undefined)
+    }
+  })
+
+  test("a jump asked for jumps at once, with no dip", () => {
+    const { camera } = mapCamera()
+    camera.go({ area: sodermalm }, "page")
+    camera.go({ area: { ...sodermalm, west: 18.2, east: 18.22 } }, "page", {
+      jump: true,
+    })
+
+    expect(camera.state.request).toMatchObject({
+      duration: 0,
+      flight: false,
+      dip: false,
+    })
   })
 
   test("a move asked for before the map has a size waits for it, then jumps", () => {

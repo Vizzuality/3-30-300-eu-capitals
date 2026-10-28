@@ -43,3 +43,37 @@ export async function selectionDrawn(
     timeout: 15_000,
   })
 }
+
+/*
+ * The panel's fades (a page's content leaving, a block swapping in place)
+ * play over the page's frames, and on Chrome's software renderer, while
+ * other tests run alongside, a frame in which the map first draws something
+ * can take seconds: the leaving content then waits for the map to be done.
+ */
+
+/**
+ * Waits for the map to have let the selected building go: its evidence has
+ * faded out, and the street is drawn without it
+ */
+export async function selectionLeft(page: Page) {
+  await expect(page.locator("[data-deck-instance]")).toHaveAttribute(
+    "data-selected-building",
+    "",
+    { timeout: 15_000 }
+  )
+}
+
+/**
+ * Waits for the map to have moved back to Home: Europe is shown, and its
+ * transition there has ended
+ */
+export async function homeArrived(page: Page) {
+  await expect(page.locator("[data-map]")).toHaveAttribute("data-map", "home", {
+    timeout: 15_000,
+  })
+  await expect(page.locator("[data-deck-instance]")).toHaveAttribute(
+    "data-transition",
+    "",
+    { timeout: 15_000 }
+  )
+}

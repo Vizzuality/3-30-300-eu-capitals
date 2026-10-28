@@ -15,6 +15,7 @@ import { gridLayer } from "./grid-layer"
 import type { RevealClock } from "./reveal-extension"
 import { arrivalRings, revealOverview } from "./street-layers"
 import type { ContextTileContent } from "./context-tile-decode"
+import type { CityShow } from "./view-motion"
 import { roadLayers, waterLayer } from "./water-layer"
 
 /*
@@ -32,6 +33,11 @@ import { roadLayers, waterLayer } from "./water-layer"
  * to it in rings around where the visitor zoomed in, or fades out, and
  * fades back over it on the way out; the street names come over all. The
  * overview's main roads and district names help visitors find their way.
+ *
+ * Between places, Europe fades out or back in, and the city's parts arrive
+ * one after the other (`CityShow`): its ground, its edge and its limits,
+ * then the grid, the water and the roads, opening from the centre or
+ * popping in.
  */
 
 /** The street level, under the overview */
@@ -49,8 +55,15 @@ export type BaseLayersInput = {
   city: CityOutline | undefined
   /** The capital shown, on its page */
   capital: CapitalMap | undefined
-  /** The capitals, on Home, over the map of Europe */
+  /**
+   * The capitals over the map of Europe: on Home, and as the map leaves it
+   * or comes back to it
+   */
   capitals: Omit<CapitalLayersInput, "colors"> | undefined
+  /** The map of Europe's opacity, as it fades out or back in */
+  europe?: number
+  /** The city shown, as it arrives */
+  show?: CityShow
   /** Whether the capital's grid has drawn the area in view */
   gridDrawn: boolean
   /** Metres on the ground per CSS pixel, for the rings around the city */
@@ -81,6 +94,8 @@ export function baseLayers({
   city,
   capital,
   capitals,
+  europe = 1,
+  show,
   gridDrawn,
   metresPerPixel,
   roadOpacity,
@@ -111,16 +126,30 @@ export function baseLayers({
     ...arrivalRings(reveal, waveSpacing),
     revealDirection: -1,
   }
+  // The grid, the water and the roads: as they arrive, opening from the
+  // centre in place of giving way
+  const content = {
+    ...overview,
+    opacity: overview.opacity * (show?.content ?? 1),
+    ...show?.opening,
+  }
+  const size = shown && Math.sqrt(shown.areaKm2) * 1000
   return [
     // Europe drawn on Home only; kept, hidden, on a capital's page, so
     // coming back to Home finds its tiles ready
-    europeLayer({ colors, release, visible: capitals !== undefined }),
+    europeLayer({
+      colors,
+      release,
+      visible: capitals !== undefined && europe > 0,
+      opacity: europe,
+    }),
     ...(capitals ? capitalsLayers({ ...capitals, colors }) : []),
     city &&
       cityGroundLayer(
         city,
         shown?.archives.grid && gridDrawn ? colors.water : colors.land,
-        overview.visible
+        overview.visible,
+        show?.ground
       ),
     ...(street?.layers ?? []),
     capital?.archives.grid &&
@@ -131,24 +160,31 @@ export function baseLayers({
         zooms: capital.zooms.grid,
         extent: capital.bbox,
         onViewportLoad: onGridDrawn,
-        overview,
+        overview: content,
       }),
     context &&
-      waterLayer({ ...context, overview, onTilesLoaded: onContextTilesLoaded }),
+      waterLayer({
+        ...context,
+        overview: content,
+        onTilesLoaded: onContextTilesLoaded,
+      }),
     // Outside the city, over the water: its shadow and soft rings, then its
     // limit line
     ...(city
       ? cityEdgeLayers({
           city,
           colors,
-          size: shown && Math.sqrt(shown.areaKm2) * 1000,
+          size,
           metresPerPixel,
           overview,
+          show,
         })
       : []),
     // The main roads, over the city's soft rings, under its limit line
-    ...(context ? roadLayers({ ...context, overview, fade: roadOpacity }) : []),
-    city && cityLimitsLayer(city, colors, overview),
+    ...(context
+      ? roadLayers({ ...context, overview: content, fade: roadOpacity })
+      : []),
+    city && cityLimitsLayer(city, colors, overview, show, size),
     placeNames ?? null,
     streetNames ?? null,
     ring && pressRingLayer(ring, colors),

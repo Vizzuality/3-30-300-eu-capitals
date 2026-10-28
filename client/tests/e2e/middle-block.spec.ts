@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import { southern, streetArea } from "./buildings"
-import { hydrated, selectionDrawn } from "./page-ready"
+import { hydrated, selectionDrawn, selectionLeft } from "./page-ready"
 
 /*
  * A selected building in the panel, opened from its address: its rule
@@ -60,9 +60,13 @@ async function expectRule(page: Page, rule: Locator, result: string) {
 const streetSentence =
   "Each building takes the colour of the number of rules its residents meet. Greenery has its own colour."
 
-/** The building has gone: the street around it is shown again */
+/**
+ * The building has gone: the street around it is shown again, on the map
+ * and in the block, once the map has drawn it without the building
+ */
 async function expectStreet(page: Page) {
   await expect.poll(() => shown(page)).toEqual({ building: null, rule: null })
+  await selectionLeft(page)
   await expect(page.getByText(streetSentence)).toBeVisible()
   await expect(page.getByRole("radiogroup")).toHaveCount(0)
 }

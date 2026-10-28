@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMatches, useNavigate } from "@tanstack/react-router"
 import {
   Suspense,
@@ -94,6 +94,14 @@ import { mapColors, useColorScheme } from "./map-colors"
 import type { HomeMap, MapPress, SelectionMap } from "./renderer"
 import { useSelectedBuildingMap } from "./selected-building"
 import { useStreetLevel } from "./street-level"
+import {
+  capitalOf,
+  leavingDuration,
+  transitionKind,
+  trueArea,
+  type MapPlace,
+  type MapTransition,
+} from "./view-transition"
 
 /*
  * The map, in the layout every page shares: made once, it stays on screen
@@ -158,8 +166,124 @@ function useMapPage(): MapPage | undefined {
 
 const atOf = (page: MapPage) => (page.map === "home" ? page.at : page.search.at)
 
-const placeOf = (page: MapPage) =>
+const placeOf = (page: MapPage): MapPlace =>
   page.map === "home" ? "home" : `capital:${page.slug}`
+
+const samePage = (a: MapPage, b: MapPage) =>
+  JSON.stringify(a) === JSON.stringify(b)
+
+type Shown = {
+  /** The page that sets what the map shows */
+  wanted: MapPage
+  /** What the map shows: the page, or the city it leaves while it sinks */
+  shown: MapPage
+  transition: MapTransition | undefined
+  transitions: number
+}
+
+/**
+ * What the map shows, and the transition under way from what it showed:
+ * a city left (for another, or for Home) stays shown while it sinks, then
+ * the page's place arrives; a capital opened from Home arrives at once.
+ * Coming back to the place still shown, while it sinks, keeps it.
+ */
+function useShownPage(page: MapPage | undefined) {
+  const [state, setState] = useState<Shown>(() => {
+    const first = page ?? { map: "home" }
+    return {
+      wanted: first,
+      shown: first,
+      transition: undefined,
+      transitions: 0,
+    }
+  })
+  let next = state
+  if (page && !samePage(page, state.wanted)) {
+    const { shown, transition, transitions } = state
+    const leaving = transition?.phase === "leaving" ? transition : undefined
+    const kind = transitionKind(placeOf(shown), placeOf(page))
+    next =
+      kind === undefined
+        ? {
+            ...state,
+            wanted: page,
+            shown: page,
+            transition: leaving ? undefined : transition,
+          }
+        : kind === "open"
+          ? {
+              wanted: page,
+              shown: page,
+              transition: {
+                id: transitions + 1,
+                kind,
+                from: undefined,
+                to: capitalOf(placeOf(page)),
+                phase: "arriving",
+                ready: false,
+              },
+              transitions: transitions + 1,
+            }
+          : {
+              // While the city left sinks, a new page only changes where
+              // the map goes next
+              wanted: page,
+              shown,
+              transition: {
+                id: leaving?.id ?? transitions + 1,
+                kind,
+                from: capitalOf(placeOf(shown)),
+                to: capitalOf(placeOf(page)),
+                phase: "leaving",
+                ready: false,
+              },
+              transitions: leaving ? transitions : transitions + 1,
+            }
+    setState(next)
+  }
+
+  // Once the city left has sunk, the page's place arrives
+  const leavingId =
+    next.transition?.phase === "leaving" ? next.transition.id : undefined
+  useEffect(() => {
+    if (leavingId === undefined) {
+      return
+    }
+    const timer = setTimeout(
+      () =>
+        setState((current) =>
+          current.transition?.id === leavingId &&
+          current.transition.phase === "leaving"
+            ? {
+                ...current,
+                shown: current.wanted,
+                transition: { ...current.transition, phase: "arriving" },
+              }
+            : current
+        ),
+      leavingDuration(prefersReducedMotion())
+    )
+    return () => clearTimeout(timer)
+  }, [leavingId])
+
+  /** The renderer has drawn the transition to its end */
+  const end = useCallback(
+    (id: number) =>
+      setState((current) =>
+        current.transition?.id === id
+          ? { ...current, transition: undefined }
+          : current
+      ),
+    []
+  )
+
+  return {
+    wanted: next.wanted,
+    shown: next.shown,
+    transition: next.transition,
+    end,
+  }
+}
 
 /** The least room between a fitted city, or Europe, and what floats over it */
 const fitGap = 12
@@ -204,12 +328,10 @@ export function SiteMap() {
   const root = useRef<HTMLDivElement>(null)
   const hintId = useId()
 
-  // What the map shows: the last page that sets it, Europe at first
+  // What the map shows: the last page that sets it, Europe at first; a city
+  // left stays shown while it sinks
   const page = useMapPage()
-  const [shown, setShown] = useState<MapPage>(page ?? { map: "home" })
-  if (page && JSON.stringify(page) !== JSON.stringify(shown)) {
-    setShown(page)
-  }
+  const { wanted, shown, transition, end: endTransition } = useShownPage(page)
   const slug = shown.map === "capital" ? shown.slug : undefined
   const at = atOf(shown)
 
@@ -227,6 +349,12 @@ export function SiteMap() {
     enabled: slug !== undefined,
   })
   const cityOutline = slug && outline?.slug === slug ? outline : undefined
+  // The limits of the city the map goes to next, while the one left sinks
+  const nextSlug = wanted.map === "capital" ? wanted.slug : undefined
+  useQuery({
+    ...outlineQuery(nextSlug ?? "stockholm"),
+    enabled: nextSlug !== undefined && nextSlug !== slug,
+  })
   const city = slug
     ? capitals?.capitals.find((capital) => capital.slug === slug)
     : undefined
@@ -290,6 +418,35 @@ export function SiteMap() {
     camera.setLimits(limits)
   }, [camera, limits])
 
+  // A capital opened from Home: the camera heads for its outline at its true
+  // size until the city's own limits are loaded
+  const opened =
+    transition?.kind === "open" && transition.to === slug
+      ? capitals?.capitals.find((capital) => capital.slug === slug)
+      : undefined
+  const openingArea = useMemo(
+    () => (opened ? trueArea(opened) : undefined),
+    [opened]
+  )
+  const fitTo = cityArea ?? openingArea
+  // What the camera fits, which it fits again only when that changes: the
+  // area in the address, Europe, or the city (headed for from Home until
+  // its limits are known)
+  const shared = at === undefined ? undefined : parseVisibleArea(at)
+  const fitting = shared
+    ? "address"
+    : shown.map === "home"
+      ? "europe"
+      : cityArea
+        ? "city"
+        : openingArea
+          ? "opening"
+          : "none"
+  // Another capital takes the place of the one that has just sunk, at once
+  const jumps = useRef(false)
+  jumps.current =
+    transition?.kind === "switch" && transition.phase === "arriving"
+
   // The camera fits the page's area: the one in its address, otherwise
   // Europe or the whole city. The map's own writes to the address are left
   // alone, since the camera is already there.
@@ -303,19 +460,19 @@ export function SiteMap() {
       return
     }
     written.current = undefined
-    const shared = at === undefined ? undefined : parseVisibleArea(at)
+    const jump = jumps.current
     if (shared) {
-      camera.go({ area: shared }, "page")
+      camera.go({ area: shared }, "page", { jump })
       return
     }
     if (place === "home") {
       camera.go({ area: europeArea, padding: paddingRef.current }, "page")
-    } else if (cityArea) {
-      camera.go({ area: cityArea, padding: paddingRef.current }, "page")
+    } else if (fitTo) {
+      camera.go({ area: fitTo, padding: paddingRef.current }, "page", { jump })
     }
     // The city's area is the same for as long as its page is shown
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera, place, at, cityArea === undefined, limitsReady])
+  }, [camera, place, at, fitting, limitsReady])
 
   // Once the visitor's moves settle, the address keeps the area in view,
   // in place of the last one (no new step in the history). Only on the
@@ -471,6 +628,14 @@ export function SiteMap() {
       )
     : { view: "home" }
 
+  // Arriving, the place is known once the city's limits are (or the camera
+  // can head for Europe)
+  const ready = shown.map === "home" || cityArea !== undefined
+  const shownTransition = useMemo(
+    () => transition && { ...transition, ready },
+    [transition, ready]
+  )
+
   const twoFingers = useTwoFingers(root, !desktop)
   const visible = useMapCamera(camera, isOnScreen)
 
@@ -549,10 +714,15 @@ export function SiteMap() {
             release={env.VITE_DATA_RELEASE}
             home={home.map}
             press={press}
-            city={cityOutline}
+            city={
+              cityOutline ??
+              (slug && (noOutline || outline === null) ? null : undefined)
+            }
             capital={overview.map}
             street={streetLevel.street}
             selection={selected.map}
+            transition={shownTransition}
+            onTransitionEnd={endTransition}
             oneFingerScrolls={!desktop}
             visible={visible}
           />
@@ -581,7 +751,12 @@ export function SiteMap() {
         selection={selected.map}
         language={capitalSummary?.language ?? "en"}
       />
-      <GuidePulse camera={camera} pulse={overview.pulse} state="overview" />
+      {/* The pulse waits for the city to have arrived */}
+      <GuidePulse
+        camera={camera}
+        pulse={transition ? undefined : overview.pulse}
+        state="overview"
+      />
       <GuidePulse camera={camera} pulse={streetLevel.pulse} state="street" />
       <CentreMark
         visible={keyboardFocus && overview.map?.onPress !== undefined}
@@ -626,6 +801,7 @@ function useHomeCapitals({
 }) {
   const t = useTranslations("map.announce")
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const shownCapitals = useMemo(
     () => (capitals ? homeCapitals(capitals, ranking, locale) : undefined),
     [capitals, ranking, locale]
@@ -658,6 +834,8 @@ function useHomeCapitals({
         return
       }
       onPress(at, slug)
+      // Its limits, which the city grows into, load while it wobbles
+      void queryClient.query(outlineQuery(slug)).catch(() => undefined)
       opening.current = setTimeout(
         () => {
           opening.current = undefined
@@ -669,7 +847,7 @@ function useHomeCapitals({
         prefersReducedMotion() ? 0 : motionTokens.squash.duration
       )
     },
-    [navigate, locale, onPress]
+    [navigate, locale, onPress, queryClient]
   )
   useEffect(() => () => clearTimeout(opening.current), [])
 

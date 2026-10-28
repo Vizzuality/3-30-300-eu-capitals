@@ -37,6 +37,12 @@ export type RevealClock = {
   phase: "off" | "armed" | "running"
   /** In `performance.now()` milliseconds */
   start: number
+  /**
+   * Running, the time since the start to draw, in milliseconds, when the
+   * animation is driven frame by frame along a curve; otherwise the time
+   * since `start`
+   */
+  time?: number
   /** Where the waves start, in CSS pixels from the map's top left corner */
   origin: [number, number]
   /** Under reduced motion, everything fades at once instead */
@@ -261,7 +267,7 @@ ${springFunction}
       props.revealClock ?? RevealExtension.defaultProps.revealClock.value
     const time =
       clock.phase === "running"
-        ? performance.now() - clock.start
+        ? (clock.time ?? performance.now() - clock.start)
         : // Armed: before anything has started
           -1e6
     this.setShaderModuleProps({

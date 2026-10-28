@@ -8,9 +8,14 @@ import type { MapRendererProps } from "./renderer"
  * out each camera move at once, so the map's focus stop, its keys, its
  * overlays and its announcements run as they do on the real map. What the
  * map shows is checked through its text equivalent (the ranking, the
- * capital's header and the card).
+ * capital's header and the card). Its transitions between places end as
+ * soon as they arrive.
  */
-export default function StandInRenderer({ camera }: MapRendererProps) {
+export default function StandInRenderer({
+  camera,
+  transition,
+  onTransitionEnd,
+}: MapRendererProps) {
   useEffect(() => {
     let last = camera.state.request
     if (last) {
@@ -25,6 +30,17 @@ export default function StandInRenderer({ camera }: MapRendererProps) {
       }
     })
   }, [camera])
+
+  // Nothing to draw: a transition ends as soon as its place has arrived
+  const arrived =
+    transition?.phase === "arriving" && transition.ready
+      ? transition.id
+      : undefined
+  useEffect(() => {
+    if (arrived !== undefined) {
+      queueMicrotask(() => onTransitionEnd?.(arrived))
+    }
+  }, [arrived, onTransitionEnd])
 
   return <div data-stand-in-map="" className="absolute inset-0" />
 }

@@ -90,11 +90,14 @@ export function europeLayer({
   colors,
   release,
   visible,
+  opacity = 1,
 }: {
   colors: MapColors
   release: string
   /** Whether it is drawn; hidden, it keeps the tiles it has */
   visible: boolean
+  /** As it fades out, or back in, with the capitals */
+  opacity?: number
 }) {
   // The colour scheme, which redraws the tiles' layers when it changes
   const scheme = colors.europeSea.join()
@@ -110,6 +113,7 @@ export function europeLayer({
     // site's own worker.
     binary: false,
     visible,
+    opacity,
     updateTriggers: { renderSubLayers: scheme },
     renderSubLayers: (props) => {
       const features = [
