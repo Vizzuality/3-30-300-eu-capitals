@@ -2,7 +2,7 @@ import { useLocation, useParams } from "@tanstack/react-router"
 import { useTranslations } from "use-intl"
 
 import { TouchLink } from "@/components/motion/touch-link"
-import { aboutOriginOf, historyEntry } from "@/lib/about-origin"
+import { historyEntry, openedFrom, pageOriginOf } from "@/lib/page-origin"
 import { cn } from "@/lib/utils"
 
 // Methodology and About: the current page's link stays highlighted
@@ -20,6 +20,12 @@ export function TopBar() {
   const t = useTranslations("frame")
   const { locale } = useParams({ from: "/$locale" })
   const location = useLocation()
+  // The page shown, as an origin for the pages the bar opens
+  const here = pageOriginOf({
+    pathname: location.pathname,
+    search: location.search,
+    index: historyEntry(location.state),
+  })
 
   return (
     <header className="flex min-h-top-bar-phone shrink-0 flex-wrap items-center justify-between gap-x-4 pr-3 pl-panel-inset-phone desktop:min-h-top-bar desktop:pr-6 desktop:pl-panel-inset">
@@ -38,27 +44,30 @@ export function TopBar() {
       </TouchLink>
       <div className="flex items-center gap-0.5">
         <nav aria-label={t("navigation")} className="flex items-center gap-0.5">
+          {/*
+           * Methodology and About remember the page they are opened from,
+           * for their back link; opened again from themselves, they keep
+           * the page they came from
+           */}
           <TouchLink
             to="/$locale/methodology"
             params={{ locale }}
+            state={{
+              openedFrom: openedFrom(
+                "methodology",
+                here,
+                location.state.openedFrom
+              ),
+            }}
             className={navLink}
           >
             {t("methodology")}
           </TouchLink>
-          {/*
-           * About remembers the page it is opened from, for its back link;
-           * opened again from About, it keeps the page it came from
-           */}
           <TouchLink
             to="/$locale/about"
             params={{ locale }}
             state={{
-              aboutFrom:
-                aboutOriginOf({
-                  pathname: location.pathname,
-                  search: location.search,
-                  index: historyEntry(location.state),
-                }) ?? location.state.aboutFrom,
+              openedFrom: openedFrom("about", here, location.state.openedFrom),
             }}
             className={navLink}
           >

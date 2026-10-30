@@ -72,7 +72,8 @@ const real = {
 const standIn = buildStandIn(
   onlyCapitals(real, standInRealCapitals),
   reference as ReferenceRow[],
-  standInRelease
+  standInRelease,
+  real.sources.capitals
 )
 
 // Written without whitespace, as the pipeline writes its files

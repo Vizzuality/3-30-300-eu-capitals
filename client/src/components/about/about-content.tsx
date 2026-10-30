@@ -1,21 +1,12 @@
-import { useLocation, useRouter } from "@tanstack/react-router"
-import type { MouseEvent, ReactNode } from "react"
-import { useFormatter, useLocale, useTranslations } from "use-intl"
+import type { ReactNode } from "react"
+import { useFormatter, useTranslations } from "use-intl"
 
-import { ChevronLeftIcon } from "@/components/icons"
-import { TouchAnchor, TouchLink } from "@/components/motion/touch-link"
+import { BackLink } from "@/components/layout/back-link"
+import { TouchAnchor } from "@/components/motion/touch-link"
 import { buttonVariants } from "@/components/ui/button"
 import { ExternalLink, externalLinkTag } from "@/components/ui/external-link"
 import { textLinkVariants } from "@/components/ui/text-link"
 import type { Sources } from "@/data/schemas"
-import { useHydrated } from "@/hooks/use-hydrated"
-import {
-  aboutBackTarget,
-  historyEntry,
-  homeOrigin,
-  returnsByHistory,
-  type AboutOrigin,
-} from "@/lib/about-origin"
 import { capitalSlugs } from "@/lib/capitals"
 import { creditsOf, type Credit } from "@/lib/credits"
 import { gridCell, ruleThresholds } from "@/lib/rules"
@@ -31,87 +22,6 @@ import { externalRel, papers, siteLinks } from "@/lib/site-links"
 
 // The European study's cities, as it reports them
 const assessedCities = 862
-
-const backClassName = buttonVariants({
-  variant: "quiet",
-  className: "-ml-1.5 self-start",
-})
-
-/**
- * Back to the page About was opened from (see `aboutBackTarget`), in the
- * language shown; Home when About was opened directly. When that page is
- * the previous entry of the history, it goes back in the history, as the
- * browser's back button does. The server, which cannot know where About was
- * opened from, renders the link to Home; the browser updates it once it has
- * taken the page over. `origin` sets the target instead (the kit page shows
- * each one).
- */
-export function AboutBackLink({ origin }: { origin?: AboutOrigin }) {
-  const t = useTranslations("about")
-  const locale = useLocale()
-  const router = useRouter()
-  const hydrated = useHydrated()
-  const state = useLocation({ select: (location) => location.state })
-  const target =
-    origin ?? (hydrated ? aboutBackTarget(state.aboutFrom) : homeOrigin)
-
-  const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    const plain =
-      event.button === 0 &&
-      !(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey)
-    if (plain && returnsByHistory(target, historyEntry(state))) {
-      event.preventDefault()
-      router.history.back()
-    }
-  }
-
-  const label = (
-    <>
-      <ChevronLeftIcon data-icon="inline-start" />
-      {t("back", { page: target.page })}
-    </>
-  )
-
-  switch (target.page) {
-    case "methodology":
-      return (
-        <TouchLink
-          to="/$locale/methodology"
-          params={{ locale }}
-          onClick={onClick}
-          className={backClassName}
-        >
-          {label}
-        </TouchLink>
-      )
-    case "capital":
-      return (
-        <TouchLink
-          to="/$locale/capitals/$slug"
-          params={{ locale, slug: target.slug }}
-          search={target.search}
-          onClick={onClick}
-          className={backClassName}
-        >
-          {label}
-        </TouchLink>
-      )
-    default:
-      return (
-        <TouchLink
-          to="/$locale"
-          params={{ locale }}
-          search={target.search}
-          // Home is not this page, though its address starts this page's
-          activeOptions={{ exact: true }}
-          onClick={onClick}
-          className={backClassName}
-        >
-          {label}
-        </TouchLink>
-      )
-  }
-}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -248,7 +158,7 @@ export function AboutContent({ sources }: { sources: Sources }) {
   return (
     <>
       <div className="flex flex-col gap-3.5">
-        <AboutBackLink />
+        <BackLink page="about" />
         <div className="flex flex-col gap-2.5">
           <h1 className="font-serif text-title">{t("title")}</h1>
           <p className="text-body">{t("intro", introFigures)}</p>

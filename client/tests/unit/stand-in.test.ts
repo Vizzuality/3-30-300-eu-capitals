@@ -70,7 +70,11 @@ function stockholmRelease() {
       complete: false,
       capitals: only(capitals.capitals),
     },
-    sources: { ...sources, release: "2026-10-stockholm" },
+    sources: {
+      ...sources,
+      release: "2026-10-stockholm",
+      capitals: { stockholm: sources.capitals.stockholm },
+    },
     summaries: [{ ...summary("stockholm"), release: "2026-10-stockholm" }],
     outlines: [{ ...outlineOf("stockholm"), release: "2026-10-stockholm" }],
   }
@@ -228,7 +232,14 @@ const twiceArea = (ring: Array<[number, number]>) =>
     )
 
 describe("the stand-in release", () => {
-  const built = buildStandIn(stockholmRelease(), reference, "stand-in")
+  // The sources of every capital of the real release (2026-10-all), which
+  // the stand-in keeps
+  const built = buildStandIn(
+    stockholmRelease(),
+    reference,
+    "stand-in",
+    sources.capitals
+  )
 
   test("matches the committed one (run `pnpm stand-in` after a change)", () => {
     expect(built.ranking).toEqual(ranking)
@@ -295,7 +306,25 @@ describe("the stand-in release", () => {
       ...real.outlines[0],
       release: "stand-in",
     })
-    expect(built.sources.capitals).toEqual(real.sources.capitals)
+    expect(built.sources.capitals.stockholm).toEqual(
+      real.sources.capitals.stockholm
+    )
+  })
+
+  test("a placeholder keeps its capital's real sources, when they are known", () => {
+    const valletta = built.summaries.find(({ slug }) => slug === "valletta")
+
+    expect(valletta?.placeholder).toBe(true)
+    expect(valletta?.sources).toEqual(sources.capitals.valletta)
+    expect(built.sources.capitals.valletta).toEqual(sources.capitals.valletta)
+    expect(Object.keys(built.sources.capitals)).toHaveLength(27)
+
+    // Unknown, they are those of a real capital, so the files keep their shape
+    const rebuilt = buildStandIn(stockholmRelease(), reference, "stand-in")
+    expect(
+      rebuilt.summaries.find(({ slug }) => slug === "valletta")?.sources
+    ).toEqual(sources.capitals.stockholm)
+    expect(Object.keys(rebuilt.sources.capitals)).toEqual(["stockholm"])
   })
 
   test("every other capital is a placeholder, named in English everywhere", () => {

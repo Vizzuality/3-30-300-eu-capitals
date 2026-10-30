@@ -18,3 +18,6 @@ export const papers = {
   konijnendijk: "https://doi.org/10.1007/s11676-022-01523-z",
   bertassello: "https://doi.org/10.1038/s41467-026-71523-8",
 } as const
+
+/** Where the OpenStreetMap extracts the data is read from are published */
+export const geofabrik = "https://download.geofabrik.de/"

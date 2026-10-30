@@ -6,6 +6,7 @@
     "navigation": "Site",
     "methodology": "Methodology",
     "about": "About",
+    "back": "{page, select, methodology {Back to Methodology} about {Back to About} other {Back to the map}}",
     "languageCode": "EN",
     "language": "Language: English",
     "madeBy": "Made by <link>Vizzuality</link>",
@@ -144,6 +145,8 @@
     },
     "label": "Methodology",
     "title": "How we checked every home",
+    "toc": "On this page",
+    "howToRead": "Each section starts with the idea in plain words; “In detail” gives the data, resolution and processing behind it.",
     "sections": {
       "trees": "3 trees in view",
       "canopy": "30% canopy around",
@@ -152,6 +155,180 @@
       "cityLimits": "City limits",
       "data": "Data",
       "limits": "Limits"
+    },
+    "sectionLabel": "{group, select, rules {The three rules · {n, number} of {count, number}} other {{n, number}}}",
+    "inDetail": "In detail",
+    "trees": {
+      "intro": "Every home should look out on at least three trees. We check it for each facade of every building.",
+      "steps": {
+        "find": "<b>Find the trees.</b> A map of vegetation heights, at a 1 m resolution, shows the tree crowns. We count one tree at the top of each crown at least 3 m tall.",
+        "facades": "<b>Find the facades.</b> Each building outline is split into walls. Walls shared with a neighbouring building are left out.",
+        "look": "<b>Look out.</b> A tree counts for a facade if it is within 30 m and no building stands in the way.",
+        "decide": "<b>Decide.</b> A facade passes if it sees 3 trees or more. A building passes when more than half of its residents live behind facades that pass."
+      },
+      "diagram": {
+        "alt": "A building whose north facade sees three trees; a fourth tree is hidden behind another building.",
+        "home": "Home",
+        "seen": "{count, plural, one {# tree seen} other {# trees seen}}",
+        "hidden": "Hidden by a building",
+        "caption": "The north facade sees three trees and passes. The tree on the right is hidden by another building, so it does not count."
+      },
+      "detail": {
+        "trees": "<b>Tree heights</b> come from the Meta and WRI High Resolution Canopy Height Map (Tolan et al. 2024): the height of vegetation on a 1 m grid, estimated from satellite imagery of {imagery}.",
+        "peaks": "<b>Finding the trees:</b> after light smoothing of the canopy height map, each high point at least 3 m tall, and at least about 3 m from the next one, counts as one tree. A high point over a roof is kept, since the map cannot tell a tree overhanging a roof from one beside it.",
+        "buildings": "<b>Buildings</b> come from Overture Maps. Every building blocks the view, whatever its height, because building heights are not reliably available in every capital. Water does not block the view, so a tree across a canal or a river counts.",
+        "facades": "<b>Facades:</b> each building outline is simplified by 0.5 m, then split into walls wherever it turns by more than 25°. Walls shorter than 3 m, and walls shared with a neighbouring building, are dropped. A round outline is cut into pieces of about 15 m.",
+        "lookingOut": "<b>Looking out:</b> along each facade, a point every 5 m, 1 m outside the wall. A tree counts if it is within 30 m of one of these points and the straight line to it crosses no building. A facade passes with 3 different trees or more.",
+        "residents": "<b>A building's residents</b> are shared between its facades in proportion to their length. The building passes when more than half of them live behind facades that pass. A building with no facade left, such as one surrounded by its neighbours, does not pass.",
+        "grid": "<b>On the 10 m grid</b> of the city overview, the same test is made from the centre of each square, to every tree within 30 m. A square inside a building is not blocked by that building, a rough stand-in for looking out of the window."
+      }
+    },
+    "canopy": {
+      "intro": "Around every home, at least 30% of the land within 500 m should be covered by tree crowns. Water is left out, so homes by the sea or a river are not penalised.",
+      "steps": {
+        "canopy": "<b>Map the canopy.</b> Every patch of ground under a tree crown at least 3 m tall.",
+        "circle": "<b>Draw a circle.</b> 500 m around the home.",
+        "measure": "<b>Measure.</b> The share of the land in the circle that is under tree crowns. The rule is met at 30% or more."
+      },
+      "diagram": {
+        "alt": "A 500 m circle around a home, with tree canopy inside it; the part of the circle on the river is left out.",
+        "radius": "{radius, number, ::unit/meter}",
+        "water": "Water is left out",
+        "canopy": "Tree canopy",
+        "caption": "The share is measured on land only: the river inside the circle counts neither for nor against the home."
+      },
+      "detail": {
+        "canopy": "<b>Canopy</b> is the ground under tree crowns: every 1 m square of the same height map where vegetation is 3 m tall or more. Squares without data are left out.",
+        "squares": "<b>Per square:</b> each 10 m square gets its share of canopy. Its neighbourhood is the land within 500 m of its centre, and it passes when that land has 30% canopy or more.",
+        "water": "<b>Water</b> (the sea, lakes, rivers and canals, from OpenStreetMap) is left out of the neighbourhood. Counting it as “no canopy” would penalise every waterfront home and, through them, coastal and river capitals in the ranking.",
+        "building": "<b>A building</b> uses the land within 500 m of its centre: a point always inside its outline."
+      }
+    },
+    "park": {
+      "intro": "Every home should be a short walk from a park or a wood. We measure the walk along real streets and paths, not as the crow flies.",
+      "steps": {
+        "find": "<b>Find the parks.</b> Public parks, gardens, nature reserves, forests and woods of 1 ha or more.",
+        "walk": "<b>Walk.</b> From the home to the nearest of these green spaces, along streets and paths people can walk on, crossing water only on bridges.",
+        "decide": "<b>Decide.</b> The rule is met when the walk is 300 m or less."
+      },
+      "diagram": {
+        "alt": "A dotted walking route along the streets from a home to a park.",
+        "park": "Park, {area, number, ::unit/hectare} or more",
+        "walk": "{distance, number, ::unit/meter} walk",
+        "home": "Home",
+        "caption": "The walk follows the street network to the first point where a path reaches the park."
+      },
+      "detail": {
+        "greenSpaces": "<b>Green spaces</b> come from OpenStreetMap: parks, gardens, nature reserves, forests and woods, leaving out those marked as not open to the public. Pieces that touch are joined, and green spaces under 1 ha are left out.",
+        "size": "<b>Why 1 ha:</b> the 3-30-300 rule was set out by <rule>Konijnendijk (2023)</rule>, who takes this minimum size from the World Health Organization's guidance, and the European assessment of the rule, <study>Bertassello et al. (2026)</study>, uses it too.",
+        "whyMapped": "<b>Why OpenStreetMap:</b> it holds the parks residents know. Land-cover maps sometimes count a small park as part of the housing around it, and the park is then missing.",
+        "network": "<b>The walking network</b> is every OpenStreetMap street and path people can walk on, cycleways included, except motorways and ways closed to walkers. Water is crossed only on bridges; ferries are not part of it.",
+        "distance": "<b>The distance</b> is the walk along the paths, plus the two short steps that join it to the home and to the green space: from the home to the nearest path (in a straight line, up to 100 m), and from the path into the green space (up to 20 m). Neither step may cross water. A home inside a green space, or a building touching one, has a distance of 0."
+      }
+    },
+    "residents": {
+      "intro": "Every result is a share of a city's residents, not of its area, because the rule is about where people live. A city with large forests but crowded, treeless streets does not score well just because of its forests.",
+      "detail": {
+        "population": "<b>Population</b> comes from GHS-POP, by the European Commission's Joint Research Centre. It gives the number of people in every 100 m square, in {population}.",
+        "placing": "<b>Placing people in buildings:</b> the people of each 100 m square are spread over the 10 m squares that contain buildings, in proportion to the building area in each. A 100 m square with people but no building has its people spread evenly over it. Every building is used, because Overture does not reliably say which buildings are homes.",
+        "shares": "<b>Shares:</b> adding up the residents of the squares that meet each rule, and dividing by all the city's residents, gives the share meeting each rule, all three, and the split between 0, 1, 2 and 3 rules. The ranking is computed this way, on the 10 m squares."
+      }
+    },
+    "cityLimits": {
+      "intro": "A capital is the territory of the city's own elected government, usually the municipality. It is never a wider region that also covers other towns, so the 27 capitals are compared on the same footing.",
+      "detail": {
+        "boundaries": "<b>Boundaries</b> are the OpenStreetMap administrative boundaries of each capital, from the extract of {osm}.",
+        "sea": "<b>The sea</b> is cut out along the coastline; lakes and rivers stay part of the city, and so do farmland, forests and mountains inside its limits.",
+        "margin": "<b>A 1 km margin:</b> everything is computed over the city plus 1 km, so trees, parks and paths just outside the city count for the people living near its edge. Results are reported only for the squares inside the city.",
+        "grid": "<b>The grid:</b> 10 m squares on Europe's standard grid for statistics (ETRS89-LAEA, used by Eurostat and the European Environment Agency). A square belongs to the city when its centre is inside the boundary.",
+        "buildings": "<b>Buildings</b> are scored when a point always inside their outline is in the city; those just outside it are drawn without a result."
+      }
+    },
+    "data": {
+      "intro": "Every capital is computed from the same open data, with the same steps. The table lists each source with the version and date of the data shown on the map.",
+      "caption": "The data sources, with their version, date and licence",
+      "columns": {
+        "data": "Data",
+        "source": "Source",
+        "resolution": "Resolution",
+        "date": "Date",
+        "licence": "Licence"
+      },
+      "rows": {
+        "boundaries": {
+          "data": "City boundaries",
+          "resolution": "Polygons"
+        },
+        "coastline": {
+          "data": "Coastline",
+          "resolution": "Polygons"
+        },
+        "water": {
+          "data": "Lakes, rivers and canals",
+          "resolution": "Polygons"
+        },
+        "trees": {
+          "data": "Trees and canopy",
+          "resolution": "Raster, 1 m"
+        },
+        "buildings": {
+          "data": "Buildings",
+          "resolution": "Polygons"
+        },
+        "greenSpaces": {
+          "data": "Green spaces",
+          "resolution": "Polygons"
+        },
+        "walking": {
+          "data": "Walking network and street names",
+          "resolution": "Lines"
+        },
+        "population": {
+          "data": "Population",
+          "resolution": "Raster, 100 m"
+        },
+        "placeNames": {
+          "data": "Names of the capitals and countries",
+          "resolution": "Text"
+        },
+        "countries": {
+          "data": "Countries, on the Home map",
+          "resolution": "Polygons, 1:50 million"
+        }
+      },
+      "version": "{kind, select, extracts {{count, plural, one {# Geofabrik extract} other {# Geofabrik extracts}}} other {{name}}}",
+      "date": "{imagery, select, yes {Imagery {date}} other {{date}}}",
+      "interval": "{start}–{end}",
+      "extract": "<b>OpenStreetMap is read from a dated extract.</b> Every OpenStreetMap layer comes from extracts published by <link>Geofabrik</link>, a free service that republishes OpenStreetMap's data every day, cut by country and region. The extracts used here are of {date}. Their date is recorded with each release and the files are kept, so a release can be computed again from exactly the same data."
+    },
+    "limits": {
+      "intro": "The results are only as good as the data and the method behind them. Here is what they cannot see, and the choices that shape them.",
+      "data": {
+        "title": "The data",
+        "items": {
+          "dates": "<b>Dates differ between sources,</b> because each source is read in its own edition: the tree heights come from imagery of {imagery}, the population is that of {population}, the buildings come from Overture's release of {buildings} and OpenStreetMap from Geofabrik's extract of {osm}. Trees planted or felled since the imagery, and homes built since {population}, are not reflected.",
+          "fromAbove": "<b>Trees are seen from above.</b> They are found as peaks in a map of tree heights made from satellite imagery. Crowns that merge into one, as in forests and dense groups of trees, hide some of their trees, so trees are undercounted there. Trees under 3 m are not counted, and a peak over a roof is kept.",
+          "model": "<b>The tree height map is itself a model,</b> estimated from imagery, with its own errors.",
+          "season": "<b>The imagery's season varies by capital.</b> Some was taken outside full leaf: {groups, select, whole {in {whole}} part {in part in {part}} other {in {whole}, and in part in {part}}}. This probably lowers the results of the 3 trees and 30% rules there.",
+          "population": "<b>Population is modelled.</b> GHS-POP spreads census figures over 100 m squares, so it can differ from a country's own figures. It is used because it covers all of Europe the same way, so capitals stay comparable.",
+          "homes": "<b>Every building counts as a home.</b> Overture does not reliably say which buildings are homes, so offices, shops, schools and sheds also receive residents, in proportion to their footprint. Where two outlines overlap, the overlap counts for both.",
+          "mapped": "<b>Parks and paths are as mapped.</b> A park, path or bridge missing from OpenStreetMap is missing from the results, and a private park not marked as private is counted. Green spaces under 1 ha do not count, and pedestrian squares mapped as areas are not part of the walking network."
+        },
+        "seasonCapital": "{dated, select, yes {{capital} ({months})} other {{capital}}}"
+      },
+      "method": {
+        "title": "The method",
+        "items": {
+          "streetLevel": "<b>Views are at street level only.</b> Building heights are not used: every building blocks the view, whatever its height, and upper floors that see over a low building are not credited. Water does not block the view.",
+          "oneResult": "<b>One result per square or building.</b> A 10 m square or a building gets one result, though residents on different floors or sides of a building may see different trees. The facades show this for the 3 trees rule.",
+          "walks": "<b>Walks follow mapped paths.</b> Only the short steps from the home to the nearest path (up to 100 m) and from the path into the park are straight lines. A walk never crosses water except on mapped bridges, and never uses ferries.",
+          "edges": "<b>Edges of the city.</b> Every rule looks 1 km beyond the city's limits, so homes near the edge are judged on what is really around them, but only the city's own residents are counted.",
+          "cityLimits": "<b>City limits differ in what they hold.</b> Large municipalities such as Sofia and Rome contain forest and countryside. Amsterdam includes Weesp, merged into it in 2022.",
+          "homeMap": "<b>The Home map is not to scale.</b> Capitals are drawn larger than they are, so that all 27 can be seen, and outlines that would touch are pushed apart; a moved outline has a line back to its real place (Helsinki and Tallinn).",
+          "rounding": "<b>Rounding.</b> Shares are rounded to whole percent. A building's figures are rounded so that they always agree with its result: a building that fails the 30% rule never shows 30%.",
+          "assessment": "<b>Not the same as the European assessment.</b> The method differs from <link>Bertassello et al. (2026)</link> in its city limits (the municipality, not a wider urban area), its resolution (10 m squares and buildings, not 100 m) and its data, so its figures can differ."
+        }
+      }
     }
   },
   "about": {
@@ -159,7 +336,6 @@
       "title": "About this site: the research and open data behind it · 3-30-300",
       "description": "The research behind the 3-30-300 maps of the 27 EU capitals, the open data they use with its licences and credits, and who made the site."
     },
-    "back": "{page, select, methodology {Back to Methodology} other {Back to the map}}",
     "title": "About this site",
     "intro": "This site shows how well each of the {capitals, number} EU capitals follows the 3-30-300 rule for urban greenery: three trees in view from every home, {canopy, number, percent} tree canopy around it and a park within a {distance, number, ::unit/meter} walk. Every capital is measured with the same open data and the same method.",
     "basedOn": {

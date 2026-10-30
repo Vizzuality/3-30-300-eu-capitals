@@ -11,15 +11,15 @@ import type { ReactNode } from "react"
 import { IntlProvider } from "use-intl"
 
 import {
-  AboutBackLink,
   AboutLinks,
   BasedOn,
   DataCredits,
 } from "@/components/about/about-content"
+import { BackLink } from "@/components/layout/back-link"
 import { SiteFooter } from "@/components/layout/site-footer"
 import { sourcesSchema } from "@/data/schemas"
 import { timeZone } from "@/i18n/locales"
-import { homeOrigin } from "@/lib/about-origin"
+import { homeOrigin } from "@/lib/page-origin"
 import sourcesFile from "@fixtures/release/sources.json"
 import { ReducedMotionSwitch } from "./kit-motion"
 import { ThemePair } from "./kit-theme"
@@ -103,15 +103,16 @@ export function AboutKit() {
         >
           <ThemePair>
             <div className={panelWidth}>
-              <AboutBackLink origin={homeOrigin} />
-              <AboutBackLink
+              <BackLink page="about" origin={homeOrigin} />
+              <BackLink
+                page="about"
                 origin={{
                   page: "capital",
                   slug: "stockholm",
                   search: { rule: 3, at: undefined },
                 }}
               />
-              <AboutBackLink origin={{ page: "methodology" }} />
+              <BackLink page="about" origin={{ page: "methodology" }} />
             </div>
           </ThemePair>
         </Cell>

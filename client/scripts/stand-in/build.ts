@@ -384,12 +384,18 @@ function slugOf(name: string) {
 
 /**
  * The stand-in release, named `release`: every capital of `real` as it is,
- * and every other one of the 27 from `reference`, marked as a placeholder
+ * and every other one of the 27 from `reference`, marked as a placeholder.
+ * A placeholder's figures are made up, but its sources are those of the
+ * same capital in the real release (`realSources`, from its `sources.json`)
+ * when it has them, so the dates the site quotes for it (the imagery's
+ * months, on the Methodology page) are real; otherwise those of a real
+ * capital, so its files keep their shape.
  */
 export function buildStandIn(
   real: Release,
   reference: ReferenceRow[],
-  release: string
+  release: string,
+  realSources: Sources["capitals"] = {}
 ) {
   const template = real.summaries[0]
   if (!template) {
@@ -475,8 +481,7 @@ export function buildStandIn(
       // No names are drawn on a placeholder's map
       label_chars: "",
       zooms: { ...template.zooms, context: zooms },
-      // The sources of a real capital, so the file keeps its shape
-      sources: template.sources,
+      sources: realSources[slug] ?? template.sources,
       placeholder: true,
     })
   }
@@ -490,6 +495,9 @@ export function buildStandIn(
   outlines.sort((a, b) => a.slug.localeCompare(b.slug))
 
   const complete = rows.length === capitalSlugs.length
+  // The capitals in the order the pipeline lists them
+  const bySlug = [...capitalSlugs]
+  bySlug.sort()
 
   return {
     ranking: rankingSchema.parse({
@@ -508,6 +516,14 @@ export function buildStandIn(
       ...real.sources,
       release,
       sources: withNaturalEarth(real.sources.sources),
+      // Every capital whose sources are known, as a complete release lists
+      // them
+      capitals: Object.fromEntries(
+        bySlug.flatMap((slug) => {
+          const known = real.sources.capitals[slug] ?? realSources[slug]
+          return known ? [[slug, known]] : []
+        })
+      ),
     }),
     summaries: summaries.map((summary) => summarySchema.parse(summary)),
     outlines: outlines.map((outline) => outlineSchema.parse(outline)),

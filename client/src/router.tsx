@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router"
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query"
 
-import type { AboutOrigin } from "@/lib/about-origin"
+import type { PageOrigin } from "@/lib/page-origin"
 import { routeTree } from "./routeTree.gen"
 
 /*
@@ -63,8 +63,9 @@ declare module "@tanstack/react-router" {
   }
 
   interface HistoryState {
-    // On About's history entry: the page it was opened from, for its back
-    // link. Read back through `aboutBackTarget`, which checks it.
-    aboutFrom?: AboutOrigin
+    // On About's and Methodology's history entries: the page they were
+    // opened from, for their back link. Read back through `backTarget`,
+    // which checks it.
+    openedFrom?: PageOrigin
   }
 }
