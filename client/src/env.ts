@@ -14,6 +14,16 @@ export const env = createEnv({
     // tests (development and test data); a release written by the pipeline
     // can be used instead.
     DATA_RELEASE_DIR: z.string().min(1).default("tests/fixtures/release"),
+
+    // The storage bucket that holds the releases, read instead of
+    // `DATA_RELEASE_DIR` once `DATA_BUCKET` is set: its name for the S3 API,
+    // the API's endpoint, region and credentials, all provided by the
+    // deployment (`bucketConfig` checks they come together)
+    DATA_BUCKET: z.string().min(1).optional(),
+    DATA_BUCKET_ENDPOINT: z.url().optional(),
+    DATA_BUCKET_REGION: z.string().min(1).default("auto"),
+    DATA_BUCKET_ACCESS_KEY_ID: z.string().min(1).optional(),
+    DATA_BUCKET_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   },
 
   /*

@@ -7,9 +7,12 @@ import {
   type JsonEncoding,
   type ReleaseFile,
 } from "./api"
+import { bucketConfig } from "./bucket-config"
+import { bucketReleaseFiles } from "./bucket-release-files.server"
 import { compress } from "./compress.server"
 import { localReleaseFiles } from "./local-release-files.server"
 import type { ReleaseFiles } from "./release-files"
+import { s3BucketObjects } from "./s3-bucket-objects.server"
 import { releaseFileSchemas, type ReleaseFileData } from "./schemas"
 
 /** A file of the release, validated, with the body and tag the API sends */
@@ -23,12 +26,15 @@ export type ReleaseEntry<Kind extends ReleaseFile["kind"]> = {
 }
 
 /**
- * The files of the release in use, its JSON files and its tile archives; the
- * bucket's reader takes this place once the site is deployed
+ * The files of the release in use, its JSON files and its tile archives: in
+ * the storage bucket once one is set (the deployed site), otherwise in the
+ * release folder (development and tests)
  */
-export const releaseFiles: ReleaseFiles = localReleaseFiles(
-  env.DATA_RELEASE_DIR
-)
+const bucket = bucketConfig(env)
+
+export const releaseFiles: ReleaseFiles = bucket
+  ? bucketReleaseFiles(s3BucketObjects(bucket), env.VITE_DATA_RELEASE)
+  : localReleaseFiles(env.DATA_RELEASE_DIR)
 
 /*
  * In production, each file is read once per process and kept in memory. Only
