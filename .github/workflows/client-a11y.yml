@@ -2,6 +2,7 @@ name: "Client: accessibility tests"
 
 on:
   push:
+    branches: [main]
     paths:
       - client/**
       - .github/actions/setup-client/**

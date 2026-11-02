@@ -2,6 +2,7 @@ name: "Client: lint, type check and build"
 
 on:
   push:
+    branches: [main]
     paths:
       - client/**
       - .github/actions/setup-client/**

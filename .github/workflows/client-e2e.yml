@@ -2,6 +2,7 @@ name: "Client: end-to-end tests"
 
 on:
   push:
+    branches: [main]
     paths:
       - client/**
       - .github/actions/setup-client/**
