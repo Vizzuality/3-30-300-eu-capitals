@@ -542,38 +542,56 @@ test("the facades are gone through again after a control of the panel, or the ma
 })
 
 /**
- * A place of the map on a building and on none of its facades: the
- * pointer goes over the map around the facades until the map says so
+ * A place of the map on a building and on none of its facades. The map
+ * gives where the selected building's facades are on screen (each facade's
+ * middle, on the building's outline); the places between them, inside the
+ * building, are tried farthest from any facade first, until the map says the
+ * pointer is over the building and over none of its facades.
  */
 async function buildingPlace(page: Page, building: string) {
   const facades = await facadesOf(page)
-  const xs = facades.map(({ x }) => x)
-  const ys = facades.map(({ y }) => y)
-  const [left, right] = [Math.min(...xs), Math.max(...xs)]
-  const [top, bottom] = [Math.min(...ys), Math.max(...ys)]
+  if (facades.length < 2) {
+    throw new Error(`Building ${building} shows fewer than 2 facades`)
+  }
+  const middle = {
+    x: facades.reduce((sum, { x }) => sum + x, 0) / facades.length,
+    y: facades.reduce((sum, { y }) => sum + y, 0) / facades.length,
+  }
+  const between = facades.flatMap((a, index) =>
+    facades
+      .slice(index + 1)
+      .map((b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }))
+  )
+  const awayFromFacades = ({ x, y }: { x: number; y: number }) =>
+    Math.min(...facades.map((facade) => Math.hypot(facade.x - x, facade.y - y)))
+  const places = [middle, ...between].map(({ x, y }) => ({
+    x: Math.round(x),
+    y: Math.round(y),
+  }))
+  places.sort((a, b) => awayFromFacades(b) - awayFromFacades(a))
+
   const map = await mapOf(page).boundingBox()
   if (!map) {
     throw new Error("The map has no box")
   }
-  for (let y = top - 20; y <= bottom + 20; y += 5) {
-    for (let x = left - 20; x <= right + 20; x += 5) {
-      await page.mouse.move(map.x + x, map.y + y)
-      const over = await page.evaluate(
-        () =>
-          new Promise<string>((done) =>
-            requestAnimationFrame(() => {
-              const deck = document.querySelector<HTMLElement>(
-                "[data-deck-instance]"
-              )
-              done(
-                `${deck?.dataset.hoveredBuilding}|${deck?.dataset.hoveredFacade}`
-              )
-            })
-          )
-      )
-      if (over === `${building}|`) {
-        return { x, y }
-      }
+  for (const place of places.slice(0, 12)) {
+    await page.mouse.move(map.x + place.x, map.y + place.y)
+    // What the map picks under the pointer, as of the next frame it draws
+    const over = await page.evaluate(
+      () =>
+        new Promise<string>((done) =>
+          requestAnimationFrame(() => {
+            const deck = document.querySelector<HTMLElement>(
+              "[data-deck-instance]"
+            )
+            done(
+              `${deck?.dataset.hoveredBuilding}|${deck?.dataset.hoveredFacade}`
+            )
+          })
+        )
+    )
+    if (over === `${building}|`) {
+      return place
     }
   }
   throw new Error(`No place on building ${building} away from its facades`)

@@ -296,17 +296,11 @@ test(
 
 test("under reduced motion the guide is still", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.clock.install()
   await page.goto("/en")
   await hydrated(page)
 
-  // Over more than a whole cycle: no tap, no ring
-  const scales = new Set<number>()
-  for (let index = 0; index < 40; index++) {
-    scales.add(await pointerScale(page))
-    await page.waitForTimeout(100)
-  }
-  expect([...scales]).toEqual([1])
-  await expect(
-    page.locator(`${shownGuide} span[aria-hidden] > span.absolute`)
-  ).toHaveCount(0)
+  // Over more than a whole cycle of the page's clock (the first tap would
+  // come after 0.8 s, then every 3 s): no tap, no ring
+  await expectStill(page, 4_000)
 })

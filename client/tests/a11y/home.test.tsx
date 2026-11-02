@@ -48,6 +48,9 @@ async function search(text: string) {
   await userEvent.keyboard(text)
 }
 
+/** Whether an element is in a live region, a copy read to screen readers */
+const inLiveRegion = (element: Element) => !!element.closest("[aria-live]")
+
 describe("Home", () => {
   test("first view, with the ranking", async () => {
     await renderPage("/en")
@@ -109,9 +112,21 @@ describe("Home", () => {
     await renderPage("/en")
 
     await search("qx")
+    const noMatch = "No capital or country matches “qx”"
+    // The message under the search field, and its visually hidden copy in
+    // the live region, which screen readers get once typing has paused
+    const copies = () => page.getByText(noMatch).elements()
     await expect
-      .element(page.getByText("No capital or country matches “qx”"))
+      .poll(() => copies().some((element) => !inLiveRegion(element)))
+      .toBe(true)
+    await expect
+      .element(
+        page.elementLocator(
+          copies().find((element) => !inLiveRegion(element)) as Element
+        )
+      )
       .toBeVisible()
+    await expect.poll(() => copies().some(inLiveRegion)).toBe(true)
 
     await expect(document.body).toHaveNoA11yViolations()
   })

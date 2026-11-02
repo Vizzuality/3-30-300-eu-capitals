@@ -35,9 +35,11 @@ function risesStarted(rises: Array<number>) {
 }
 
 /**
- * Rests the pointer at a point for 1.6 s, trembling a quarter of a pixel
- * along the edge it is near (`along`), as a hand does, so the browser keeps
- * checking what is under it. The control may rise once, never again. Returns
+ * Rests the pointer at a point for 1.6 s of the page's clock, trembling a
+ * quarter of a pixel along the edge it is near (`along`), as a hand does, so
+ * the browser keeps checking what is under it. The clock moves on 40 ms
+ * between two trembles, running the control's animation that far, however
+ * slowly the machine draws. The control may rise once, never again. Returns
  * its last rise.
  */
 async function restPointer(
@@ -54,7 +56,7 @@ async function restPointer(
       along === "y" ? y + tremble : y
     )
     rises.push(await rise(control))
-    await page.waitForTimeout(40)
+    await page.clock.runFor(40)
   }
   expect(
     risesStarted(rises),
@@ -69,9 +71,11 @@ test(
   async ({ page, isMobile }) => {
     // Fingers do not hover
     test.skip(isMobile, "Hover needs a mouse")
-    // Sixteen points, each watched for over a second, while other tests draw
-    // their maps alongside
+    // Sixteen points, each with forty trembles of the pointer: about 26 s on
+    // a laptop with other tests alongside, more on a slower runner
     test.setTimeout(90_000)
+    // The page's clock, so the pointer's rests are measured in its time
+    await page.clock.install()
     await page.goto("/en")
     await hydrated(page)
 
@@ -87,13 +91,15 @@ test(
       const [left, top] = [box.x, box.y]
       const [right, bottom] = [box.x + box.width, box.y + box.height]
       const [middleX, middleY] = [left + box.width / 2, top + box.height / 2]
+      // The pointer moved away, or onto the link, until the link has
+      // settled down or up
       const away = async () => {
         await page.mouse.move(5, 795)
-        await page.waitForTimeout(600)
+        await expect.poll(() => rise(control)).toBeCloseTo(0, 2)
       }
       const onIt = async () => {
         await page.mouse.move(middleX, middleY)
-        await page.waitForTimeout(600)
+        await expect.poll(() => rise(control)).toBeCloseTo(2, 2)
       }
 
       // 1 px inside each edge, coming from elsewhere: it rises and stays up
