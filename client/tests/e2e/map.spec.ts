@@ -39,9 +39,7 @@ const deckOf = (page: Page) => page.locator("[data-deck-instance]")
  */
 async function mapDrawn(page: Page) {
   const deck = deckOf(page)
-  await expect(deck).toHaveAttribute("data-drawing", "true", {
-    timeout: 15_000,
-  })
+  await expect(deck).toHaveAttribute("data-drawing", "true")
   await expect(deck).toHaveAttribute("data-frames", /^[1-9]/)
   return (await deck.getAttribute("data-deck-instance")) as string
 }
@@ -422,7 +420,7 @@ test.describe("on a touch screen", () => {
     const now = (await map.boundingBox()) as typeof box
     const y = now.y + now.height / 2
     const hint = page.getByText("Use two fingers to move the map")
-    const hintShown = expect(hint).toBeVisible({ timeout: 10_000 })
+    const hintShown = expect(hint).toBeVisible()
     await touchDrag(page, [{ x: now.x + now.width / 2, y }], {
       x: -120,
       y: 0,

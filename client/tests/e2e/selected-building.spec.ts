@@ -34,9 +34,7 @@ function areaIn(page: Page): VisibleArea {
 
 /** Waits for the street's tiles in view to be loaded */
 async function streetDrawn(page: Page) {
-  await expect(deckOf(page)).toHaveAttribute("data-drawing", "true", {
-    timeout: 15_000,
-  })
+  await expect(deckOf(page)).toHaveAttribute("data-drawing", "true")
   await expect(deckOf(page)).toHaveAttribute("data-street-tiles", /^[1-9]/)
 }
 
@@ -201,16 +199,12 @@ test("each rule's evidence fills the view: the 500 m circle, the walk", async ({
   await page.getByRole("radio", { name: "30 % canopy not met" }).click()
   await expectShown(page, "31947", "30")
   // The camera glides out until the 1 km wide circle fits
-  await expect
-    .poll(() => groundWidth(areaIn(page)), { timeout: 10_000 })
-    .toBeGreaterThan(1000)
+  await expect.poll(() => groundWidth(areaIn(page))).toBeGreaterThan(1000)
 
   await page.getByRole("radio", { name: "300 m to a park not met" }).click()
   await expectShown(page, "31947", "300")
   // Then in again, to the walk to Vita bergen (361 m)
-  await expect
-    .poll(() => groundWidth(areaIn(page)), { timeout: 10_000 })
-    .toBeLessThan(1000)
+  await expect.poll(() => groundWidth(areaIn(page))).toBeLessThan(1000)
   await expect(page.getByText("361 m walk to Vita bergen")).toBeVisible()
   // The park's name, at the end of the walk
   await expect(page.locator("[data-park-label]")).toHaveText("Vita bergen")

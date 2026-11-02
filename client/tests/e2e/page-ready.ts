@@ -12,11 +12,10 @@ export async function hydrated(page: Page) {
     /.+/
   )
   // WebGL on Chrome's software renderer can take a few seconds to set up
-  // while other tests run alongside
+  // (the shared expect timeout allows for it)
   await expect(page.locator("[data-deck-instance]")).toHaveAttribute(
     "data-drawing",
-    /^(true|false)$/,
-    { timeout: 15_000 }
+    /^(true|false)$/
   )
 }
 
@@ -33,15 +32,9 @@ export async function selectionDrawn(
   rule = new URL(page.url()).searchParams.get("rule") ?? "3"
 ) {
   const deck = page.locator("[data-deck-instance]")
-  await expect(deck).toHaveAttribute("data-selected-building", building, {
-    timeout: 15_000,
-  })
-  await expect(deck).toHaveAttribute("data-selection-rule", rule, {
-    timeout: 15_000,
-  })
-  await expect(deck).toHaveAttribute("data-selection-settled", "true", {
-    timeout: 15_000,
-  })
+  await expect(deck).toHaveAttribute("data-selected-building", building)
+  await expect(deck).toHaveAttribute("data-selection-rule", rule)
+  await expect(deck).toHaveAttribute("data-selection-settled", "true")
 }
 
 /*
@@ -58,8 +51,7 @@ export async function selectionDrawn(
 export async function selectionLeft(page: Page) {
   await expect(page.locator("[data-deck-instance]")).toHaveAttribute(
     "data-selected-building",
-    "",
-    { timeout: 15_000 }
+    ""
   )
 }
 
@@ -68,12 +60,9 @@ export async function selectionLeft(page: Page) {
  * transition there has ended
  */
 export async function homeArrived(page: Page) {
-  await expect(page.locator("[data-map]")).toHaveAttribute("data-map", "home", {
-    timeout: 15_000,
-  })
+  await expect(page.locator("[data-map]")).toHaveAttribute("data-map", "home")
   await expect(page.locator("[data-deck-instance]")).toHaveAttribute(
     "data-transition",
-    "",
-    { timeout: 15_000 }
+    ""
   )
 }

@@ -34,6 +34,10 @@ export default defineConfig({
   // In CI, the runners share out single tests rather than whole files, so
   // each gets about as much to do
   fullyParallel: !!process.env.CI,
+  // Every assertion and poll waits as long by default: the map's states on
+  // Chrome's software renderer (WebGL set up, a street's first frames)
+  // take seconds on a slow runner
+  expect: { timeout: 10_000 },
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,

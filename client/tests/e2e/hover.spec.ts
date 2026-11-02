@@ -71,9 +71,9 @@ test(
   async ({ page, isMobile }) => {
     // Fingers do not hover
     test.skip(isMobile, "Hover needs a mouse")
-    // Sixteen points, each with forty trembles of the pointer: about 26 s on
-    // a laptop with other tests alongside, more on a slower runner
-    test.setTimeout(90_000)
+    // Sixteen points, each with forty trembles of the pointer: about 25 s on
+    // a CI runner
+    test.setTimeout(40_000)
     // The page's clock, so the pointer's rests are measured in its time
     await page.clock.install()
     await page.goto("/en")

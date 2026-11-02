@@ -127,9 +127,7 @@ test(
       )
     // Meanwhile the map flies to the capital, drawn by Chrome's software
     // renderer, which slows the page while other tests run alongside
-    await expect
-      .poll(async () => (await copyFade()).done, { timeout: 15_000 })
-      .toBe(true)
+    await expect.poll(async () => (await copyFade()).done).toBe(true)
     const { frames } = await copyFade()
     expect(frames.length).toBeGreaterThan(0)
     for (const y of frames) {

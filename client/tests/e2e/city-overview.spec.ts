@@ -25,9 +25,7 @@ const pulseTag = (page: Page) => page.locator("[data-pulse-tag]")
 /** Waits for the map to be drawn */
 async function mapDrawn(page: Page) {
   const deck = page.locator("[data-deck-instance]")
-  await expect(deck).toHaveAttribute("data-drawing", "true", {
-    timeout: 15_000,
-  })
+  await expect(deck).toHaveAttribute("data-drawing", "true")
   await expect(deck).toHaveAttribute("data-frames", /^[1-9]/)
 }
 

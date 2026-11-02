@@ -24,9 +24,7 @@ const streetPulse = (page: Page) => page.locator('[data-pulse-tag="street"]')
 
 /** Waits for the map to be drawn */
 async function mapDrawn(page: Page) {
-  await expect(deckOf(page)).toHaveAttribute("data-drawing", "true", {
-    timeout: 15_000,
-  })
+  await expect(deckOf(page)).toHaveAttribute("data-drawing", "true")
   await expect(deckOf(page)).toHaveAttribute("data-frames", /^[1-9]/)
 }
 
