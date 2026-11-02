@@ -20,3 +20,4 @@ __screenshots__
 .vitest
 test-results
 playwright-report
+playwright-timings

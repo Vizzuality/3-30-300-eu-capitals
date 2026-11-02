@@ -23,7 +23,7 @@ permissions:
 jobs:
   a11y:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 6
     defaults:
       run:
         working-directory: client

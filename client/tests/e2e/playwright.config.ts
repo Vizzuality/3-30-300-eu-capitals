@@ -34,11 +34,22 @@ export default defineConfig({
   // In CI, the runners share out single tests rather than whole files, so
   // each gets about as much to do
   fullyParallel: !!process.env.CI,
+  // In CI, a run gives up after 8 minutes (each takes about 5), before its
+  // job's own limit, so its report and durations are still written
+  globalTimeout: process.env.CI ? 8 * 60_000 : undefined,
   // Every assertion and poll waits as long by default: the map's states on
   // Chrome's software renderer (WebGL set up, a street's first frames)
   // take seconds on a slow runner
   expect: { timeout: 10_000 },
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
+  // In CI, each test's duration is also kept in a JSON file, from every
+  // run, so the timeouts and the split across runners follow real numbers
+  reporter: process.env.CI
+    ? [
+        ["github"],
+        ["html", { open: "never" }],
+        ["json", { outputFile: "../../playwright-timings/results.json" }],
+      ]
+    : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
     // Without the timeline's screenshots, which take processor time from
