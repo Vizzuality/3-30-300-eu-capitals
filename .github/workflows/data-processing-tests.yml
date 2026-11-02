@@ -22,7 +22,7 @@ jobs:
   lint:
     name: Ruff
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: data-processing
@@ -39,7 +39,7 @@ jobs:
   test:
     name: Pytest
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: data-processing
